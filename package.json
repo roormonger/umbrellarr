@@ -1,0 +1,13 @@
+{
+  "name": "umbrellarr",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "predev": "pnpm --filter @umbrellarr/shared build",
+    "dev": "pnpm -r --parallel --filter @umbrellarr/web --filter @umbrellarr/server run dev",
+    "dev:web": "pnpm --filter @umbrellarr/web dev",
+    "dev:server": "pnpm --filter @umbrellarr/server dev",
+    "build": "pnpm --filter @umbrellarr/shared build && pnpm --filter @umbrellarr/web build && pnpm --filter @umbrellarr/server build",
+    "typecheck": "pnpm -r run typecheck"
+  }
+}

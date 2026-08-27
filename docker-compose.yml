@@ -1,0 +1,15 @@
+services:
+  umbrellarr:
+    build: .
+    ports:
+      - "3080:3000"
+    environment:
+      APP_PASSWORD: ${APP_PASSWORD:-changeme}
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET:-replace-with-a-long-random-string}
+      RADARR_URL: ${RADARR_URL:-http://host.docker.internal:7878}
+      RADARR_API_KEY: ${RADARR_API_KEY:-}
+      SONARR_URL: ${SONARR_URL:-http://host.docker.internal:8989}
+      SONARR_API_KEY: ${SONARR_API_KEY:-}
+      NODE_ENV: production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

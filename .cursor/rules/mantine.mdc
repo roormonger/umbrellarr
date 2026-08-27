@@ -1,0 +1,22 @@
+---
+description: Use Mantine LLM docs before writing or changing UI components
+globs: apps/web/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Mantine UI
+
+Umbrellarr uses **Mantine** (not shadcn, not Tailwind). Icons are **Phosphor only** (`@phosphor-icons/react`).
+
+## Before writing UI
+
+1. Check the LLM index: https://mantine.dev/llms.txt
+2. Fetch the matching page (e.g. https://mantine.dev/llms/core-app-shell.md, https://mantine.dev/llms/core-nav-link.md) instead of guessing props.
+3. Do not vendor or paste the full `llms-full.txt` into the repo.
+
+## Conventions
+
+- Wrap the app in `MantineProvider` with `defaultColorScheme="dark"`. Color scheme toggle uses `useMantineColorScheme`.
+- Layout chrome is `AppShell` with nested `NavLink`s in the navbar and stats in the header.
+- Import Phosphor icons from per-file CSR paths: `@phosphor-icons/react/dist/csr/IconName`.
+- Prefer Mantine components (`SimpleGrid`, `Card`, `Modal`, `Table`, `Skeleton`, `Alert`) over custom markup.
