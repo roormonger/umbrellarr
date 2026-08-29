@@ -1,13 +1,16 @@
-import { Anchor, Badge, Group, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { Badge, Group, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SeriesPageDetail } from "@umbrellarr/shared";
-import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { getSeriesLinks, getSeriesTrailer, updateSeries } from "@/api/shows";
+import {
+  MediaDetailHero,
+  MetaRow,
+  type MediaDetailRating,
+} from "@/components/media/detail/MediaDetailHero";
+import mediaClasses from "@/components/media/detail/MediaDetailHero.module.css";
 import { formatFreeSpace } from "@/lib/moviePath";
-import classes from "./ShowDetailHero.module.css";
 
 const availabilityLabel: Record<SeriesPageDetail["availability"], string> = {
   downloaded: "Downloaded",
@@ -29,23 +32,6 @@ function formatRating(value: number, percent: boolean): string {
   return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
 }
 
-function MetaRow({
-  label,
-  children,
-  wide,
-}: {
-  label: string;
-  children: ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div className={wide ? classes.metaRowWide : classes.metaRow}>
-      <dt className={classes.metaLabel}>{label}</dt>
-      <dd className={classes.metaValue}>{children}</dd>
-    </div>
-  );
-}
-
 export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
   const queryClient = useQueryClient();
   const runtime = formatRuntime(series.runtime);
@@ -65,7 +51,6 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
     staleTime: 60_000,
   });
 
-  // Sonarr rarely stores trailers; resolve from linked TMDb/IMDb/TV Maze pages.
   const trailerQuery = useQuery({
     queryKey: ["series-trailer", series.instanceId, series.externalId],
     queryFn: () => getSeriesTrailer(series.instanceId, series.externalId),
@@ -73,7 +58,6 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
   });
 
   const trailerId = series.youTubeTrailerId ?? trailerQuery.data?.youTubeTrailerId;
-  const hasTrailer = Boolean(trailerId);
 
   const monitorMutation = useMutation({
     mutationFn: () =>
@@ -114,14 +98,22 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
     },
   });
 
+  const seasonsPart =
+    series.seasonCount != null
+      ? `${series.seasonCount} ${series.seasonCount === 1 ? "season" : "seasons"}`
+      : undefined;
+  const episodesPart = episodeProgress ? `${episodeProgress} episodes` : undefined;
+
   const sublineParts = [
     series.certification,
     series.year != null ? String(series.year) : undefined,
     runtime,
-  ].filter(Boolean);
+    seasonsPart,
+    episodesPart,
+  ].filter((part): part is string => Boolean(part));
 
-  const ratingParts = useMemo(() => {
-    const parts: Array<{ label: string; value: string }> = [];
+  const ratingParts = useMemo((): MediaDetailRating[] => {
+    const parts: MediaDetailRating[] = [];
     if (series.tmdbRating != null) {
       parts.push({ label: "TMDb", value: formatRating(series.tmdbRating, false) });
     }
@@ -139,110 +131,32 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
     [linksQuery.data?.links],
   );
 
-  const monitoredLabel = series.monitored ? "Monitored" : "Unmonitored";
-
   return (
-    <section className={classes.hero}>
-      <div className={classes.top}>
-        <div className={classes.posterWrap}>
-          <div className={classes.poster}>
-            {series.posterUrl ? (
-              <img src={series.posterUrl} alt="" />
-            ) : (
-              <div className={classes.posterFallback} />
-            )}
-          </div>
-        </div>
-
-        <div className={`${classes.panel} ${classes.synopsisPanel}`}>
-          <div className={classes.titleRow}>
-            <Tooltip label={`${monitoredLabel} — click to toggle`} withArrow position="top">
-              <UnstyledButton
-                className={classes.monitorToggle}
-                data-monitored={series.monitored || undefined}
-                data-pending={monitorMutation.isPending || undefined}
-                aria-label={`${monitoredLabel}. Click to ${series.monitored ? "unmonitor" : "monitor"}`}
-                aria-pressed={series.monitored}
-                disabled={monitorMutation.isPending}
-                onClick={() => monitorMutation.mutate()}
-              >
-                <BookmarkSimpleIcon
-                  weight={series.monitored ? "fill" : "regular"}
-                  size="1em"
-                />
-              </UnstyledButton>
-            </Tooltip>
-            <h1 className={classes.title}>{series.title}</h1>
-          </div>
-
-          {(sublineParts.length > 0 || ratingParts.length > 0) && (
-            <div className={classes.subline}>
-              {sublineParts.map((part, index) => (
-                <Text span key={`meta-${index}`} className={classes.sublineMeta}>
-                  {part}
-                </Text>
-              ))}
-              {ratingParts.map((part) => (
-                <Text span key={part.label} className={classes.sublineRating}>
-                  <span className={classes.ratingLabel}>{part.label}</span>{" "}
-                  <span className={classes.ratingValue}>{part.value}</span>
-                </Text>
-              ))}
-            </div>
-          )}
-
-          {series.overview ? (
-            <p className={classes.overview}>{series.overview}</p>
-          ) : (
-            <Text c="dimmed" size="sm" className={classes.overview}>
-              No synopsis available.
-            </Text>
-          )}
-        </div>
-
-        <div className={`${classes.panel} ${classes.linksPanel}`}>
-          <Text className={classes.sideHeading}>Links</Text>
-          {linksQuery.isLoading && (
-            <Text size="sm" c="dimmed">
-              Loading…
-            </Text>
-          )}
-          {linksQuery.error && (
-            <Text size="sm" c="red">
-              {linksQuery.error instanceof Error
-                ? linksQuery.error.message
-                : "Failed to load links"}
-            </Text>
-          )}
-          {links.length > 0 && (
-            <div className={classes.linksList}>
-              {links.map((link) => (
-                <Anchor
-                  key={link.id}
-                  href={link.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={classes.linkCell}
-                  title={link.url}
-                >
-                  <span className={classes.linkLabel}>{link.label}</span>
-                  <span className={classes.linkSep}> - </span>
-                  <span className={classes.linkAction}>(link)</span>
-                </Anchor>
-              ))}
-            </div>
-          )}
-          {!linksQuery.isLoading && !linksQuery.error && links.length === 0 && (
-            <Text size="sm" c="dimmed">
-              —
-            </Text>
-          )}
-        </div>
-
-        <dl className={`${classes.panel} ${classes.metaPanel}`}>
+    <MediaDetailHero
+      title={series.title}
+      posterUrl={series.posterUrl}
+      overview={series.overview}
+      sublineParts={sublineParts}
+      ratingParts={ratingParts}
+      links={links}
+      linksLoading={linksQuery.isLoading}
+      linksError={
+        linksQuery.error
+          ? linksQuery.error instanceof Error
+            ? linksQuery.error.message
+            : "Failed to load links"
+          : undefined
+      }
+      monitored={series.monitored}
+      monitorPending={monitorMutation.isPending}
+      onToggleMonitor={() => monitorMutation.mutate()}
+      youTubeTrailerId={trailerId}
+      trailerLoading={trailerQuery.isFetching && !trailerId}
+      meta={
+        <>
           {series.path && (
             <MetaRow label="Path" wide>
-              <Text size="sm" className={classes.path}>
+              <Text size="sm" className={mediaClasses.path}>
                 {series.path}
               </Text>
             </MetaRow>
@@ -250,10 +164,6 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
           <MetaRow label="Status">{availabilityLabel[series.availability]}</MetaRow>
           {series.qualityProfileName && (
             <MetaRow label="Quality">{series.qualityProfileName}</MetaRow>
-          )}
-          {episodeProgress && <MetaRow label="Episodes">{episodeProgress}</MetaRow>}
-          {series.seasonCount != null && (
-            <MetaRow label="Seasons">{String(series.seasonCount)}</MetaRow>
           )}
           {size && <MetaRow label="Size">{size}</MetaRow>}
           {series.network && <MetaRow label="Network">{series.network}</MetaRow>}
@@ -278,29 +188,8 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
               </Group>
             </MetaRow>
           )}
-        </dl>
-
-        <div className={`${classes.panel} ${classes.trailerPanel}`}>
-          {hasTrailer && trailerId ? (
-            <div className={classes.trailer}>
-              <iframe
-                title={`${series.title} trailer`}
-                src={`https://www.youtube-nocookie.com/embed/${trailerId}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            </div>
-          ) : (
-            <div className={classes.trailerEmpty}>
-              <Text size="sm" c="dimmed">
-                {trailerQuery.isFetching ? "Looking for trailer…" : "No trailer available"}
-              </Text>
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
+        </>
+      }
+    />
   );
 }

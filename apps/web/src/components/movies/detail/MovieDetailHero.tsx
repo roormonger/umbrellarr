@@ -1,13 +1,16 @@
-import { Anchor, Badge, Group, Text, Tooltip, UnstyledButton } from "@mantine/core";
+import { Badge, Group, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { MoviePageDetail } from "@umbrellarr/shared";
-import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { getMovieLinks, updateMovie } from "@/api/movies";
+import {
+  MediaDetailHero,
+  MetaRow,
+  type MediaDetailRating,
+} from "@/components/media/detail/MediaDetailHero";
+import mediaClasses from "@/components/media/detail/MediaDetailHero.module.css";
 import { formatFreeSpace } from "@/lib/moviePath";
-import classes from "./MovieDetailHero.module.css";
 
 const availabilityLabel: Record<MoviePageDetail["availability"], string> = {
   downloaded: "Downloaded",
@@ -29,23 +32,6 @@ function formatRating(value: number, percent: boolean): string {
   return value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
 }
 
-function MetaRow({
-  label,
-  children,
-  wide,
-}: {
-  label: string;
-  children: ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div className={wide ? classes.metaRowWide : classes.metaRow}>
-      <dt className={classes.metaLabel}>{label}</dt>
-      <dd className={classes.metaValue}>{children}</dd>
-    </div>
-  );
-}
-
 export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
   const queryClient = useQueryClient();
   const runtime = formatRuntime(movie.runtime);
@@ -53,7 +39,6 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
     movie.sizeOnDisk != null && movie.sizeOnDisk > 0
       ? formatFreeSpace(movie.sizeOnDisk)
       : undefined;
-  const hasTrailer = Boolean(movie.youTubeTrailerId);
   const movieQueryKey = ["movie", movie.instanceId, movie.externalId] as const;
 
   const linksQuery = useQuery({
@@ -103,10 +88,10 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
     movie.certification,
     movie.year != null ? String(movie.year) : undefined,
     runtime,
-  ].filter(Boolean);
+  ].filter((part): part is string => Boolean(part));
 
-  const ratingParts = useMemo(() => {
-    const parts: Array<{ label: string; value: string }> = [];
+  const ratingParts = useMemo((): MediaDetailRating[] => {
+    const parts: MediaDetailRating[] = [];
     if (movie.tmdbRating != null) {
       parts.push({ label: "TMDb", value: formatRating(movie.tmdbRating, false) });
     }
@@ -127,110 +112,31 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
     [linksQuery.data?.links],
   );
 
-  const monitoredLabel = movie.monitored ? "Monitored" : "Unmonitored";
-
   return (
-    <section className={classes.hero}>
-      <div className={hasTrailer ? classes.top : classes.topNoTrailer}>
-        <div className={classes.posterWrap}>
-          <div className={classes.poster}>
-            {movie.posterUrl ? (
-              <img src={movie.posterUrl} alt="" />
-            ) : (
-              <div className={classes.posterFallback} />
-            )}
-          </div>
-        </div>
-
-        <div className={`${classes.panel} ${classes.synopsisPanel}`}>
-          <div className={classes.titleRow}>
-            <Tooltip label={`${monitoredLabel} — click to toggle`} withArrow position="top">
-              <UnstyledButton
-                className={classes.monitorToggle}
-                data-monitored={movie.monitored || undefined}
-                data-pending={monitorMutation.isPending || undefined}
-                aria-label={`${monitoredLabel}. Click to ${movie.monitored ? "unmonitor" : "monitor"}`}
-                aria-pressed={movie.monitored}
-                disabled={monitorMutation.isPending}
-                onClick={() => monitorMutation.mutate()}
-              >
-                <BookmarkSimpleIcon
-                  weight={movie.monitored ? "fill" : "regular"}
-                  size="1em"
-                />
-              </UnstyledButton>
-            </Tooltip>
-            <h1 className={classes.title}>{movie.title}</h1>
-          </div>
-
-          {(sublineParts.length > 0 || ratingParts.length > 0) && (
-            <div className={classes.subline}>
-              {sublineParts.map((part, index) => (
-                <Text span key={`meta-${index}`} className={classes.sublineMeta}>
-                  {part}
-                </Text>
-              ))}
-              {ratingParts.map((part) => (
-                <Text span key={part.label} className={classes.sublineRating}>
-                  <span className={classes.ratingLabel}>{part.label}</span>{" "}
-                  <span className={classes.ratingValue}>{part.value}</span>
-                </Text>
-              ))}
-            </div>
-          )}
-
-          {movie.overview ? (
-            <p className={classes.overview}>{movie.overview}</p>
-          ) : (
-            <Text c="dimmed" size="sm" className={classes.overview}>
-              No synopsis available.
-            </Text>
-          )}
-        </div>
-
-        <div className={`${classes.panel} ${classes.linksPanel}`}>
-          <Text className={classes.sideHeading}>Links</Text>
-          {linksQuery.isLoading && (
-            <Text size="sm" c="dimmed">
-              Loading…
-            </Text>
-          )}
-          {linksQuery.error && (
-            <Text size="sm" c="red">
-              {linksQuery.error instanceof Error
-                ? linksQuery.error.message
-                : "Failed to load links"}
-            </Text>
-          )}
-          {links.length > 0 && (
-            <div className={classes.linksList}>
-              {links.map((link) => (
-                <Anchor
-                  key={link.id}
-                  href={link.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={classes.linkCell}
-                  title={link.url}
-                >
-                  <span className={classes.linkLabel}>{link.label}</span>
-                  <span className={classes.linkSep}> - </span>
-                  <span className={classes.linkAction}>(link)</span>
-                </Anchor>
-              ))}
-            </div>
-          )}
-          {!linksQuery.isLoading && !linksQuery.error && links.length === 0 && (
-            <Text size="sm" c="dimmed">
-              —
-            </Text>
-          )}
-        </div>
-
-        <dl className={`${classes.panel} ${classes.metaPanel}`}>
+    <MediaDetailHero
+      title={movie.title}
+      posterUrl={movie.posterUrl}
+      overview={movie.overview}
+      sublineParts={sublineParts}
+      ratingParts={ratingParts}
+      links={links}
+      linksLoading={linksQuery.isLoading}
+      linksError={
+        linksQuery.error
+          ? linksQuery.error instanceof Error
+            ? linksQuery.error.message
+            : "Failed to load links"
+          : undefined
+      }
+      monitored={movie.monitored}
+      monitorPending={monitorMutation.isPending}
+      onToggleMonitor={() => monitorMutation.mutate()}
+      youTubeTrailerId={movie.youTubeTrailerId}
+      meta={
+        <>
           {movie.path && (
             <MetaRow label="Path" wide>
-              <Text size="sm" className={classes.path}>
+              <Text size="sm" className={mediaClasses.path}>
                 {movie.path}
               </Text>
             </MetaRow>
@@ -256,23 +162,8 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
               </Group>
             </MetaRow>
           )}
-        </dl>
-
-        {hasTrailer && (
-          <div className={`${classes.panel} ${classes.trailerPanel}`}>
-            <div className={classes.trailer}>
-              <iframe
-                title={`${movie.title} trailer`}
-                src={`https://www.youtube-nocookie.com/embed/${movie.youTubeTrailerId}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
+        </>
+      }
+    />
   );
 }
