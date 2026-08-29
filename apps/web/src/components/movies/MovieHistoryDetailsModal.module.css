@@ -1,0 +1,24 @@
+.table {
+  border: 1px solid var(--mantine-color-dark-4);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+}
+
+.table :global(tbody tr:last-child td) {
+  border-bottom: none;
+}
+
+.labelCell {
+  width: 11.5rem;
+  vertical-align: top;
+  font-weight: 600;
+  color: var(--mantine-color-dimmed);
+  background: color-mix(in srgb, var(--mantine-color-dark-6) 65%, transparent);
+  white-space: nowrap;
+}
+
+.valueCell {
+  vertical-align: top;
+  word-break: break-word;
+  line-height: 1.45;
+}

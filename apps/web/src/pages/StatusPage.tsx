@@ -1,6 +1,7 @@
-import { Badge, Card, Group, SimpleGrid, Stack, Text, Title } from "@mantine/core";
+import { Badge, Card, Group, SimpleGrid, Stack, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { getInstanceStatuses } from "@/api/instances";
+import { usePageHeader } from "@/layout/pageHeader";
 
 export function StatusPage() {
   const { data, isLoading, error } = useQuery({
@@ -9,14 +10,18 @@ export function StatusPage() {
     refetchInterval: 15_000,
   });
 
+  const online = data?.statuses.filter((s) => s.online).length;
+  const total = data?.statuses.length;
+  usePageHeader(
+    "Status",
+    total != null ? `${online ?? 0}/${total}` : isLoading ? "Checking…" : null,
+  );
+
   return (
     <Stack gap="md">
-      <div>
-        <Title order={2}>Status</Title>
-        <Text c="dimmed" mt={4}>
-          Configured Radarr/Sonarr instances (read-only from environment)
-        </Text>
-      </div>
+      <Text c="dimmed">
+        Configured Arr clients. Manage them under Settings.
+      </Text>
 
       {isLoading && <Text c="dimmed">Checking instances…</Text>}
       {error && (
@@ -51,8 +56,7 @@ export function StatusPage() {
 
       {!isLoading && (data?.statuses.length ?? 0) === 0 && (
         <Text c="dimmed">
-          No instances configured. Set RADARR_URL / SONARR_URL and matching API keys in the
-          environment.
+          No Arr clients configured. Add Radarr or Sonarr under Settings.
         </Text>
       )}
     </Stack>

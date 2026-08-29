@@ -1,0 +1,10 @@
+.tableWrap {
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+}
+
+.path {
+  word-break: break-all;
+  max-width: 14rem;
+}

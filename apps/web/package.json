@@ -10,15 +10,18 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@umbrellarr/shared": "workspace:*",
     "@mantine/core": "^8.2.7",
     "@mantine/hooks": "^8.2.7",
     "@mantine/notifications": "^8.2.7",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "^5.85.5",
     "@tanstack/react-router": "^1.131.27",
+    "@tanstack/react-virtual": "^3.14.10",
+    "@umbrellarr/shared": "workspace:*",
+    "ldrs": "^1.1.9",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-parallax-tilt": "^1.7.339"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",

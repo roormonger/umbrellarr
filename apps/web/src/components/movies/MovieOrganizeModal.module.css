@@ -1,0 +1,47 @@
+.banner code {
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 0.85em;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.65rem 0.25rem;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.paths {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.pathLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: var(--mantine-font-size-sm);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.existing {
+  color: var(--mantine-color-red-6);
+}
+
+.newPath {
+  color: var(--mantine-color-teal-6);
+}
+
+.marker {
+  flex-shrink: 0;
+  font-weight: 700;
+  width: 0.9rem;
+}

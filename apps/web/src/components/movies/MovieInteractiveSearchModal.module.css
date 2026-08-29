@@ -1,0 +1,43 @@
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  min-height: 14rem;
+  padding: 2rem 1rem;
+}
+
+.tableWrap {
+  border: 1px solid var(--mantine-color-dark-4);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+}
+
+.protocolUsenet {
+  text-transform: lowercase;
+}
+
+.protocolTorrent {
+  text-transform: lowercase;
+}
+
+.titleLink {
+  word-break: break-word;
+}
+
+.peersHot {
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.historyIcons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}

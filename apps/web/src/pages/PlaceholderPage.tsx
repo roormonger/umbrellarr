@@ -1,14 +1,12 @@
-import { Alert, Stack, Text, Title } from "@mantine/core";
+import { Alert, Stack, Text } from "@mantine/core";
+import { usePageHeader } from "@/layout/pageHeader";
 
 export function PlaceholderPage({ title, description }: { title: string; description: string }) {
+  usePageHeader(title);
+
   return (
     <Stack gap="md">
-      <div>
-        <Title order={2}>{title}</Title>
-        <Text c="dimmed" mt={4}>
-          {description}
-        </Text>
-      </div>
+      <Text c="dimmed">{description}</Text>
       <Alert title="Coming next" color="gray">
         This view is scaffolded. Media data from Radarr/Sonarr will land here in the next milestones.
       </Alert>

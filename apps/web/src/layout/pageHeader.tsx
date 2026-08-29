@@ -1,0 +1,45 @@
+import {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+
+export type PageHeaderInfo = {
+  title?: string;
+  /** Shown next to the title, e.g. "3,876" or "12 of 3,876". */
+  count?: string | null;
+  /** When set, show a back arrow in the top bar that navigates here. */
+  backTo?: string | null;
+};
+
+export const PageHeaderContext = createContext<Dispatch<
+  SetStateAction<PageHeaderInfo>
+> | null>(null);
+
+/** Publish the current page title (and optional count / back target) into the app header. */
+export function usePageHeader(
+  title: string,
+  count?: string | null,
+  backTo?: string | null,
+) {
+  const setPageHeader = useContext(PageHeaderContext);
+
+  useLayoutEffect(() => {
+    setPageHeader?.({ title, count: count ?? null, backTo: backTo ?? null });
+    return () => setPageHeader?.({});
+  }, [title, count, backTo, setPageHeader]);
+}
+
+export function titleFromPath(pathname: string): string {
+  if (/^\/movies\/[^/]+\/[^/]+/.test(pathname)) return "Movie";
+  if (pathname.startsWith("/movies")) return "Movies";
+  if (pathname.startsWith("/shows")) return "Shows";
+  if (pathname.startsWith("/activity/queue")) return "Queue";
+  if (pathname.startsWith("/activity/calendar")) return "Calendar";
+  if (pathname.startsWith("/activity/missing")) return "Missing";
+  if (pathname.startsWith("/status")) return "Status";
+  if (pathname.startsWith("/settings")) return "Settings";
+  return "Umbrellarr";
+}

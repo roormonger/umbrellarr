@@ -8,13 +8,15 @@ import {
   Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { login } from "@/api/auth";
+import { login, setAuthStatusCache } from "@/api/auth";
 import { ApiError } from "@/api/client";
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [password, setPassword] = useState("");
 
@@ -23,7 +25,8 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(password);
-      await navigate({ to: "/library/movies" });
+      setAuthStatusCache(queryClient, { authenticated: true, authRequired: true });
+      await navigate({ to: "/movies" });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Login failed";
       notifications.show({ color: "red", title: "Login failed", message });

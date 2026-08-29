@@ -7,16 +7,20 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx src/auth/session.test.ts && tsx src/cache/libraryCache.test.ts && tsx src/servarr/mediaCover.test.ts"
   },
   "dependencies": {
-    "@umbrellarr/shared": "workspace:*",
     "@hono/node-server": "^1.19.1",
+    "@umbrellarr/shared": "workspace:*",
+    "better-sqlite3": "^13.0.3",
     "dotenv": "^17.2.1",
+    "drizzle-orm": "^0.45.2",
     "hono": "^4.9.6",
     "zod": "^4.0.17"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.3.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"

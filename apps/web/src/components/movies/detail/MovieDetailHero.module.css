@@ -1,0 +1,132 @@
+.hero {
+  position: relative;
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  min-height: 280px;
+  color: var(--mantine-color-gray-0);
+}
+
+.fanart {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+  filter: brightness(0.35);
+}
+
+.fanartFallback {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--mantine-color-dark-7), var(--mantine-color-dark-9));
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.45) 55%,
+    rgba(0, 0, 0, 0.2) 100%
+  );
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 1.25rem;
+  padding: 1.5rem 1.5rem 1.75rem;
+  align-items: flex-start;
+}
+
+.poster {
+  width: 160px;
+  flex-shrink: 0;
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  background: var(--mantine-color-dark-6);
+}
+
+.poster img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+
+.meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.monitored {
+  color: var(--mantine-color-violet-4);
+  display: inline-flex;
+}
+
+.subline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  color: var(--mantine-color-gray-3);
+  font-size: 0.9rem;
+}
+
+.ratings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.overview {
+  margin: 0;
+  max-width: 70ch;
+  color: var(--mantine-color-gray-2);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 48em) {
+  .content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .titleRow,
+  .subline,
+  .ratings,
+  .chips {
+    justify-content: center;
+  }
+
+  .overview {
+    text-align: left;
+  }
+}
