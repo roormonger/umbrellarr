@@ -40,6 +40,34 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `servarr/movieActions.ts` | PUT | `/api/v3/moviefile/bulk` | Manage Files Import (metadata) |
 | `servarr/movieActions.ts` | DELETE | `/api/v3/moviefile/bulk` | Manage Files Delete |
 | `servarr/movieActions.ts` | — | (no upstream links API) | `buildMovieLinks` mirrors Radarr UI from IDs |
+| `servarr/shows.ts` | GET | `/api/v3/series` | Full Sonarr library snapshot |
+| `servarr/shows.ts` | GET | `/api/v3/qualityprofile` | Profile names for list/edit |
+| `servarr/shows.ts` | GET | `/api/v3/tag` | Tag labels for list/edit |
+| `servarr/shows.ts` | GET | `/api/v3/wanted/cutoff?page=&pageSize=&monitored=true` | Cutoff-unmet series IDs (from episode records) |
+| `servarr/showActions.ts` | GET | `/api/v3/series/{id}` | Show page/detail (+ edit fields) |
+| `servarr/showActions.ts` | GET | `/api/v3/qualityprofile` | Edit modal options |
+| `servarr/showActions.ts` | GET | `/api/v3/tag` | Edit modal options |
+| `servarr/showActions.ts` | GET | `/api/v3/rootfolder` | Edit modal root-folder dropdown |
+| `servarr/showActions.ts` | PUT | `/api/v3/series/{id}` | Save edit (GET-merge-PUT; seasons preserved) |
+| `servarr/showActions.ts` | DELETE | `/api/v3/series/{id}?deleteFiles=&addImportListExclusion=false` | Remove from Sonarr |
+| `servarr/showActions.ts` | POST | `/api/v3/command` | `{ name: "RefreshSeries", seriesId }` |
+| `servarr/showActions.ts` | POST | `/api/v3/command` | `{ name: "SeriesSearch", seriesId }` |
+| `servarr/showActions.ts` | GET | `/api/v3/history/series?seriesId=` | Series history modal (+ `data` for info details) |
+| `servarr/showActions.ts` | POST | `/api/v3/history/failed/{id}` | Mark grabbed history item as failed |
+| `servarr/showActions.ts` | GET | `/api/v3/release?seriesId=` | Interactive search (120s timeout) |
+| `servarr/showActions.ts` | POST | `/api/v3/release` | Grab / override & grab release |
+| `servarr/showActions.ts` | GET | `/api/v3/blocklist?seriesIds=&pageSize=100` | Interactive search History column (flatten `records`) |
+| `servarr/showActions.ts` | GET | `/api/v3/rename?seriesId=` | Organize & Rename preview |
+| `servarr/showActions.ts` | GET | `/api/v3/config/naming` | Naming pattern for organize modal (`renameEpisodes` + episode formats) |
+| `servarr/showActions.ts` | POST | `/api/v3/command` | `{ name: "RenameFiles", seriesId, files }` |
+| `servarr/showActions.ts` | GET | `/api/v3/episodefile?seriesId=` | Manage Files modal (rich rows) |
+| `servarr/showActions.ts` | GET | `/api/v3/qualityprofile/schema` | Manage Files quality dropdown |
+| `servarr/showActions.ts` | GET | `/api/v3/language` | Manage Files languages |
+| `servarr/showActions.ts` | GET | `/api/v3/indexerFlag` | Manage Files indexer flags |
+| `servarr/showActions.ts` | PUT | `/api/v3/episodefile/bulk` | Manage Files Import (metadata) |
+| `servarr/showActions.ts` | DELETE | `/api/v3/episodefile/bulk` | Manage Files Delete (`{ episodeFileIds }`) |
+| `servarr/showActions.ts` | — | (no upstream links API) | `buildSeriesLinks` mirrors Sonarr UI from IDs |
+| `servarr/seriesTrailer.ts` | GET (scrape) | TMDb `/tv/{tmdbId}/videos` → IMDb title → TV Maze show/videos | Optional YouTube trailer when Sonarr has no `youTubeTrailerId` (product-approved scrape of Sonarr-linked pages; in-memory cache) |
 | `servarr/status.ts` | GET | `/api/v3/system/status` | Instance health (radarr + sonarr) |
 | `routes/media.ts` | GET | `{path}` e.g. `/MediaCover/{id}/poster-500.jpg` | Image proxy (`arrFetch`) |
 
@@ -48,6 +76,29 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | BFF route | Handler | Upstream / behavior |
 |-----------|---------|---------------------|
 | `GET /api/movies?instanceId=` | `routes/movies.ts` | Library cache → Radarr `/movie` (+ profiles/tags/cutoff); optional instance filter |
+| `GET /api/shows?instanceId=` | `routes/shows.ts` | Library cache → Sonarr `/series` (+ profiles/tags/cutoff); optional instance filter |
+| `GET /api/shows/:instanceId/options` | `routes/shows.ts` | qualityprofile + tag + rootfolder |
+| `GET /api/shows/:instanceId/naming` | `routes/shows.ts` | `/config/naming` |
+| `GET /api/shows/:instanceId/qualities` | `routes/shows.ts` | `/qualityprofile/schema` (flattened) |
+| `GET /api/shows/:instanceId/languages` | `routes/shows.ts` | `/language` |
+| `GET /api/shows/:instanceId/indexer-flags` | `routes/shows.ts` | `/indexerFlag` |
+| `PUT /api/shows/:instanceId/files/bulk` | `routes/shows.ts` | `PUT /episodefile/bulk` |
+| `DELETE /api/shows/:instanceId/files/bulk` | `routes/shows.ts` | `DELETE /episodefile/bulk` |
+| `POST /api/shows/:instanceId/history/:historyId/failed` | `routes/shows.ts` | `/history/failed/{id}` |
+| `POST /api/shows/:instanceId/releases/grab` | `routes/shows.ts` | `POST /release` |
+| `GET /api/shows/:instanceId/:seriesId` | `routes/shows.ts` | `/series/{id}` + qualityprofile |
+| `GET /api/shows/:instanceId/:seriesId/links` | `routes/shows.ts` | `/series/{id}` then mirror Sonarr UI links (+ scraped trailer when found) |
+| `GET /api/shows/:instanceId/:seriesId/trailer` | `routes/shows.ts` | Resolve YouTube id via Sonarr IDs → scrape TMDb/IMDb/TV Maze |
+| `POST /api/shows/:instanceId/:seriesId/refresh` | `routes/shows.ts` | `RefreshSeries` + cache invalidate |
+| `POST /api/shows/:instanceId/:seriesId/search` | `routes/shows.ts` | `SeriesSearch` |
+| `GET /api/shows/:instanceId/:seriesId/history` | `routes/shows.ts` | `/history/series` |
+| `GET /api/shows/:instanceId/:seriesId/releases` | `routes/shows.ts` | `/release?seriesId=` |
+| `GET /api/shows/:instanceId/:seriesId/blocklist` | `routes/shows.ts` | `/blocklist?seriesIds=` (flatten records) |
+| `GET /api/shows/:instanceId/:seriesId/files` | `routes/shows.ts` | `/episodefile?seriesId=` (manage payload) |
+| `GET /api/shows/:instanceId/:seriesId/rename` | `routes/shows.ts` | `/rename?seriesId=` |
+| `POST /api/shows/:instanceId/:seriesId/organize` | `routes/shows.ts` | `RenameFiles` command |
+| `PUT /api/shows/:instanceId/:seriesId` | `routes/shows.ts` | PUT `/series/{id}` + cache invalidate |
+| `DELETE /api/shows/:instanceId/:seriesId` | `routes/shows.ts` | DELETE `/series/{id}` + cache invalidate |
 | `GET /api/instances` | `routes/instances.ts` | SQLite-backed clients (no apiKey) |
 | `POST /api/instances` | `routes/instances.ts` | Create client (encrypt API key) |
 | `PUT /api/instances/:id` | `routes/instances.ts` | Update client |
@@ -98,14 +149,20 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Links menu | `MovieLinksMenu.tsx` | `GET .../links` |
 | Poster images | `PosterCard.tsx` | `GET /api/media/.../image` |
 | Status page | `StatusPage.tsx` | `/api/instances/status` |
-| Shows / Queue / Calendar / Missing | placeholders | none yet |
+| Shows library | `ShowsPage.tsx`, `ShowPosterCard`, sort/filter | `GET /api/shows` |
+| Show detail (hero + toolbar) | `ShowDetailPage.tsx`, `ShowDetailHero`, `ShowDetailToolbar`, `ShowEditModal` | detail/links/update/delete + RefreshSeries / SeriesSearch |
+| Show Interactive Search modal | `ShowInteractiveSearchModal.tsx` | releases + grab + history + blocklist |
+| Show Organize & Rename modal | `ShowOrganizeModal.tsx` | rename preview + naming + `RenameFiles` |
+| Show Manage Files modal | `ShowManageFilesModal.tsx` | episodefile + qualities/languages/flags + bulk PUT/DELETE |
+| Show History modal | `ShowHistoryModal.tsx` | `GET .../history` |
+| Queue / Calendar / Missing | placeholders | none yet |
 | Header Search | “coming soon” | none yet |
 
 ## Not wired (configured or placeholder only)
 
 | Area | Notes |
 |------|-------|
-| Sonarr library | Instance kind exists; no `/series` calls |
+| Sonarr seasons / episodes / cast | Detail hero + toolbar file actions; no `/episode` UI yet |
 | Lidarr | Not in `ArrKind` / env loader |
 | Queue / Calendar / Missing pages | Placeholders |
 | Dashboard queue/missing badges | Hardcoded `0` in stats |
@@ -120,5 +177,6 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `packages/shared/src/instances.ts` | `ArrKind` (`radarr` \| `sonarr`), `Instance`, status |
 | `packages/shared/src/media.ts` | `MediaItem`, `MediaKind` (`movie` \| `series`) |
 | `packages/shared/src/movies.ts` | `MovieListItem`, `MovieDetail`, `MoviePageDetail`, history/release/rename/manage-files, edit/links schemas |
+| `packages/shared/src/shows.ts` | `SeriesListItem`, `SeriesPageDetail`, edit/update/links schemas, history/release/rename/manage-files, sort/filter options |
 | `packages/shared/src/cache.ts` | `CacheStatus` (`HIT` / `MISS`) for library responses |
 | `packages/shared/src/stats.ts` | Dashboard stats shape |

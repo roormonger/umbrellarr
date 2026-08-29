@@ -7,17 +7,17 @@ import { ArrowsClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowsClockw
 import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 import { LinkIcon } from "@phosphor-icons/react/dist/csr/Link";
 import { WrenchIcon } from "@phosphor-icons/react/dist/csr/Wrench";
-import type { MovieListItem } from "@umbrellarr/shared";
+import type { SeriesListItem } from "@umbrellarr/shared";
 import { memo, useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
 import TiltImport from "react-parallax-tilt";
 
 /** react-parallax-tilt typings lag React 19. */
 const Tilt = TiltImport as unknown as ComponentType<Record<string, unknown>>;
-import { refreshMovie } from "@/api/movies";
-import { MovieLinksMenu } from "@/components/movies/MovieLinksMenu";
-import classes from "./PosterCard.module.css";
+import { refreshSeries } from "@/api/shows";
+import { ShowLinksMenu } from "@/components/shows/ShowLinksMenu";
+import classes from "@/components/media/PosterCard.module.css";
 
-const availabilityLabel: Record<MovieListItem["availability"], string> = {
+const availabilityLabel: Record<SeriesListItem["availability"], string> = {
   downloaded: "Downloaded",
   missing: "Missing",
   unavailable: "Unavailable",
@@ -68,12 +68,12 @@ function PosterAction({
   );
 }
 
-export const PosterCard = memo(function PosterCard({
+export const ShowPosterCard = memo(function ShowPosterCard({
   item,
   onEdit,
 }: {
-  item: MovieListItem;
-  onEdit?: (item: MovieListItem) => void;
+  item: SeriesListItem;
+  onEdit?: (item: SeriesListItem) => void;
 }) {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
@@ -81,25 +81,29 @@ export const PosterCard = memo(function PosterCard({
   const [linksOpen, setLinksOpen] = useState(false);
   const label = item.year ? `${item.title} (${item.year})` : item.title;
   const monitoredLabel = item.monitored ? "Monitored" : "Unmonitored";
+  const progress =
+    item.episodeCount != null && item.episodeCount > 0
+      ? `${item.episodeFileCount ?? 0}/${item.episodeCount}`
+      : undefined;
 
   function openDetail() {
     void navigate({
-      to: "/movies/$instanceId/$movieId",
+      to: "/shows/$instanceId/$seriesId",
       params: {
         instanceId: item.instanceId,
-        movieId: String(item.externalId),
+        seriesId: String(item.externalId),
       },
     });
   }
 
   const refreshMutation = useMutation({
-    mutationFn: () => refreshMovie(item.instanceId, item.externalId),
+    mutationFn: () => refreshSeries(item.instanceId, item.externalId),
     onSuccess: () => {
       notifications.show({
         color: "blue",
-        message: `Refreshing “${item.title}” in Radarr`,
+        message: `Refreshing “${item.title}” in Sonarr`,
       });
-      void queryClient.invalidateQueries({ queryKey: ["movies"] });
+      void queryClient.invalidateQueries({ queryKey: ["shows"] });
     },
     onError: (error) => {
       notifications.show({
@@ -145,7 +149,11 @@ export const PosterCard = memo(function PosterCard({
           <div
             className={classes.bar}
             data-availability={item.availability}
-            aria-label={availabilityLabel[item.availability]}
+            aria-label={
+              progress
+                ? `${availabilityLabel[item.availability]} (${progress})`
+                : availabilityLabel[item.availability]
+            }
           />
         </div>
       </div>
@@ -162,11 +170,11 @@ export const PosterCard = memo(function PosterCard({
           icon={<WrenchIcon size={15} />}
           onClick={() => onEdit?.(item)}
         />
-        <MovieLinksMenu
+        <ShowLinksMenu
           opened={linksOpen}
           onChange={setLinksOpen}
           instanceId={item.instanceId}
-          movieId={item.externalId}
+          seriesId={item.externalId}
         >
           <div>
             <PosterAction
@@ -175,7 +183,7 @@ export const PosterCard = memo(function PosterCard({
               onClick={() => setLinksOpen((open) => !open)}
             />
           </div>
-        </MovieLinksMenu>
+        </ShowLinksMenu>
       </div>
 
       <Tooltip label={monitoredLabel} withArrow position="right">

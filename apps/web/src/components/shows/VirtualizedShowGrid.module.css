@@ -1,0 +1,29 @@
+.viewport {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  /* Room for tilt + scale so edge posters are not clipped (overflow clips at the padding edge). */
+  padding: 0.85rem;
+  box-sizing: border-box;
+}
+
+.inner {
+  position: relative;
+  width: 100%;
+}
+
+.innerPreview {
+  will-change: transform;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: grid;
+  align-content: start;
+  box-sizing: border-box;
+}

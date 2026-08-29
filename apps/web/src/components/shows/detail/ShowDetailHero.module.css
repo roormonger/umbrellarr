@@ -15,10 +15,13 @@
 .topNoTrailer {
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr) minmax(200px, 22%);
-  grid-template-rows: 1fr auto;
+  /* minmax(0, …) lets fr/auto tracks shrink so panels can scroll inside the poster frame */
+  grid-template-rows: minmax(0, 1fr) minmax(0, auto);
   height: calc(300px * 3 / 2);
+  max-height: calc(300px * 3 / 2);
   gap: 0.75rem 1.25rem;
   align-items: stretch;
+  overflow: hidden;
 }
 
 .panel {
@@ -71,6 +74,8 @@
   grid-row: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .titleRow {
@@ -79,6 +84,7 @@
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .monitorToggle {
@@ -128,6 +134,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .metaPanel {
@@ -138,6 +146,8 @@
   gap: 0.55rem 1rem;
   margin: 0;
   align-content: start;
+  min-height: 0;
+  overflow: auto;
 }
 
 .trailerPanel {
@@ -145,6 +155,8 @@
   grid-row: 2;
   display: flex;
   padding: 0.55rem;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .title {
@@ -163,6 +175,8 @@
   margin-top: 0.45rem;
   color: var(--mantine-color-dimmed);
   font-size: 0.9rem;
+  flex-shrink: 0;
+  min-width: 0;
 }
 
 .sublineMeta + .sublineMeta::before,
@@ -184,7 +198,9 @@
 
 .overview {
   flex: 1 1 auto;
+  min-height: 0;
   margin: 0.55rem 0 0;
+  overflow: auto;
   color: var(--mantine-color-text);
   font-size: 0.92rem;
   line-height: 1.5;
@@ -296,7 +312,8 @@
   color: var(--mantine-color-violet-3);
 }
 
-.trailer {
+.trailer,
+.trailerEmpty {
   position: relative;
   flex: 1 1 auto;
   width: 100%;
@@ -304,6 +321,17 @@
   border-radius: calc(var(--mantine-radius-md) - 2px);
   overflow: hidden;
   background: #000;
+}
+
+.trailerEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--mantine-color-dark-7) 80%, black);
+}
+
+:global([data-mantine-color-scheme="light"]) .trailerEmpty {
+  background: var(--mantine-color-gray-2);
 }
 
 .trailer iframe {

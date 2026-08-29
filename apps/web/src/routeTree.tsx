@@ -13,6 +13,8 @@ import { MovieDetailPage } from "@/pages/MovieDetailPage";
 import { MoviesPage } from "@/pages/MoviesPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { ShowDetailPage } from "@/pages/ShowDetailPage";
+import { ShowsPage } from "@/pages/ShowsPage";
 import { StatusPage } from "@/pages/StatusPage";
 
 export type RouterContext = {
@@ -113,12 +115,13 @@ const showsIndexRoute = createRoute({
 const showsInstanceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/shows/$instanceId",
-  component: () => (
-    <PlaceholderPage
-      title="Shows"
-      description="Your Sonarr library will appear here as a poster grid."
-    />
-  ),
+  component: ShowsPage,
+});
+
+const showDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/shows/$instanceId/$seriesId",
+  component: ShowDetailPage,
 });
 
 /** Legacy paths → new routes */
@@ -197,6 +200,7 @@ export const routeTree = rootRoute.addChildren([
     movieDetailRoute,
     showsIndexRoute,
     showsInstanceRoute,
+    showDetailRoute,
     legacyMoviesRoute,
     legacyMovieDetailRoute,
     legacyShowsRoute,

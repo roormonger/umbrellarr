@@ -31,6 +31,7 @@ import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
 import { clearAuthStatusCache, logout } from "@/api/auth";
 import { listInstances } from "@/api/instances";
 import { listMovies } from "@/api/movies";
+import { listShows } from "@/api/shows";
 import { getDashboardStats } from "@/api/stats";
 import {
   PageHeaderContext,
@@ -102,6 +103,14 @@ export function AppLayout() {
     void queryClient.prefetchQuery({
       queryKey: ["movies", instanceId],
       queryFn: () => listMovies(instanceId),
+      staleTime: 60_000,
+    });
+  }
+
+  function prefetchShows(instanceId: string) {
+    void queryClient.prefetchQuery({
+      queryKey: ["shows", instanceId],
+      queryFn: () => listShows(instanceId),
       staleTime: 60_000,
     });
   }
@@ -211,6 +220,7 @@ export function AppLayout() {
                       to={`/shows/${instance.id}`}
                       label={instance.name}
                       onNavigate={close}
+                      onPrefetch={() => prefetchShows(instance.id)}
                     />
                   ))}
                 </NavLink>

@@ -51,29 +51,29 @@ Status legend for Umbrellarr: **Wired** / **Partial** / **Not started** / **Out 
 
 | Capability | Radarr v3 | Sonarr v3 | Lidarr v1 | Umbrellarr |
 |------------|-----------|-----------|-----------|------------|
-| Library list/detail/CRUD | `/movie` | `/series` (+ `/episode`) | `/artist`, `/album`, `/track` | Radarr list + detail page **Wired**; Sonarr/Lidarr **Not started** |
+| Library list/detail/CRUD | `/movie` | `/series` (+ `/episode`) | `/artist`, `/album`, `/track` | Radarr list + detail **Wired**; Sonarr list + hero/toolbar detail **Wired** (seasons/episodes **Not started**); Lidarr **Not started** |
 | Lookup / add | `/movie/lookup` | `/series/lookup` | `/artist/lookup`, `/album/lookup` | **Not started** |
-| Refresh / search / rename via command | `POST /command` | same | same (`/api/v1`) | Radarr RefreshMovie, MoviesSearch, RenameFiles **Wired** |
+| Refresh / search / rename via command | `POST /command` | same | same (`/api/v1`) | Radarr RefreshMovie, MoviesSearch, RenameFiles **Wired**; Sonarr RefreshSeries, SeriesSearch, RenameFiles **Wired** |
 | Queue / grab / remove | `/queue*` | `/queue*` | `/queue*` | **Partial** (cache signal only) |
 | Calendar | `/calendar` | `/calendar` | `/calendar` | **Not started** |
-| History | `/history*` | `/history*` | `/history*` | Radarr movie history + details **Wired**; Sonarr/Lidarr **Not started** |
-| Wanted missing / cutoff | `/wanted/*` | `/wanted/*` | `/wanted/*` | Cutoff IDs **Partial** (movies list); Missing UI **Not started** |
-| Quality profiles + tags | yes | yes | yes (+ metadata profiles) | Radarr edit **Wired** |
+| History | `/history*` | `/history*` | `/history*` | Radarr movie + Sonarr series history + details **Wired**; Lidarr **Not started** |
+| Wanted missing / cutoff | `/wanted/*` | `/wanted/*` | `/wanted/*` | Cutoff IDs **Partial** (movies + series list filters); Missing UI **Not started** |
+| Quality profiles + tags | yes | yes | yes (+ metadata profiles) | Radarr + Sonarr edit **Wired** |
 | Root folders / filesystem | yes | yes | yes | **Not started** (path is text) |
-| Interactive search / release | `/release` | `/release` | `/release` | Radarr movie interactive search **Wired**; Sonarr/Lidarr **Not started** |
-| Movie file manage (metadata / delete) | `/moviefile*` | `/episodefile*` | `/trackfile*` | Radarr Manage Files **Wired**; Sonarr/Lidarr **Not started** |
+| Interactive search / release | `/release` | `/release` | `/release` | Radarr movie + Sonarr series interactive search **Wired**; Lidarr **Not started** |
+| Movie file manage (metadata / delete) | `/moviefile*` | `/episodefile*` | `/trackfile*` | Radarr + Sonarr Manage Files **Wired**; Lidarr **Not started** |
 | Bulk editor | `/movie/editor` | `/series/editor` | `/artist/editor` | **Not started** |
 | System health / status | `/system/status`, `/health` | same | same | **Wired** (status) |
-| Covers | `/MediaCover/...` or mediacover API | similar | artist/album covers | Radarr **Wired** (image proxy) |
+| Covers | `/MediaCover/...` or mediacover API | similar | artist/album covers | Radarr + Sonarr **Wired** (image proxy) |
 | Indexers / download clients / import lists / notifications | full settings APIs | same | same | **Out of scope (for now)** |
-| External “Links” menu | **No API** — Arr UI only | similar | similar | Radarr **Wired** (mirror UI patterns) |
+| External “Links” menu | **No API** — Arr UI only | similar | similar | Radarr + Sonarr **Wired** (mirror UI patterns) |
 
 ## Umbrellarr instance support
 
 | Kind | Config | In `ArrKind` | Library wired |
 |------|--------|--------------|---------------|
 | Radarr | Settings (SQLite) + optional first-run `RADARR_*` env import | yes | yes (per-instance `/movies/$instanceId`) |
-| Sonarr | Settings (SQLite) + optional first-run `SONARR_*` env import | yes | nav/placeholder only |
+| Sonarr | Settings (SQLite) + optional first-run `SONARR_*` env import | yes | yes (per-instance `/shows/$instanceId`; detail hero only) |
 | Lidarr | — | **no** | no |
 
 API keys encrypted in SQLite (`INSTANCE_SECRETS_KEY`). Env Arr vars import once when the DB is empty.

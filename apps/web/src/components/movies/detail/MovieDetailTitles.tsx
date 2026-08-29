@@ -1,14 +1,13 @@
 import { Table, Text } from "@mantine/core";
 import type { MovieAlternativeTitle } from "@umbrellarr/shared";
+import panel from "./MovieDetailPanel.module.css";
 
 export function MovieDetailTitles({ titles }: { titles: MovieAlternativeTitle[] }) {
   if (titles.length === 0) return null;
 
   return (
-    <div>
-      <Text fw={600} size="sm" mb="xs">
-        Titles
-      </Text>
+    <section className={panel.panel}>
+      <Text className={panel.heading}>Titles</Text>
       <Table striped highlightOnHover withTableBorder withColumnBorders>
         <Table.Thead>
           <Table.Tr>
@@ -31,6 +30,6 @@ export function MovieDetailTitles({ titles }: { titles: MovieAlternativeTitle[] 
           ))}
         </Table.Tbody>
       </Table>
-    </div>
+    </section>
   );
 }

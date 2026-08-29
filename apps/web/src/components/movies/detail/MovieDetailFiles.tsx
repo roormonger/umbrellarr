@@ -1,14 +1,7 @@
-import { Badge, Stack, Table, Text } from "@mantine/core";
+import { Badge, Table, Text } from "@mantine/core";
 import type { MovieExtraFile, MovieFile } from "@umbrellarr/shared";
 import { formatFreeSpace } from "@/lib/moviePath";
-
-function SectionTitle({ children }: { children: string }) {
-  return (
-    <Text fw={600} size="sm" mb="xs">
-      {children}
-    </Text>
-  );
-}
+import panel from "./MovieDetailPanel.module.css";
 
 export function MovieDetailFiles({
   files,
@@ -20,10 +13,10 @@ export function MovieDetailFiles({
   if (files.length === 0 && extraFiles.length === 0) return null;
 
   return (
-    <Stack gap="lg">
-      {files.length > 0 && (
-        <div>
-          <SectionTitle>Files</SectionTitle>
+    <section className={panel.panel}>
+      <Text className={panel.heading}>Files</Text>
+      <div className={panel.stack}>
+        {files.length > 0 && (
           <Table striped highlightOnHover withTableBorder withColumnBorders layout="fixed">
             <Table.Thead>
               <Table.Tr>
@@ -84,39 +77,40 @@ export function MovieDetailFiles({
               ))}
             </Table.Tbody>
           </Table>
-        </div>
-      )}
+        )}
 
-      {extraFiles.length > 0 && (
-        <div>
-          <Table striped highlightOnHover withTableBorder withColumnBorders>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Relative Path</Table.Th>
-                <Table.Th w={120}>Extension</Table.Th>
-                <Table.Th w={120}>Type</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {extraFiles.map((file) => (
-                <Table.Tr key={file.id}>
-                  <Table.Td>
-                    <Text size="sm">{file.relativePath || "—"}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{file.extension ?? "—"}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm" tt="capitalize">
-                      {file.type}
-                    </Text>
-                  </Table.Td>
+        {extraFiles.length > 0 && (
+          <div>
+            {files.length > 0 && <Text className={panel.subheading}>Extra files</Text>}
+            <Table striped highlightOnHover withTableBorder withColumnBorders>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Relative Path</Table.Th>
+                  <Table.Th w={120}>Extension</Table.Th>
+                  <Table.Th w={120}>Type</Table.Th>
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
-        </div>
-      )}
-    </Stack>
+              </Table.Thead>
+              <Table.Tbody>
+                {extraFiles.map((file) => (
+                  <Table.Tr key={file.id}>
+                    <Table.Td>
+                      <Text size="sm">{file.relativePath || "—"}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{file.extension ?? "—"}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" tt="capitalize">
+                        {file.type}
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

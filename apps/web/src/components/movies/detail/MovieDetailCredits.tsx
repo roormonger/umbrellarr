@@ -1,15 +1,14 @@
 import { Text } from "@mantine/core";
 import type { MovieCredit } from "@umbrellarr/shared";
 import classes from "./MovieDetailCredits.module.css";
+import panel from "./MovieDetailPanel.module.css";
 
 function CreditScroller({ title, credits }: { title: string; credits: MovieCredit[] }) {
   if (credits.length === 0) return null;
 
   return (
-    <section className={classes.section}>
-      <Text fw={600} size="sm">
-        {title}
-      </Text>
+    <section className={panel.panel}>
+      <Text className={panel.heading}>{title}</Text>
       <div className={classes.scroller}>
         {credits.map((credit) => (
           <div key={credit.id} className={classes.card}>

@@ -87,7 +87,7 @@ export function createInstancesRoutes() {
     try {
       const created = c.get("instanceStore").create(body.data);
       const libraryCache = c.get("libraryCache");
-      if (created.kind === "radarr") {
+      if (created.kind === "radarr" || created.kind === "sonarr") {
         libraryCache.warm([created]);
       }
       return c.json({ instance: toPublic(created) }, 201);
@@ -106,7 +106,7 @@ export function createInstancesRoutes() {
 
     try {
       const updated = c.get("instanceStore").update(c.req.param("id"), body.data);
-      if (updated.kind === "radarr") {
+      if (updated.kind === "radarr" || updated.kind === "sonarr") {
         c.get("libraryCache").warm([updated]);
       }
       return c.json({ instance: toPublic(updated) });

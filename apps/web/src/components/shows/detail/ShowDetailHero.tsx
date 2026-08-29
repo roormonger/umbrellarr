@@ -2,14 +2,14 @@ import { Anchor, Badge, Group, Text, Tooltip, UnstyledButton } from "@mantine/co
 import { notifications } from "@mantine/notifications";
 import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { MoviePageDetail } from "@umbrellarr/shared";
+import type { SeriesPageDetail } from "@umbrellarr/shared";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
-import { getMovieLinks, updateMovie } from "@/api/movies";
+import { getSeriesLinks, getSeriesTrailer, updateSeries } from "@/api/shows";
 import { formatFreeSpace } from "@/lib/moviePath";
-import classes from "./MovieDetailHero.module.css";
+import classes from "./ShowDetailHero.module.css";
 
-const availabilityLabel: Record<MoviePageDetail["availability"], string> = {
+const availabilityLabel: Record<SeriesPageDetail["availability"], string> = {
   downloaded: "Downloaded",
   missing: "Missing",
   unavailable: "Unavailable",
@@ -46,36 +46,51 @@ function MetaRow({
   );
 }
 
-export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
+export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
   const queryClient = useQueryClient();
-  const runtime = formatRuntime(movie.runtime);
+  const runtime = formatRuntime(series.runtime);
   const size =
-    movie.sizeOnDisk != null && movie.sizeOnDisk > 0
-      ? formatFreeSpace(movie.sizeOnDisk)
+    series.sizeOnDisk != null && series.sizeOnDisk > 0
+      ? formatFreeSpace(series.sizeOnDisk)
       : undefined;
-  const hasTrailer = Boolean(movie.youTubeTrailerId);
-  const movieQueryKey = ["movie", movie.instanceId, movie.externalId] as const;
+  const seriesQueryKey = ["series", series.instanceId, series.externalId] as const;
+  const episodeProgress =
+    series.episodeCount != null && series.episodeCount > 0
+      ? `${series.episodeFileCount ?? 0} / ${series.episodeCount}`
+      : undefined;
 
   const linksQuery = useQuery({
-    queryKey: ["movie-links", movie.instanceId, movie.externalId],
-    queryFn: () => getMovieLinks(movie.instanceId, movie.externalId),
+    queryKey: ["series-links", series.instanceId, series.externalId],
+    queryFn: () => getSeriesLinks(series.instanceId, series.externalId),
     staleTime: 60_000,
   });
 
+  // Sonarr rarely stores trailers; resolve from linked TMDb/IMDb/TV Maze pages.
+  const trailerQuery = useQuery({
+    queryKey: ["series-trailer", series.instanceId, series.externalId],
+    queryFn: () => getSeriesTrailer(series.instanceId, series.externalId),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+
+  const trailerId = series.youTubeTrailerId ?? trailerQuery.data?.youTubeTrailerId;
+  const hasTrailer = Boolean(trailerId);
+
   const monitorMutation = useMutation({
     mutationFn: () =>
-      updateMovie(movie.instanceId, movie.externalId, {
-        monitored: !movie.monitored,
-        minimumAvailability: movie.minimumAvailability,
-        qualityProfileId: movie.qualityProfileId,
-        path: movie.path,
-        tagIds: movie.tagIds,
+      updateSeries(series.instanceId, series.externalId, {
+        monitored: !series.monitored,
+        monitorNewItems: series.monitorNewItems,
+        seriesType: series.seriesType,
+        seasonFolder: series.seasonFolder,
+        qualityProfileId: series.qualityProfileId,
+        path: series.path,
+        tagIds: series.tagIds,
       }),
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: movieQueryKey });
-      const previous = queryClient.getQueryData<MoviePageDetail>(movieQueryKey);
+      await queryClient.cancelQueries({ queryKey: seriesQueryKey });
+      const previous = queryClient.getQueryData<SeriesPageDetail>(seriesQueryKey);
       if (previous) {
-        queryClient.setQueryData<MoviePageDetail>(movieQueryKey, {
+        queryClient.setQueryData<SeriesPageDetail>(seriesQueryKey, {
           ...previous,
           monitored: !previous.monitored,
         });
@@ -84,9 +99,9 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
     },
     onError: (error, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(movieQueryKey, context.previous);
+        queryClient.setQueryData(seriesQueryKey, context.previous);
       }
-      const wasMonitored = context?.previous?.monitored ?? movie.monitored;
+      const wasMonitored = context?.previous?.monitored ?? series.monitored;
       notifications.show({
         color: "red",
         title: wasMonitored ? "Could not unmonitor" : "Could not monitor",
@@ -94,48 +109,45 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
       });
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: movieQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ["movies"] });
+      await queryClient.invalidateQueries({ queryKey: seriesQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["shows"] });
     },
   });
 
   const sublineParts = [
-    movie.certification,
-    movie.year != null ? String(movie.year) : undefined,
+    series.certification,
+    series.year != null ? String(series.year) : undefined,
     runtime,
   ].filter(Boolean);
 
   const ratingParts = useMemo(() => {
     const parts: Array<{ label: string; value: string }> = [];
-    if (movie.tmdbRating != null) {
-      parts.push({ label: "TMDb", value: formatRating(movie.tmdbRating, false) });
+    if (series.tmdbRating != null) {
+      parts.push({ label: "TMDb", value: formatRating(series.tmdbRating, false) });
     }
-    if (movie.imdbRating != null) {
-      parts.push({ label: "IMDb", value: formatRating(movie.imdbRating, false) });
+    if (series.imdbRating != null) {
+      parts.push({ label: "IMDb", value: formatRating(series.imdbRating, false) });
     }
-    if (movie.tomatoRating != null) {
-      parts.push({ label: "RT", value: formatRating(movie.tomatoRating, true) });
-    }
-    if (movie.traktRating != null) {
-      parts.push({ label: "Trakt", value: formatRating(movie.traktRating, true) });
+    if (series.traktRating != null) {
+      parts.push({ label: "Trakt", value: formatRating(series.traktRating, true) });
     }
     return parts;
-  }, [movie.tmdbRating, movie.imdbRating, movie.tomatoRating, movie.traktRating]);
+  }, [series.tmdbRating, series.imdbRating, series.traktRating]);
 
   const links = useMemo(
     () => (linksQuery.data?.links ?? []).filter((link) => link.id !== "trailer"),
     [linksQuery.data?.links],
   );
 
-  const monitoredLabel = movie.monitored ? "Monitored" : "Unmonitored";
+  const monitoredLabel = series.monitored ? "Monitored" : "Unmonitored";
 
   return (
     <section className={classes.hero}>
-      <div className={hasTrailer ? classes.top : classes.topNoTrailer}>
+      <div className={classes.top}>
         <div className={classes.posterWrap}>
           <div className={classes.poster}>
-            {movie.posterUrl ? (
-              <img src={movie.posterUrl} alt="" />
+            {series.posterUrl ? (
+              <img src={series.posterUrl} alt="" />
             ) : (
               <div className={classes.posterFallback} />
             )}
@@ -147,20 +159,20 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
             <Tooltip label={`${monitoredLabel} — click to toggle`} withArrow position="top">
               <UnstyledButton
                 className={classes.monitorToggle}
-                data-monitored={movie.monitored || undefined}
+                data-monitored={series.monitored || undefined}
                 data-pending={monitorMutation.isPending || undefined}
-                aria-label={`${monitoredLabel}. Click to ${movie.monitored ? "unmonitor" : "monitor"}`}
-                aria-pressed={movie.monitored}
+                aria-label={`${monitoredLabel}. Click to ${series.monitored ? "unmonitor" : "monitor"}`}
+                aria-pressed={series.monitored}
                 disabled={monitorMutation.isPending}
                 onClick={() => monitorMutation.mutate()}
               >
                 <BookmarkSimpleIcon
-                  weight={movie.monitored ? "fill" : "regular"}
+                  weight={series.monitored ? "fill" : "regular"}
                   size="1em"
                 />
               </UnstyledButton>
             </Tooltip>
-            <h1 className={classes.title}>{movie.title}</h1>
+            <h1 className={classes.title}>{series.title}</h1>
           </div>
 
           {(sublineParts.length > 0 || ratingParts.length > 0) && (
@@ -179,8 +191,8 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
             </div>
           )}
 
-          {movie.overview ? (
-            <p className={classes.overview}>{movie.overview}</p>
+          {series.overview ? (
+            <p className={classes.overview}>{series.overview}</p>
           ) : (
             <Text c="dimmed" size="sm" className={classes.overview}>
               No synopsis available.
@@ -228,27 +240,37 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
         </div>
 
         <dl className={`${classes.panel} ${classes.metaPanel}`}>
-          {movie.path && (
+          {series.path && (
             <MetaRow label="Path" wide>
               <Text size="sm" className={classes.path}>
-                {movie.path}
+                {series.path}
               </Text>
             </MetaRow>
           )}
-          <MetaRow label="Status">{availabilityLabel[movie.availability]}</MetaRow>
-          {movie.qualityProfileName && (
-            <MetaRow label="Quality">{movie.qualityProfileName}</MetaRow>
+          <MetaRow label="Status">{availabilityLabel[series.availability]}</MetaRow>
+          {series.qualityProfileName && (
+            <MetaRow label="Quality">{series.qualityProfileName}</MetaRow>
+          )}
+          {episodeProgress && <MetaRow label="Episodes">{episodeProgress}</MetaRow>}
+          {series.seasonCount != null && (
+            <MetaRow label="Seasons">{String(series.seasonCount)}</MetaRow>
           )}
           {size && <MetaRow label="Size">{size}</MetaRow>}
-          {movie.collection && <MetaRow label="Collection">{movie.collection}</MetaRow>}
-          {movie.originalLanguage && (
-            <MetaRow label="Original language">{movie.originalLanguage}</MetaRow>
+          {series.network && <MetaRow label="Network">{series.network}</MetaRow>}
+          {series.originalLanguage && (
+            <MetaRow label="Original language">{series.originalLanguage}</MetaRow>
           )}
-          {movie.studio && <MetaRow label="Studio">{movie.studio}</MetaRow>}
-          {movie.genres.length > 0 && (
+          {series.status && (
+            <MetaRow label="Series status">
+              <Text size="sm" tt="capitalize">
+                {series.status}
+              </Text>
+            </MetaRow>
+          )}
+          {series.genres.length > 0 && (
             <MetaRow label="Genres" wide>
               <Group gap={6}>
-                {movie.genres.map((genre) => (
+                {series.genres.map((genre) => (
                   <Badge key={genre} size="sm" variant="light" color="gray">
                     {genre}
                   </Badge>
@@ -258,20 +280,26 @@ export function MovieDetailHero({ movie }: { movie: MoviePageDetail }) {
           )}
         </dl>
 
-        {hasTrailer && (
-          <div className={`${classes.panel} ${classes.trailerPanel}`}>
+        <div className={`${classes.panel} ${classes.trailerPanel}`}>
+          {hasTrailer && trailerId ? (
             <div className={classes.trailer}>
               <iframe
-                title={`${movie.title} trailer`}
-                src={`https://www.youtube-nocookie.com/embed/${movie.youTubeTrailerId}`}
+                title={`${series.title} trailer`}
+                src={`https://www.youtube-nocookie.com/embed/${trailerId}`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
                 loading="lazy"
                 referrerPolicy="strict-origin-when-cross-origin"
               />
             </div>
-          </div>
-        )}
+          ) : (
+            <div className={classes.trailerEmpty}>
+              <Text size="sm" c="dimmed">
+                {trailerQuery.isFetching ? "Looking for trailer…" : "No trailer available"}
+              </Text>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
