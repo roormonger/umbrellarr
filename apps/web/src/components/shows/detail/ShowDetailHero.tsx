@@ -3,7 +3,12 @@ import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SeriesPageDetail } from "@umbrellarr/shared";
 import { useMemo } from "react";
-import { getSeriesLinks, getSeriesTrailer, updateSeries } from "@/api/shows";
+import {
+  getSeriesLinks,
+  getSeriesRatings,
+  getSeriesTrailer,
+  updateSeries,
+} from "@/api/shows";
 import {
   MediaDetailHero,
   MetaRow,
@@ -11,13 +16,9 @@ import {
 } from "@/components/media/detail/MediaDetailHero";
 import mediaClasses from "@/components/media/detail/MediaDetailHero.module.css";
 import { formatFreeSpace } from "@/lib/moviePath";
+import { SERIES_POSTER_STATUS_LABELS } from "@/lib/posterStatusLabels";
 
-const availabilityLabel: Record<SeriesPageDetail["availability"], string> = {
-  downloaded: "Downloaded",
-  missing: "Missing",
-  unavailable: "Unavailable",
-  unmonitored: "Unmonitored",
-};
+const availabilityLabel = SERIES_POSTER_STATUS_LABELS;
 
 function formatRuntime(minutes?: number): string | undefined {
   if (minutes == null || minutes <= 0) return undefined;
@@ -57,7 +58,15 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
     staleTime: 24 * 60 * 60 * 1000,
   });
 
+  const ratingsQuery = useQuery({
+    queryKey: ["series-ratings", series.instanceId, series.externalId],
+    queryFn: () => getSeriesRatings(series.instanceId, series.externalId),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+
   const trailerId = series.youTubeTrailerId ?? trailerQuery.data?.youTubeTrailerId;
+  const tmdbRating = series.tmdbRating ?? ratingsQuery.data?.tmdbRating;
+  const imdbRating = series.imdbRating ?? ratingsQuery.data?.imdbRating;
 
   const monitorMutation = useMutation({
     mutationFn: () =>
@@ -114,17 +123,18 @@ export function ShowDetailHero({ series }: { series: SeriesPageDetail }) {
 
   const ratingParts = useMemo((): MediaDetailRating[] => {
     const parts: MediaDetailRating[] = [];
-    if (series.tmdbRating != null) {
-      parts.push({ label: "TMDb", value: formatRating(series.tmdbRating, false) });
+    if (tmdbRating != null) {
+      parts.push({ label: "TMDb", value: formatRating(tmdbRating, false) });
     }
-    if (series.imdbRating != null) {
-      parts.push({ label: "IMDb", value: formatRating(series.imdbRating, false) });
+    if (imdbRating != null) {
+      parts.push({ label: "IMDb", value: formatRating(imdbRating, false) });
     }
+    // Trakt only from Sonarr — we do not scrape it.
     if (series.traktRating != null) {
       parts.push({ label: "Trakt", value: formatRating(series.traktRating, true) });
     }
     return parts;
-  }, [series.tmdbRating, series.imdbRating, series.traktRating]);
+  }, [tmdbRating, imdbRating, series.traktRating]);
 
   const links = useMemo(
     () => (linksQuery.data?.links ?? []).filter((link) => link.id !== "trailer"),

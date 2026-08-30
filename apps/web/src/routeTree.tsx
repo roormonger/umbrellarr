@@ -14,6 +14,7 @@ import { MoviesPage } from "@/pages/MoviesPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ShowDetailPage } from "@/pages/ShowDetailPage";
+import { ArtistsPage } from "@/pages/ArtistsPage";
 import { ShowsPage } from "@/pages/ShowsPage";
 import { StatusPage } from "@/pages/StatusPage";
 
@@ -124,6 +125,32 @@ const showDetailRoute = createRoute({
   component: ShowDetailPage,
 });
 
+const musicIndexRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/music",
+  beforeLoad: async ({ context }) => {
+    const data = await context.queryClient.ensureQueryData({
+      queryKey: ["instances"],
+      queryFn: listInstances,
+      staleTime: INSTANCES_STALE_MS,
+    });
+    const first = data.instances.find((i) => i.kind === "lidarr");
+    if (!first) {
+      throw redirect({ to: "/settings" });
+    }
+    throw redirect({
+      to: "/music/$instanceId",
+      params: { instanceId: first.id },
+    });
+  },
+});
+
+const musicInstanceRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/music/$instanceId",
+  component: ArtistsPage,
+});
+
 /** Legacy paths → new routes */
 const legacyMoviesRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -201,6 +228,8 @@ export const routeTree = rootRoute.addChildren([
     showsIndexRoute,
     showsInstanceRoute,
     showDetailRoute,
+    musicIndexRoute,
+    musicInstanceRoute,
     legacyMoviesRoute,
     legacyMovieDetailRoute,
     legacyShowsRoute,

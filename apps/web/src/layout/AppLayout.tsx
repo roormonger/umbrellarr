@@ -20,6 +20,7 @@ import { useState, type ReactNode } from "react";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { FilmStripIcon } from "@phosphor-icons/react/dist/csr/FilmStrip";
 import { TelevisionIcon } from "@phosphor-icons/react/dist/csr/Television";
+import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
 import { ListBulletsIcon } from "@phosphor-icons/react/dist/csr/ListBullets";
 import { CalendarBlankIcon } from "@phosphor-icons/react/dist/csr/CalendarBlank";
 import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
@@ -31,6 +32,7 @@ import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
 import { clearAuthStatusCache, logout } from "@/api/auth";
 import { listInstances } from "@/api/instances";
 import { listMovies } from "@/api/movies";
+import { listArtists } from "@/api/artists";
 import { listShows } from "@/api/shows";
 import { getDashboardStats } from "@/api/stats";
 import umbrellarrIcon from "@/assets/umbrellarr-icon.png";
@@ -96,6 +98,7 @@ export function AppLayout() {
   const stats = statsQuery.data;
   const radarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "radarr");
   const sonarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "sonarr");
+  const lidarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "lidarr");
   const title = pageHeader.title ?? titleFromPath(pathname);
   const count = pageHeader.count;
   const backTo = pageHeader.backTo;
@@ -112,6 +115,14 @@ export function AppLayout() {
     void queryClient.prefetchQuery({
       queryKey: ["shows", instanceId],
       queryFn: () => listShows(instanceId),
+      staleTime: 60_000,
+    });
+  }
+
+  function prefetchArtists(instanceId: string) {
+    void queryClient.prefetchQuery({
+      queryKey: ["artists", instanceId],
+      queryFn: () => listArtists(instanceId),
       staleTime: 60_000,
     });
   }
@@ -231,6 +242,25 @@ export function AppLayout() {
                       label={instance.name}
                       onNavigate={close}
                       onPrefetch={() => prefetchShows(instance.id)}
+                    />
+                  ))}
+                </NavLink>
+              )}
+
+              {lidarrInstances.length > 0 && (
+                <NavLink
+                  label="Music"
+                  leftSection={<MusicNotesIcon />}
+                  defaultOpened
+                  childrenOffset={16}
+                >
+                  {lidarrInstances.map((instance) => (
+                    <NavItem
+                      key={instance.id}
+                      to={`/music/${instance.id}`}
+                      label={instance.name}
+                      onNavigate={close}
+                      onPrefetch={() => prefetchArtists(instance.id)}
                     />
                   ))}
                 </NavLink>

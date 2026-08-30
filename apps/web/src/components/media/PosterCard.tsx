@@ -15,14 +15,10 @@ import TiltImport from "react-parallax-tilt";
 const Tilt = TiltImport as unknown as ComponentType<Record<string, unknown>>;
 import { refreshMovie } from "@/api/movies";
 import { MovieLinksMenu } from "@/components/movies/MovieLinksMenu";
+import { MOVIE_POSTER_STATUS_LABELS } from "@/lib/posterStatusLabels";
 import classes from "./PosterCard.module.css";
 
-const availabilityLabel: Record<MovieListItem["availability"], string> = {
-  downloaded: "Downloaded",
-  missing: "Missing",
-  unavailable: "Unavailable",
-  unmonitored: "Unmonitored",
-};
+const availabilityLabel = MOVIE_POSTER_STATUS_LABELS;
 
 function markPosterLoaded(img: HTMLImageElement | null) {
   if (img && img.complete && img.naturalWidth > 0) {

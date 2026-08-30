@@ -169,13 +169,14 @@ export function ShowEditModal({ opened, instanceId, seriesId, title, onClose }: 
         <Stack gap="md">
           <Checkbox
             label="Monitored"
-            description="Monitor this series for new episodes"
+            description="Download monitored episodes in this series"
             checked={monitored}
             onChange={(e) => setMonitored(e.currentTarget.checked)}
           />
 
           <Select
-            label="Monitor New Items"
+            label="Monitor New Seasons"
+            description="Which new seasons should be monitored automatically"
             data={SERIES_MONITOR_NEW_ITEMS_OPTIONS.map((o) => ({
               value: o.value,
               label: o.label,
@@ -187,18 +188,9 @@ export function ShowEditModal({ opened, instanceId, seriesId, title, onClose }: 
             allowDeselect={false}
           />
 
-          <Select
-            label="Series Type"
-            data={SERIES_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            value={seriesType}
-            onChange={(value) => {
-              if (value) setSeriesType(value as SeriesType);
-            }}
-            allowDeselect={false}
-          />
-
           <Checkbox
-            label="Season Folder"
+            label="Use Season Folder"
+            description="Sort episodes into season folders"
             checked={seasonFolder}
             onChange={(e) => setSeasonFolder(e.currentTarget.checked)}
           />
@@ -210,6 +202,31 @@ export function ShowEditModal({ opened, instanceId, seriesId, title, onClose }: 
             onChange={setQualityProfileId}
             allowDeselect={false}
             searchable
+          />
+
+          <Select
+            label="Series Type"
+            description="Series type is used for renaming, parsing and searching"
+            data={SERIES_TYPE_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+              description: o.description,
+            }))}
+            value={seriesType}
+            onChange={(value) => {
+              if (value) setSeriesType(value as SeriesType);
+            }}
+            allowDeselect={false}
+            renderOption={({ option }) => (
+              <Stack gap={0}>
+                <Text size="sm">{option.label}</Text>
+                {"description" in option && option.description ? (
+                  <Text size="xs" c="dimmed">
+                    {String(option.description)}
+                  </Text>
+                ) : null}
+              </Stack>
+            )}
           />
 
           <Stack gap={6}>

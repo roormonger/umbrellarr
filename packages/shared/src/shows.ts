@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MediaItemSchema } from "./media.js";
+import { AvailabilitySchema, MediaItemSchema } from "./media.js";
 
 export const SeriesSortKeySchema = z.enum([
   "monitoredStatus",
@@ -92,10 +92,27 @@ export const SERIES_FILTER_OPTIONS: Array<{ value: SeriesFilterKey; label: strin
 export const SeriesTypeSchema = z.enum(["standard", "daily", "anime"]);
 export type SeriesType = z.infer<typeof SeriesTypeSchema>;
 
-export const SERIES_TYPE_OPTIONS: Array<{ value: SeriesType; label: string }> = [
-  { value: "standard", label: "Standard" },
-  { value: "daily", label: "Daily" },
-  { value: "anime", label: "Anime" },
+/** Labels/descriptions mirror Sonarr Edit Series modal. */
+export const SERIES_TYPE_OPTIONS: Array<{
+  value: SeriesType;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "standard",
+    label: "Standard",
+    description: "Season and episode numbers (S01E05)",
+  },
+  {
+    value: "daily",
+    label: "Daily",
+    description: "Based on air date",
+  },
+  {
+    value: "anime",
+    label: "Anime",
+    description: "Absolute episode numbers",
+  },
 ];
 
 export const SeriesMonitorNewItemsSchema = z.enum(["all", "none"]);
@@ -105,7 +122,7 @@ export const SERIES_MONITOR_NEW_ITEMS_OPTIONS: Array<{
   value: SeriesMonitorNewItems;
   label: string;
 }> = [
-  { value: "all", label: "All episodes" },
+  { value: "all", label: "All Seasons" },
   { value: "none", label: "None" },
 ];
 
@@ -156,7 +173,7 @@ export const SeriesPageDetailSchema = SeriesDetailSchema.extend({
   seasonCount: z.number().int().optional(),
   episodeCount: z.number().int().optional(),
   episodeFileCount: z.number().int().optional(),
-  availability: z.enum(["downloaded", "missing", "unavailable", "unmonitored"]),
+  availability: AvailabilitySchema,
   tmdbRating: z.number().optional(),
   imdbRating: z.number().optional(),
   traktRating: z.number().optional(),
@@ -208,6 +225,8 @@ export const SeriesHistoryEventSchema = z.object({
   customFormatScore: z.number().int().optional(),
   date: z.string(),
   downloadId: z.string().optional(),
+  seasonNumber: z.number().int().optional(),
+  episodeId: z.number().int().optional(),
   /**
    * Event-specific key/value bag from Sonarr `history.data`.
    * Keys vary by eventType (reason, size, sourcePath, droppedPath, …).
@@ -294,6 +313,7 @@ export const SeriesRenamePreviewSchema = z.object({
   episodeFileId: z.number().int(),
   existingPath: z.string(),
   newPath: z.string(),
+  seasonNumber: z.number().int().optional(),
 });
 export type SeriesRenamePreview = z.infer<typeof SeriesRenamePreviewSchema>;
 
@@ -342,6 +362,7 @@ export const SeriesManageFileSchema = z.object({
   languages: z.array(SeriesReleaseLanguageSchema).default([]),
   indexerFlags: z.number().int().default(0),
   customFormatScore: z.number().int().optional(),
+  seasonNumber: z.number().int().optional(),
 });
 export type SeriesManageFile = z.infer<typeof SeriesManageFileSchema>;
 
@@ -363,3 +384,47 @@ export const SeriesFileBulkDeleteRequestSchema = z.object({
   episodeFileIds: z.array(z.number().int()).min(1),
 });
 export type SeriesFileBulkDeleteRequest = z.infer<typeof SeriesFileBulkDeleteRequestSchema>;
+
+/** Season expander summary from Sonarr series.seasons + statistics. */
+export const SeriesSeasonSummarySchema = z.object({
+  seasonNumber: z.number().int(),
+  monitored: z.boolean(),
+  episodeCount: z.number().int().default(0),
+  episodeFileCount: z.number().int().default(0),
+  sizeOnDisk: z.number().nonnegative().optional(),
+  totalEpisodeCount: z.number().int().optional(),
+});
+export type SeriesSeasonSummary = z.infer<typeof SeriesSeasonSummarySchema>;
+
+/**
+ * Episode row status — mirrors Sonarr EpisodeStatus priority:
+ * queue/downloading → downloaded → unmonitored → missing → unaired.
+ * Source: Sonarr frontend EpisodeStatus.tsx
+ */
+export const SeriesEpisodeStatusSchema = z.enum([
+  "downloading",
+  "downloaded",
+  "missing",
+  "unmonitored",
+  "unaired",
+]);
+export type SeriesEpisodeStatus = z.infer<typeof SeriesEpisodeStatusSchema>;
+
+export const SeriesEpisodeSchema = z.object({
+  id: z.number().int(),
+  seasonNumber: z.number().int(),
+  episodeNumber: z.number().int(),
+  title: z.string(),
+  airDate: z.string().optional(),
+  airDateUtc: z.string().optional(),
+  hasFile: z.boolean(),
+  monitored: z.boolean(),
+  episodeFileId: z.number().int().optional(),
+  status: SeriesEpisodeStatusSchema,
+});
+export type SeriesEpisode = z.infer<typeof SeriesEpisodeSchema>;
+
+export const SeriesSeasonMonitorRequestSchema = z.object({
+  monitored: z.boolean(),
+});
+export type SeriesSeasonMonitorRequest = z.infer<typeof SeriesSeasonMonitorRequestSchema>;

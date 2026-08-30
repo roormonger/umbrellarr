@@ -4,6 +4,7 @@ import {
   SeriesFileBulkUpdateRequestSchema,
   SeriesOrganizeRequestSchema,
   SeriesReleaseGrabRequestSchema,
+  SeriesSeasonMonitorRequestSchema,
   SeriesUpdateRequestSchema,
 } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
@@ -23,6 +24,7 @@ import {
   fetchSeriesQualities,
   fetchSeriesRenamePreview,
   fetchSeriesReleases,
+  fetchSeriesRatings,
   fetchSeriesTrailer,
   grabSeriesRelease,
   markSeriesHistoryFailed,
@@ -31,7 +33,30 @@ import {
   searchSeries,
   updateSeries,
 } from "../servarr/showActions.js";
+import {
+  fetchEpisodeReleases,
+  fetchSeasonReleases,
+  fetchSeriesEpisodes,
+  fetchSeriesHistoryForSeason,
+  fetchSeriesManageFilesForSeason,
+  fetchSeriesRenamePreviewForSeason,
+  fetchSeriesSeasons,
+  searchEpisode,
+  searchSeason,
+  setSeasonMonitored,
+} from "../servarr/seriesSeasons.js";
 import { resolveSeriesYouTubeTrailerId } from "../servarr/seriesTrailer.js";
+
+function parseId(value: string): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseSeasonNumber(value: string | undefined): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isInteger(n) ? n : null;
+}
 
 export function createShowsRoutes() {
   const app = new Hono<{ Variables: AppVariables }>();
@@ -46,7 +71,8 @@ export function createShowsRoutes() {
     if (instanceId && scoped[0] && scoped[0].kind !== "sonarr") {
       return c.json({ error: `Instance ${instanceId} is not a Sonarr client` }, 400);
     }
-    const result = await c.get("libraryCache").getSeries(scoped);
+    const force = c.req.query("refresh") === "true";
+    const result = await c.get("libraryCache").getSeries(scoped, { force });
     c.header("X-Cache", result.status);
     if (result.fetchedAt) {
       c.header("X-Cache-Fetched-At", result.fetchedAt);
@@ -220,6 +246,24 @@ export function createShowsRoutes() {
     }
   });
 
+  app.get("/:instanceId/:seriesId/ratings", async (c) => {
+    try {
+      const seriesId = Number(c.req.param("seriesId"));
+      if (!Number.isFinite(seriesId)) {
+        return c.json({ error: "Invalid series id" }, 400);
+      }
+      const result = await fetchSeriesRatings(
+        c.get("instances"),
+        c.req.param("instanceId"),
+        seriesId,
+      );
+      return c.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load ratings";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
   app.post("/:instanceId/:seriesId/refresh", async (c) => {
     try {
       const seriesId = Number(c.req.param("seriesId"));
@@ -250,15 +294,155 @@ export function createShowsRoutes() {
     }
   });
 
-  app.get("/:instanceId/:seriesId/history", async (c) => {
-    const seriesId = Number(c.req.param("seriesId"));
-    if (!Number.isFinite(seriesId)) return c.json({ error: "Invalid series id" }, 400);
+  app.get("/:instanceId/:seriesId/seasons", async (c) => {
+    const seriesId = parseId(c.req.param("seriesId"));
+    if (seriesId == null) return c.json({ error: "Invalid series id" }, 400);
     try {
-      const events = await fetchSeriesHistory(
+      const seasons = await fetchSeriesSeasons(
         c.get("instances"),
         c.req.param("instanceId"),
         seriesId,
       );
+      return c.json({ seasons });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load seasons";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/:seriesId/episodes", async (c) => {
+    const seriesId = parseId(c.req.param("seriesId"));
+    if (seriesId == null) return c.json({ error: "Invalid series id" }, 400);
+    const seasonRaw = c.req.query("seasonNumber");
+    const seasonNumber =
+      seasonRaw == null || seasonRaw === "" ? undefined : parseSeasonNumber(seasonRaw);
+    if (seasonRaw && seasonNumber == null) {
+      return c.json({ error: "Invalid season number" }, 400);
+    }
+    try {
+      const episodes = await fetchSeriesEpisodes(
+        c.get("instances"),
+        c.req.param("instanceId"),
+        seriesId,
+        seasonNumber ?? undefined,
+      );
+      return c.json({ episodes });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load episodes";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.post("/:instanceId/:seriesId/seasons/:seasonNumber/search", async (c) => {
+    const seriesId = parseId(c.req.param("seriesId"));
+    const seasonNumber = parseSeasonNumber(c.req.param("seasonNumber"));
+    if (seriesId == null) return c.json({ error: "Invalid series id" }, 400);
+    if (seasonNumber == null) return c.json({ error: "Invalid season number" }, 400);
+    try {
+      await searchSeason(c.get("instances"), c.req.param("instanceId"), seriesId, seasonNumber);
+      return c.json({ ok: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Season search failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.put("/:instanceId/:seriesId/seasons/:seasonNumber/monitor", async (c) => {
+    const seriesId = parseId(c.req.param("seriesId"));
+    const seasonNumber = parseSeasonNumber(c.req.param("seasonNumber"));
+    if (seriesId == null) return c.json({ error: "Invalid series id" }, 400);
+    if (seasonNumber == null) return c.json({ error: "Invalid season number" }, 400);
+    const parsed = SeriesSeasonMonitorRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) {
+      return c.json({ error: "Invalid monitor request", details: parsed.error.flatten() }, 400);
+    }
+    try {
+      const instanceId = c.req.param("instanceId");
+      const seasons = await setSeasonMonitored(
+        c.get("instances"),
+        instanceId,
+        seriesId,
+        seasonNumber,
+        parsed.data.monitored,
+      );
+      c.get("libraryCache").invalidate(instanceId);
+      return c.json({ seasons });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Season monitor failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/:seriesId/seasons/:seasonNumber/releases", async (c) => {
+    const seriesId = parseId(c.req.param("seriesId"));
+    const seasonNumber = parseSeasonNumber(c.req.param("seasonNumber"));
+    if (seriesId == null) return c.json({ error: "Invalid series id" }, 400);
+    if (seasonNumber == null) return c.json({ error: "Invalid season number" }, 400);
+    try {
+      const releases = await fetchSeasonReleases(
+        c.get("instances"),
+        c.req.param("instanceId"),
+        seriesId,
+        seasonNumber,
+      );
+      return c.json({ releases });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Interactive search failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.post("/:instanceId/:seriesId/episodes/:episodeId/search", async (c) => {
+    const episodeId = parseId(c.req.param("episodeId"));
+    if (episodeId == null) return c.json({ error: "Invalid episode id" }, 400);
+    try {
+      await searchEpisode(c.get("instances"), c.req.param("instanceId"), episodeId);
+      return c.json({ ok: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Episode search failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/:seriesId/episodes/:episodeId/releases", async (c) => {
+    const episodeId = parseId(c.req.param("episodeId"));
+    if (episodeId == null) return c.json({ error: "Invalid episode id" }, 400);
+    try {
+      const releases = await fetchEpisodeReleases(
+        c.get("instances"),
+        c.req.param("instanceId"),
+        episodeId,
+      );
+      return c.json({ releases });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Interactive search failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/:seriesId/history", async (c) => {
+    const seriesId = Number(c.req.param("seriesId"));
+    if (!Number.isFinite(seriesId)) return c.json({ error: "Invalid series id" }, 400);
+    const seasonRaw = c.req.query("seasonNumber");
+    const seasonNumber =
+      seasonRaw == null || seasonRaw === "" ? undefined : parseSeasonNumber(seasonRaw);
+    if (seasonRaw && seasonNumber == null) {
+      return c.json({ error: "Invalid season number" }, 400);
+    }
+    try {
+      const events =
+        seasonNumber != null
+          ? await fetchSeriesHistoryForSeason(
+              c.get("instances"),
+              c.req.param("instanceId"),
+              seriesId,
+              seasonNumber,
+            )
+          : await fetchSeriesHistory(
+              c.get("instances"),
+              c.req.param("instanceId"),
+              seriesId,
+            );
       return c.json({ events });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load history";
@@ -301,12 +485,26 @@ export function createShowsRoutes() {
   app.get("/:instanceId/:seriesId/files", async (c) => {
     const seriesId = Number(c.req.param("seriesId"));
     if (!Number.isFinite(seriesId)) return c.json({ error: "Invalid series id" }, 400);
+    const seasonRaw = c.req.query("seasonNumber");
+    const seasonNumber =
+      seasonRaw == null || seasonRaw === "" ? undefined : parseSeasonNumber(seasonRaw);
+    if (seasonRaw && seasonNumber == null) {
+      return c.json({ error: "Invalid season number" }, 400);
+    }
     try {
-      const files = await fetchSeriesManageFiles(
-        c.get("instances"),
-        c.req.param("instanceId"),
-        seriesId,
-      );
+      const files =
+        seasonNumber != null
+          ? await fetchSeriesManageFilesForSeason(
+              c.get("instances"),
+              c.req.param("instanceId"),
+              seriesId,
+              seasonNumber,
+            )
+          : await fetchSeriesManageFiles(
+              c.get("instances"),
+              c.req.param("instanceId"),
+              seriesId,
+            );
       return c.json({ files });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load episode files";
@@ -317,12 +515,26 @@ export function createShowsRoutes() {
   app.get("/:instanceId/:seriesId/rename", async (c) => {
     const seriesId = Number(c.req.param("seriesId"));
     if (!Number.isFinite(seriesId)) return c.json({ error: "Invalid series id" }, 400);
+    const seasonRaw = c.req.query("seasonNumber");
+    const seasonNumber =
+      seasonRaw == null || seasonRaw === "" ? undefined : parseSeasonNumber(seasonRaw);
+    if (seasonRaw && seasonNumber == null) {
+      return c.json({ error: "Invalid season number" }, 400);
+    }
     try {
-      const items = await fetchSeriesRenamePreview(
-        c.get("instances"),
-        c.req.param("instanceId"),
-        seriesId,
-      );
+      const items =
+        seasonNumber != null
+          ? await fetchSeriesRenamePreviewForSeason(
+              c.get("instances"),
+              c.req.param("instanceId"),
+              seriesId,
+              seasonNumber,
+            )
+          : await fetchSeriesRenamePreview(
+              c.get("instances"),
+              c.req.param("instanceId"),
+              seriesId,
+            );
       return c.json({ items });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load rename preview";

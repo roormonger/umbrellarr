@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MediaItemSchema } from "./media.js";
+import { AvailabilitySchema, MediaItemSchema } from "./media.js";
 
 export const MovieSortKeySchema = z.enum([
   "monitoredStatus",
@@ -197,7 +197,7 @@ export const MoviePageDetailSchema = MovieDetailSchema.extend({
   qualityProfileName: z.string().optional(),
   hasFile: z.boolean(),
   sizeOnDisk: z.number().nonnegative().optional(),
-  availability: z.enum(["downloaded", "missing", "unavailable", "unmonitored"]),
+  availability: AvailabilitySchema,
   tmdbRating: z.number().optional(),
   imdbRating: z.number().optional(),
   tomatoRating: z.number().optional(),

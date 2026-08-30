@@ -13,7 +13,7 @@ export type PosterScale = {
 };
 
 /** Shared metrics for zoom slider, CSS vars, and virtualized row height. */
-export function getPosterScale(posterSize: number): PosterScale {
+export function getPosterScale(posterSize: number, aspectRatio = 1.5): PosterScale {
   const t = (posterSize - POSTER_SIZE_MIN) / (POSTER_SIZE_MAX - POSTER_SIZE_MIN);
   const titleSizeRem = 0.65 + t * 0.35;
   const badgeSizePx = 16 + t * 14;
@@ -21,7 +21,7 @@ export function getPosterScale(posterSize: number): PosterScale {
   const gapRem = 0.55 + t * 0.55;
   const gapPx = gapRem * 16;
   const radiusPx = 6 + t * 6;
-  const posterHeight = posterSize * 1.5;
+  const posterHeight = posterSize * aspectRatio;
   const titleBlock = titleSizeRem * 16 * 1.25 * 2 + 8;
   const rowHeight = posterHeight + titleBlock + gapPx;
 

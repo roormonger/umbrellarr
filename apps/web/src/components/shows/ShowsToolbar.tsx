@@ -13,6 +13,7 @@ import {
   type SeriesSortDirection,
   type SeriesSortKey,
 } from "@umbrellarr/shared";
+import { LibraryRefreshButton } from "@/components/media/LibraryRefreshButton";
 
 export const POSTER_SIZE_MIN = 90;
 export const POSTER_SIZE_MAX = 220;
@@ -27,6 +28,8 @@ export function ShowsToolbar({
   onPosterSizeCommit,
   onSortChange,
   onFilterChange,
+  onRefresh,
+  refreshing,
 }: {
   posterSize: number;
   sortKey: SeriesSortKey;
@@ -36,6 +39,8 @@ export function ShowsToolbar({
   onPosterSizeCommit: (size: number) => void;
   onSortChange: (key: SeriesSortKey) => void;
   onFilterChange: (key: SeriesFilterKey) => void;
+  onRefresh: () => void;
+  refreshing?: boolean;
 }) {
   const sortLabel = SERIES_SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Sort";
   const filterLabel = SERIES_FILTER_OPTIONS.find((o) => o.value === filterKey)?.label ?? "Filter";
@@ -116,6 +121,8 @@ export function ShowsToolbar({
           ))}
         </Menu.Dropdown>
       </Menu>
+
+      <LibraryRefreshButton loading={refreshing} onRefresh={onRefresh} />
     </Group>
   );
 }

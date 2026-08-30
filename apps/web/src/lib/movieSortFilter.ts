@@ -6,10 +6,15 @@ import type {
 } from "@umbrellarr/shared";
 
 const STATUS_ORDER: Record<MovieListItem["availability"], number> = {
-  downloaded: 0,
-  missing: 1,
-  unavailable: 2,
-  unmonitored: 3,
+  queued: 0,
+  downloading: 1,
+  missingMonitored: 2,
+  missingUnmonitored: 3,
+  unreleased: 4,
+  continuing: 5,
+  ended: 6,
+  downloaded: 7,
+  downloadedUnmonitored: 8,
 };
 
 function releaseDateValue(movie: MovieListItem): number {

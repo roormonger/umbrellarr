@@ -39,6 +39,7 @@ type Props = {
   instanceId: string;
   seriesId: number;
   title: string;
+  seasonNumber?: number;
 };
 
 type FileDraft = {
@@ -112,14 +113,15 @@ export function ShowManageFilesModal({
   instanceId,
   seriesId,
   title,
+  seasonNumber,
 }: Props) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Record<number, boolean>>({});
   const [drafts, setDrafts] = useState<Record<number, FileDraft>>({});
 
   const filesQuery = useQuery({
-    queryKey: ["series-manage-files", instanceId, seriesId],
-    queryFn: () => getSeriesManageFiles(instanceId, seriesId),
+    queryKey: ["series-manage-files", instanceId, seriesId, seasonNumber ?? null],
+    queryFn: () => getSeriesManageFiles(instanceId, seriesId, seasonNumber),
     enabled: opened,
   });
 
@@ -249,6 +251,8 @@ export function ShowManageFilesModal({
       await queryClient.invalidateQueries({
         queryKey: ["series-manage-files", instanceId, seriesId],
       });
+      await queryClient.invalidateQueries({ queryKey: ["series-seasons", instanceId, seriesId] });
+      await queryClient.invalidateQueries({ queryKey: ["series-episodes", instanceId, seriesId] });
     },
     onError: (err) => {
       notifications.show({
@@ -268,6 +272,8 @@ export function ShowManageFilesModal({
       await queryClient.invalidateQueries({
         queryKey: ["series-manage-files", instanceId, seriesId],
       });
+      await queryClient.invalidateQueries({ queryKey: ["series-seasons", instanceId, seriesId] });
+      await queryClient.invalidateQueries({ queryKey: ["series-episodes", instanceId, seriesId] });
       await queryClient.invalidateQueries({ queryKey: ["shows"] });
     },
     onError: (err) => {
@@ -285,7 +291,13 @@ export function ShowManageFilesModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={`Manage Files - ${title}`}
+      title={
+        seasonNumber == null
+          ? `Manage Files - ${title}`
+          : seasonNumber === 0
+            ? `Manage Files - ${title} · Specials`
+            : `Manage Files - ${title} · Season ${seasonNumber}`
+      }
       size="95%"
       centered
       styles={{ content: { maxWidth: 1200 } }}

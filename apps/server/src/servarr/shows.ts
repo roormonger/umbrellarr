@@ -1,6 +1,8 @@
-import type { Availability, Instance, SeriesListItem } from "@umbrellarr/shared";
+import type { Instance, SeriesListItem } from "@umbrellarr/shared";
 import { arrJson } from "./client.js";
 import { toGridPosterPath } from "./mediaCover.js";
+import { seriesPosterStatus } from "./posterStatus.js";
+import { fetchQueueEntityIds } from "./queueIds.js";
 
 type SonarrImage = {
   coverType?: string;
@@ -81,19 +83,21 @@ function posterUrlFor(instance: Instance, series: SonarrSeries): string | undefi
   return poster.remoteUrl;
 }
 
-export function availabilityFor(series: {
-  monitored: boolean;
-  status?: string;
-  statistics?: SonarrStatistics;
-}): Availability {
-  if (!series.monitored) return "unmonitored";
-  const episodeCount = series.statistics?.episodeCount ?? 0;
-  const episodeFileCount = series.statistics?.episodeFileCount ?? 0;
-  if (episodeCount > 0 && episodeFileCount >= episodeCount) return "downloaded";
-  if (episodeCount > 0 && episodeFileCount < episodeCount) return "missing";
-  // Ended / no episodes yet, or continuing with nothing aired
-  if (series.status === "ended" || series.status === "deleted") return "unavailable";
-  return episodeFileCount > 0 ? "downloaded" : "unavailable";
+export function availabilityFor(
+  series: {
+    monitored: boolean;
+    status?: string;
+    statistics?: SonarrStatistics;
+  },
+  downloading = false,
+) {
+  return seriesPosterStatus({
+    monitored: series.monitored,
+    status: series.status,
+    episodeCount: series.statistics?.episodeCount,
+    episodeFileCount: series.statistics?.episodeFileCount,
+    downloading,
+  });
 }
 
 /** Sonarr wanted/cutoff returns episodes; collect distinct series ids. */
@@ -126,6 +130,7 @@ export function mapSonarrSeries(
   profiles: Map<number, string>,
   tags: Map<number, string>,
   cutoffIds: Set<number>,
+  queuedIds: Set<number> = new Set(),
 ): SeriesListItem {
   const stats = series.statistics;
   return {
@@ -139,7 +144,7 @@ export function mapSonarrSeries(
     monitored: series.monitored,
     inLibrary: true,
     hasFile: (stats?.episodeFileCount ?? 0) > 0,
-    availability: availabilityFor(series),
+    availability: availabilityFor(series, queuedIds.has(series.id)),
     tmdbId: series.tmdbId,
     tvdbId: series.tvdbId,
     tvMazeId: series.tvMazeId,
@@ -167,7 +172,7 @@ export function mapSonarrSeries(
 }
 
 export async function fetchSeriesForInstance(instance: Instance): Promise<SeriesListItem[]> {
-  const [seriesList, profiles, tagList, cutoffIds] = await Promise.all([
+  const [seriesList, profiles, tagList, cutoffIds, queuedIds] = await Promise.all([
     arrJson<SonarrSeries[]>(instance, "/api/v3/series", { timeoutMs: 90_000 }),
     arrJson<QualityProfile[]>(instance, "/api/v3/qualityprofile"),
     arrJson<ArrTag[]>(instance, "/api/v3/tag"),
@@ -175,13 +180,14 @@ export async function fetchSeriesForInstance(instance: Instance): Promise<Series
       console.warn(`[shows] cutoff lookup failed for ${instance.id}`, error);
       return new Set<number>();
     }),
+    fetchQueueEntityIds(instance, "seriesId"),
   ]);
 
   const profileMap = new Map(profiles.map((p) => [p.id, p.name]));
   const tagMap = new Map(tagList.map((t) => [t.id, t.label]));
 
   return seriesList.map((series) =>
-    mapSonarrSeries(instance, series, profileMap, tagMap, cutoffIds),
+    mapSonarrSeries(instance, series, profileMap, tagMap, cutoffIds, queuedIds),
   );
 }
 

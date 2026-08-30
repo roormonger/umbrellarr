@@ -25,6 +25,10 @@
   transform-style: preserve-3d;
 }
 
+.posterWrapSquare {
+  aspect-ratio: 1 / 1;
+}
+
 .posterSurface {
   position: absolute;
   inset: 0;
@@ -140,20 +144,32 @@
   z-index: 1;
 }
 
-.bar[data-availability="downloaded"] {
-  background: var(--mantine-color-green-6);
+/* Arr dark-theme poster bar colors (Movie/Series/Artist IndexFooter.css) */
+.bar[data-availability="downloaded"],
+.bar[data-availability="ended"] {
+  background: #00853d;
 }
 
-.bar[data-availability="missing"] {
-  background: var(--mantine-color-red-6);
+.bar[data-availability="downloadedUnmonitored"] {
+  background: #888;
 }
 
-.bar[data-availability="unavailable"] {
-  background: var(--mantine-color-yellow-6);
+.bar[data-availability="missingMonitored"] {
+  background: #f05050;
 }
 
-.bar[data-availability="unmonitored"] {
-  background: var(--mantine-color-yellow-6);
+.bar[data-availability="missingUnmonitored"] {
+  background: #ffa500;
+}
+
+.bar[data-availability="queued"],
+.bar[data-availability="downloading"] {
+  background: #7a43b6;
+}
+
+.bar[data-availability="unreleased"],
+.bar[data-availability="continuing"] {
+  background: #5d9cec;
 }
 
 .title {

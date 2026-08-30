@@ -84,6 +84,8 @@ export function SettingsPage() {
   async function invalidateAll() {
     await queryClient.invalidateQueries({ queryKey: ["instances"] });
     await queryClient.invalidateQueries({ queryKey: ["movies"] });
+    await queryClient.invalidateQueries({ queryKey: ["shows"] });
+    await queryClient.invalidateQueries({ queryKey: ["artists"] });
     await queryClient.invalidateQueries({ queryKey: ["stats"] });
   }
 
@@ -166,8 +168,9 @@ export function SettingsPage() {
     <Stack gap="md">
       <Group justify="space-between" align="flex-start">
         <Text c="dimmed" size="sm" maw={520}>
-          Add Radarr and Sonarr clients here. Names appear in the sidebar under Movies and Shows.
-          API keys are stored encrypted on the server and never sent back to the browser.
+          Add Radarr, Sonarr, and Lidarr clients here. Names appear in the sidebar under Movies,
+          Shows, and Music. API keys are stored encrypted on the server and never sent back to the
+          browser.
         </Text>
         <Button
           onClick={() => {
@@ -195,8 +198,8 @@ export function SettingsPage() {
 
       {!instancesQuery.isLoading && instances.length === 0 && (
         <Text c="dimmed" size="sm">
-          No Arr clients yet. Add one, or restart with RADARR_*/SONARR_* env vars for a one-time
-          import.
+          No Arr clients yet. Add one, or restart with RADARR_*/SONARR_*/LIDARR_* env vars for a
+          one-time import.
         </Text>
       )}
 
@@ -304,7 +307,7 @@ export function SettingsPage() {
         <Stack gap="sm">
           <TextInput
             label="Name"
-            description="Shown in the sidebar under Movies or Shows"
+            description="Shown in the sidebar under Movies, Shows, or Music"
             value={form.name}
             onChange={(e) => {
               const name = e.currentTarget.value;
@@ -318,6 +321,7 @@ export function SettingsPage() {
             data={[
               { value: "radarr", label: "Radarr (Movies)" },
               { value: "sonarr", label: "Sonarr (Shows)" },
+              { value: "lidarr", label: "Lidarr (Music)" },
             ]}
             value={form.kind}
             allowDeselect={false}

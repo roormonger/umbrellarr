@@ -11,13 +11,9 @@ import {
 } from "@/components/media/detail/MediaDetailHero";
 import mediaClasses from "@/components/media/detail/MediaDetailHero.module.css";
 import { formatFreeSpace } from "@/lib/moviePath";
+import { MOVIE_POSTER_STATUS_LABELS } from "@/lib/posterStatusLabels";
 
-const availabilityLabel: Record<MoviePageDetail["availability"], string> = {
-  downloaded: "Downloaded",
-  missing: "Missing",
-  unavailable: "Unavailable",
-  unmonitored: "Unmonitored",
-};
+const availabilityLabel = MOVIE_POSTER_STATUS_LABELS;
 
 function formatRuntime(minutes?: number): string | undefined {
   if (minutes == null || minutes <= 0) return undefined;

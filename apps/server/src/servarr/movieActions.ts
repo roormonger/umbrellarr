@@ -31,6 +31,7 @@ import {
 } from "@umbrellarr/shared";
 import { arrJson } from "./client.js";
 import { toGridPosterPath } from "./mediaCover.js";
+import { moviePosterStatus } from "./posterStatus.js";
 
 type RadarrImage = {
   coverType?: string;
@@ -47,6 +48,7 @@ type RadarrMovie = {
   monitored: boolean;
   hasFile?: boolean;
   isAvailable?: boolean;
+  status?: string;
   minimumAvailability?: string;
   qualityProfileId: number;
   path?: string;
@@ -270,10 +272,12 @@ function parseMinimumAvailability(value: string | undefined): MovieMinimumAvaila
 }
 
 function availabilityFor(movie: RadarrMovie): Availability {
-  if (movie.hasFile) return "downloaded";
-  if (!movie.monitored) return "unmonitored";
-  if (movie.isAvailable) return "missing";
-  return "unavailable";
+  return moviePosterStatus({
+    hasFile: Boolean(movie.hasFile),
+    monitored: movie.monitored,
+    isAvailable: Boolean(movie.isAvailable),
+    status: movie.status,
+  });
 }
 
 function mediaCoverUrl(instance: Instance, image: RadarrImage | undefined): string | undefined {

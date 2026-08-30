@@ -27,8 +27,12 @@ export type MoviesResponse = {
   fetchedAt?: string;
 };
 
-export function listMovies(instanceId?: string) {
-  const query = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : "";
+export function listMovies(instanceId?: string, options?: { refresh?: boolean }) {
+  const params = new URLSearchParams();
+  if (instanceId) params.set("instanceId", instanceId);
+  if (options?.refresh) params.set("refresh", "true");
+  const encoded = params.toString();
+  const query = encoded ? `?${encoded}` : "";
   return api<MoviesResponse>(`/api/movies${query}`);
 }
 

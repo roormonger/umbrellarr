@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const ArrKindSchema = z.enum(["radarr", "sonarr"]);
+export const ArrKindSchema = z.enum(["radarr", "sonarr", "lidarr"]);
 export type ArrKind = z.infer<typeof ArrKindSchema>;
 
 export const InstanceSchema = z.object({

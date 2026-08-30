@@ -31,6 +31,7 @@ type Props = {
   onClose: () => void;
   instanceId: string;
   seriesId: number;
+  seasonNumber?: number;
 };
 
 const eventMeta: Record<
@@ -171,21 +172,34 @@ function HistoryRow({
   );
 }
 
-export function ShowHistoryModal({ opened, onClose, instanceId, seriesId }: Props) {
+export function ShowHistoryModal({
+  opened,
+  onClose,
+  instanceId,
+  seriesId,
+  seasonNumber,
+}: Props) {
   const [detailsEvent, setDetailsEvent] = useState<SeriesHistoryEvent | null>(null);
 
   const historyQuery = useQuery({
-    queryKey: ["series-history", instanceId, seriesId],
-    queryFn: () => getSeriesHistory(instanceId, seriesId),
+    queryKey: ["series-history", instanceId, seriesId, seasonNumber ?? null],
+    queryFn: () => getSeriesHistory(instanceId, seriesId, seasonNumber),
     enabled: opened,
   });
+
+  const heading =
+    seasonNumber == null
+      ? "History"
+      : seasonNumber === 0
+        ? "History - Specials"
+        : `History - Season ${seasonNumber}`;
 
   return (
     <>
       <Modal
         opened={opened}
         onClose={onClose}
-        title="History"
+        title={heading}
         size="90%"
         centered
         styles={{
@@ -208,7 +222,9 @@ export function ShowHistoryModal({ opened, onClose, instanceId, seriesId }: Prop
 
         {historyQuery.data && historyQuery.data.events.length === 0 && (
           <Text c="dimmed" size="sm" ta="center" py="xl">
-            No history for this series.
+            {seasonNumber == null
+              ? "No history for this series."
+              : "No history for this season."}
           </Text>
         )}
 

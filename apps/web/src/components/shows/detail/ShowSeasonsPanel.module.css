@@ -1,0 +1,124 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.season {
+  border-radius: var(--mantine-radius-md);
+  background: var(--mantine-color-dark-6);
+  border: 1px solid var(--mantine-color-dark-4);
+  overflow: hidden;
+}
+
+:global([data-mantine-color-scheme="light"]) .season {
+  background: var(--mantine-color-gray-0);
+  border-color: var(--mantine-color-gray-3);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.4rem;
+  min-height: 2.75rem;
+}
+
+.expand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.35rem;
+  border: none;
+  border-radius: var(--mantine-radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.expand:hover {
+  background: var(--mantine-color-dark-5);
+}
+
+:global([data-mantine-color-scheme="light"]) .expand:hover {
+  background: var(--mantine-color-gray-1);
+}
+
+.chevron {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--mantine-color-dimmed);
+  transition: transform 120ms ease;
+  transform: rotate(-90deg);
+}
+
+.chevron[data-open="true"] {
+  transform: rotate(0deg);
+}
+
+.title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  color: var(--mantine-color-dimmed);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.count[data-tone="complete"] {
+  color: var(--mantine-color-teal-4);
+}
+
+.count[data-tone="partial"] {
+  color: var(--mantine-color-yellow-5);
+}
+
+.count[data-tone="empty"] {
+  color: var(--mantine-color-red-4);
+}
+
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.body {
+  border-top: 1px solid var(--mantine-color-dark-4);
+  padding: 0.25rem 0.4rem 0.5rem;
+}
+
+:global([data-mantine-color-scheme="light"]) .body {
+  border-top-color: var(--mantine-color-gray-3);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.epActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.1rem;
+}
+
+.empty {
+  padding: 0.85rem 0.5rem;
+  text-align: center;
+}

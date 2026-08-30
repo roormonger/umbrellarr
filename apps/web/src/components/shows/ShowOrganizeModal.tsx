@@ -29,6 +29,7 @@ type Props = {
   seriesId: number;
   seriesPath: string;
   seriesType: SeriesType;
+  seasonNumber?: number;
 };
 
 function namingPattern(naming: SeriesNamingConfig | undefined, seriesType: SeriesType): string {
@@ -80,13 +81,14 @@ export function ShowOrganizeModal({
   seriesId,
   seriesPath,
   seriesType,
+  seasonNumber,
 }: Props) {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<Record<number, boolean>>({});
 
   const previewQuery = useQuery({
-    queryKey: ["series-rename", instanceId, seriesId],
-    queryFn: () => getSeriesRenamePreview(instanceId, seriesId),
+    queryKey: ["series-rename", instanceId, seriesId, seasonNumber ?? null],
+    queryFn: () => getSeriesRenamePreview(instanceId, seriesId, seasonNumber),
     enabled: opened,
   });
 
@@ -127,6 +129,8 @@ export function ShowOrganizeModal({
       onClose();
       await queryClient.invalidateQueries({ queryKey: ["series", instanceId, seriesId] });
       await queryClient.invalidateQueries({ queryKey: ["series-rename", instanceId, seriesId] });
+      await queryClient.invalidateQueries({ queryKey: ["series-seasons", instanceId, seriesId] });
+      await queryClient.invalidateQueries({ queryKey: ["series-episodes", instanceId, seriesId] });
     },
     onError: (error) => {
       notifications.show({
@@ -143,7 +147,19 @@ export function ShowOrganizeModal({
   const pattern = namingPattern(namingQuery.data, seriesType);
 
   return (
-    <Modal opened={opened} onClose={onClose} title="Organize & Rename" size="lg" centered>
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={
+        seasonNumber == null
+          ? "Organize & Rename"
+          : seasonNumber === 0
+            ? "Organize & Rename - Specials"
+            : `Organize & Rename - Season ${seasonNumber}`
+      }
+      size="lg"
+      centered
+    >
       {loading && (
         <Group justify="center" py="xl">
           <Loader size="sm" />

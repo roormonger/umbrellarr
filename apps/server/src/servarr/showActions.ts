@@ -29,6 +29,7 @@ import {
 } from "@umbrellarr/shared";
 import { arrJson } from "./client.js";
 import { toGridPosterPath } from "./mediaCover.js";
+import { resolveSeriesRatings } from "./seriesRatings.js";
 import { resolveSeriesYouTubeTrailerId } from "./seriesTrailer.js";
 import { availabilityFor } from "./shows.js";
 
@@ -88,6 +89,7 @@ type ArrRootFolder = { id: number; path: string; freeSpace?: number | null };
 
 type SonarrEpisodeFile = {
   id: number;
+  seasonNumber?: number;
   relativePath?: string;
   size?: number;
   releaseGroup?: string;
@@ -129,6 +131,8 @@ type SonarrHistory = {
   quality?: { quality?: { name?: string } };
   customFormats?: Array<{ name?: string }>;
   data?: Record<string, string | null | undefined>;
+  episode?: { id?: number; seasonNumber?: number };
+  episodeId?: number;
 };
 
 type SonarrRelease = {
@@ -178,6 +182,7 @@ type SonarrBlocklistPage = {
 type SonarrRenamePreview = {
   seriesId?: number;
   episodeFileId?: number;
+  seasonNumber?: number;
   existingPath?: string;
   newPath?: string;
 };
@@ -292,6 +297,7 @@ function mapManageFile(file: SonarrEpisodeFile): SeriesManageFile {
       .map((l) => ({ id: l.id, name: l.name })),
     indexerFlags: file.indexerFlags ?? 0,
     customFormatScore: file.customFormatScore,
+    seasonNumber: file.seasonNumber,
   };
 }
 
@@ -458,6 +464,22 @@ export async function fetchSeriesTrailer(
   return youTubeTrailerId ? { youTubeTrailerId } : {};
 }
 
+/**
+ * Resolve TMDb/IMDb ratings for a series. Prefer Sonarr values; scrape gaps
+ * from Sonarr-linked TMDb / IMDb pages.
+ */
+export async function fetchSeriesRatings(
+  instances: Instance[],
+  instanceId: string,
+  seriesId: number,
+): Promise<{ tmdbRating?: number; imdbRating?: number }> {
+  const detail = await fetchSeriesDetail(instances, instanceId, seriesId);
+  return resolveSeriesRatings(
+    { tmdbId: detail.tmdbId, imdbId: detail.imdbId },
+    { tmdbRating: detail.tmdbRating, imdbRating: detail.imdbRating },
+  );
+}
+
 export async function refreshSeries(
   instances: Instance[],
   instanceId: string,
@@ -490,7 +512,7 @@ export async function fetchSeriesHistory(
   const instance = requireInstance(instances, instanceId);
   const records = await arrJson<SonarrHistory[]>(
     instance,
-    `/api/v3/history/series?seriesId=${seriesId}`,
+    `/api/v3/history/series?seriesId=${seriesId}&includeEpisode=true`,
   );
 
   return records
@@ -513,6 +535,8 @@ export async function fetchSeriesHistory(
         customFormatScore: record.customFormatScore,
         date: record.date ?? "",
         downloadId: record.downloadId || undefined,
+        seasonNumber: record.episode?.seasonNumber,
+        episodeId: record.episode?.id ?? record.episodeId,
         data,
       };
     })
@@ -612,6 +636,7 @@ export async function fetchSeriesRenamePreview(
       episodeFileId: r.episodeFileId,
       existingPath: r.existingPath ?? "",
       newPath: r.newPath ?? "",
+      seasonNumber: r.seasonNumber,
     }));
 }
 

@@ -9,6 +9,7 @@ import { createHealthRoutes } from "./routes/health.js";
 import { createInstancesRoutes } from "./routes/instances.js";
 import { createMediaRoutes } from "./routes/media.js";
 import { createMoviesRoutes } from "./routes/movies.js";
+import { createArtistsRoutes } from "./routes/artists.js";
 import { createShowsRoutes } from "./routes/shows.js";
 import { createStatsRoutes } from "./routes/stats.js";
 import { createAuthMiddleware } from "./middleware/auth.js";
@@ -49,6 +50,7 @@ export function createApp(env: Env, instanceStore: InstanceStore, libraryCache: 
   app.route("/api/stats", createStatsRoutes());
   app.route("/api/movies", createMoviesRoutes());
   app.route("/api/shows", createShowsRoutes());
+  app.route("/api/artists", createArtistsRoutes());
   app.route("/api/media", createMediaRoutes());
 
   app.get("/api", (c) => c.json({ name: "umbrellarr", ok: true }));

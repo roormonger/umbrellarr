@@ -6,6 +6,7 @@ import { useState } from "react";
 import { deleteSeries, getSeriesDetail, refreshSeries, searchSeries } from "@/api/shows";
 import { ShowDetailHero } from "@/components/shows/detail/ShowDetailHero";
 import { ShowDetailToolbar } from "@/components/shows/detail/ShowDetailToolbar";
+import { ShowSeasonsPanel } from "@/components/shows/detail/ShowSeasonsPanel";
 import { ShowEditModal } from "@/components/shows/ShowEditModal";
 import { ShowHistoryModal } from "@/components/shows/ShowHistoryModal";
 import { ShowInteractiveSearchModal } from "@/components/shows/ShowInteractiveSearchModal";
@@ -41,6 +42,8 @@ export function ShowDetailPage() {
         message: `Refreshing “${detailQuery.data?.title ?? "series"}” in Sonarr`,
       });
       await queryClient.invalidateQueries({ queryKey: ["series", instanceId, seriesId] });
+      await queryClient.invalidateQueries({ queryKey: ["series-seasons", instanceId, seriesId] });
+      await queryClient.invalidateQueries({ queryKey: ["series-episodes", instanceId, seriesId] });
       await queryClient.invalidateQueries({ queryKey: ["shows"] });
     },
     onError: (error) => {
@@ -140,6 +143,14 @@ export function ShowDetailPage() {
             }}
           />
           <ShowDetailHero series={detailQuery.data} />
+          <ShowSeasonsPanel
+            instanceId={instanceId}
+            seriesId={seriesId}
+            title={detailQuery.data.title}
+            year={detailQuery.data.year}
+            seriesPath={detailQuery.data.path}
+            seriesType={detailQuery.data.seriesType}
+          />
         </Stack>
       )}
 

@@ -3,6 +3,7 @@ import type { ArrKind, Instance } from "@umbrellarr/shared";
 const KIND_PREFIXES: Array<{ kind: ArrKind; prefix: string }> = [
   { kind: "radarr", prefix: "RADARR" },
   { kind: "sonarr", prefix: "SONARR" },
+  { kind: "lidarr", prefix: "LIDARR" },
 ];
 
 /**

@@ -1,14 +1,23 @@
 import { z } from "zod";
 
-export const MediaKindSchema = z.enum(["movie", "series"]);
+export const MediaKindSchema = z.enum(["movie", "series", "artist"]);
 export type MediaKind = z.infer<typeof MediaKindSchema>;
 
-/** Mirrors Radarr poster status bar colors. */
+/**
+ * Poster status-bar states mirrored from Arr index progress bars / footers.
+ * Radarr: downloaded | downloadedUnmonitored | missingMonitored | missingUnmonitored | queued | unreleased
+ * Sonarr/Lidarr: continuing | ended | missingMonitored | missingUnmonitored | downloading
+ */
 export const AvailabilitySchema = z.enum([
   "downloaded",
-  "missing",
-  "unavailable",
-  "unmonitored",
+  "downloadedUnmonitored",
+  "missingMonitored",
+  "missingUnmonitored",
+  "queued",
+  "unreleased",
+  "continuing",
+  "ended",
+  "downloading",
 ]);
 export type Availability = z.infer<typeof AvailabilitySchema>;
 

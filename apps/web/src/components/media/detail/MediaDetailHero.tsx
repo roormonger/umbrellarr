@@ -143,11 +143,12 @@ export function MediaDetailHero({
                   className={classes.linkCell}
                   title={link.url}
                 >
-                  <span className={classes.linkLabel}>{link.label}</span>
-                  <span className={classes.linkSep}> - </span>
-                  <span className={classes.linkAction}>(link)</span>
+                  {link.label}
                 </Anchor>
               ))}
+              {links.length % 2 === 1 && (
+                <div className={classes.linkCellFiller} aria-hidden />
+              )}
             </div>
           )}
           {!linksLoading && !linksError && links.length === 0 && (

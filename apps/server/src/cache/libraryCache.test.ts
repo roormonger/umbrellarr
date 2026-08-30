@@ -95,6 +95,35 @@ async function run() {
   const kept = await resilient.refresh(instance);
   assert.equal(kept.movies[0]?.title, "Kept");
 
+  let clock = 0;
+  let ttlFetches = 0;
+  let ttlTitle = "Old";
+  const ttl = new LibraryCache({
+    staleMs: 60_000,
+    now: () => clock,
+    fetchMovies: async () => {
+      ttlFetches += 1;
+      return [movie(ttlTitle)];
+    },
+  });
+  clock = 0;
+  const first = await ttl.getMovies([instance]);
+  assert.equal(first.status, "MISS");
+  assert.equal(ttlFetches, 1);
+  clock = 30_000;
+  const mid = await ttl.getMovies([instance]);
+  assert.equal(mid.status, "HIT");
+  assert.equal(ttlFetches, 1);
+  clock = 60_000;
+  ttlTitle = "New";
+  const expired = await ttl.getMovies([instance]);
+  assert.equal(expired.status, "STALE");
+  assert.equal(expired.movies[0]?.title, "New");
+  assert.equal(ttlFetches, 2);
+  const forced = await ttl.getMovies([instance], { force: true });
+  assert.equal(forced.status, "STALE");
+  assert.equal(ttlFetches, 3);
+
   console.log("library cache tests passed");
 }
 

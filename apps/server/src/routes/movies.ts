@@ -41,7 +41,8 @@ export function createMoviesRoutes() {
     if (instanceId && scoped.length === 0) {
       return c.json({ error: `Instance ${instanceId} not found` }, 404);
     }
-    const result = await c.get("libraryCache").getMovies(scoped);
+    const force = c.req.query("refresh") === "true";
+    const result = await c.get("libraryCache").getMovies(scoped, { force });
     c.header("X-Cache", result.status);
     if (result.fetchedAt) {
       c.header("X-Cache-Fetched-At", result.fetchedAt);

@@ -2,6 +2,7 @@ import type {
   SeriesBlocklistItem,
   SeriesDetail,
   SeriesEditOptions,
+  SeriesEpisode,
   SeriesFileBulkUpdateItem,
   SeriesHistoryEvent,
   SeriesIndexerFlagOption,
@@ -15,6 +16,7 @@ import type {
   SeriesRelease,
   SeriesReleaseGrabRequest,
   SeriesRenamePreview,
+  SeriesSeasonSummary,
   SeriesUpdateRequest,
   CacheStatus,
 } from "@umbrellarr/shared";
@@ -27,8 +29,12 @@ export type ShowsResponse = {
   fetchedAt?: string;
 };
 
-export function listShows(instanceId?: string) {
-  const query = instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : "";
+export function listShows(instanceId?: string, options?: { refresh?: boolean }) {
+  const params = new URLSearchParams();
+  if (instanceId) params.set("instanceId", instanceId);
+  if (options?.refresh) params.set("refresh", "true");
+  const encoded = params.toString();
+  const query = encoded ? `?${encoded}` : "";
   return api<ShowsResponse>(`/api/shows${query}`);
 }
 
@@ -49,6 +55,12 @@ export function getSeriesLinks(instanceId: string, seriesId: number) {
 export function getSeriesTrailer(instanceId: string, seriesId: number) {
   return api<{ youTubeTrailerId?: string }>(
     `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/trailer`,
+  );
+}
+
+export function getSeriesRatings(instanceId: string, seriesId: number) {
+  return api<{ tmdbRating?: number; imdbRating?: number }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/ratings`,
   );
 }
 
@@ -78,9 +90,70 @@ export function deleteSeries(instanceId: string, seriesId: number, deleteFiles =
   });
 }
 
-export function getSeriesHistory(instanceId: string, seriesId: number) {
+function seasonQuery(seasonNumber?: number): string {
+  return seasonNumber != null ? `?seasonNumber=${seasonNumber}` : "";
+}
+
+export function getSeriesSeasons(instanceId: string, seriesId: number) {
+  return api<{ seasons: SeriesSeasonSummary[] }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/seasons`,
+  );
+}
+
+export function getSeriesEpisodes(
+  instanceId: string,
+  seriesId: number,
+  seasonNumber?: number,
+) {
+  return api<{ episodes: SeriesEpisode[] }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/episodes${seasonQuery(seasonNumber)}`,
+  );
+}
+
+export function searchSeason(instanceId: string, seriesId: number, seasonNumber: number) {
+  return api<{ ok: true }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/seasons/${seasonNumber}/search`,
+    { method: "POST" },
+  );
+}
+
+export function searchEpisode(instanceId: string, seriesId: number, episodeId: number) {
+  return api<{ ok: true }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/episodes/${episodeId}/search`,
+    { method: "POST" },
+  );
+}
+
+export function setSeasonMonitored(
+  instanceId: string,
+  seriesId: number,
+  seasonNumber: number,
+  monitored: boolean,
+) {
+  return api<{ seasons: SeriesSeasonSummary[] }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/seasons/${seasonNumber}/monitor`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ monitored }),
+    },
+  );
+}
+
+export function getSeasonReleases(instanceId: string, seriesId: number, seasonNumber: number) {
+  return api<{ releases: SeriesRelease[] }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/seasons/${seasonNumber}/releases`,
+  );
+}
+
+export function getEpisodeReleases(instanceId: string, seriesId: number, episodeId: number) {
+  return api<{ releases: SeriesRelease[] }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/episodes/${episodeId}/releases`,
+  );
+}
+
+export function getSeriesHistory(instanceId: string, seriesId: number, seasonNumber?: number) {
   return api<{ events: SeriesHistoryEvent[] }>(
-    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/history`,
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/history${seasonQuery(seasonNumber)}`,
   );
 }
 
@@ -114,9 +187,13 @@ export function getSeriesNamingConfig(instanceId: string) {
   return api<SeriesNamingConfig>(`/api/shows/${encodeURIComponent(instanceId)}/naming`);
 }
 
-export function getSeriesRenamePreview(instanceId: string, seriesId: number) {
+export function getSeriesRenamePreview(
+  instanceId: string,
+  seriesId: number,
+  seasonNumber?: number,
+) {
   return api<{ items: SeriesRenamePreview[] }>(
-    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/rename`,
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/rename${seasonQuery(seasonNumber)}`,
   );
 }
 
@@ -130,9 +207,13 @@ export function organizeSeriesFiles(instanceId: string, seriesId: number, files:
   );
 }
 
-export function getSeriesManageFiles(instanceId: string, seriesId: number) {
+export function getSeriesManageFiles(
+  instanceId: string,
+  seriesId: number,
+  seasonNumber?: number,
+) {
   return api<{ files: SeriesManageFile[] }>(
-    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/files`,
+    `/api/shows/${encodeURIComponent(instanceId)}/${seriesId}/files${seasonQuery(seasonNumber)}`,
   );
 }
 

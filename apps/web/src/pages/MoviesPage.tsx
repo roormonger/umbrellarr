@@ -5,7 +5,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { useParams } from "@tanstack/react-router";
 import {
@@ -69,6 +69,7 @@ function readStoredPosterSize(): number {
 }
 
 export function MoviesPage() {
+  const queryClient = useQueryClient();
   const { instanceId } = useParams({ from: "/app/movies/$instanceId" });
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<MovieSortKey>(readStoredSortKey);
@@ -97,6 +98,7 @@ export function MoviesPage() {
     staleTime: 60_000,
     gcTime: 30 * 60_000,
     placeholderData: keepPreviousData,
+    refetchOnWindowFocus: "always",
   });
 
   /** Only block the grid when we have nothing to show (avoid skeleton flash on cached return). */
@@ -189,6 +191,20 @@ export function MoviesPage() {
     jumperRef.current?.(letter);
   }, []);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await queryClient.fetchQuery({
+        queryKey: ["movies", instanceId],
+        queryFn: () => listMovies(instanceId, { refresh: true }),
+        staleTime: 0,
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [instanceId, queryClient]);
+
   return (
     <div className={classes.page}>
       <div className={classes.header}>
@@ -214,6 +230,8 @@ export function MoviesPage() {
             onPosterSizeCommit={handlePosterSizeCommit}
             onSortChange={handleSortChange}
             onFilterChange={handleFilterChange}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
           />
         </Group>
       </div>

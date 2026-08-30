@@ -11,7 +11,9 @@ export async function checkInstanceStatus(instance: Instance): Promise<InstanceS
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(`${instance.baseUrl}/api/v3/system/status`, {
+    const statusPath =
+      instance.kind === "lidarr" ? "/api/v1/system/status" : "/api/v3/system/status";
+    const res = await fetch(`${instance.baseUrl}${statusPath}`, {
       headers: {
         "X-Api-Key": instance.apiKey ?? "",
         Accept: "application/json",

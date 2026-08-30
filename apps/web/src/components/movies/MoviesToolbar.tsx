@@ -13,6 +13,7 @@ import {
   type MovieSortDirection,
   type MovieSortKey,
 } from "@umbrellarr/shared";
+import { LibraryRefreshButton } from "@/components/media/LibraryRefreshButton";
 
 export const POSTER_SIZE_MIN = 90;
 export const POSTER_SIZE_MAX = 220;
@@ -27,6 +28,8 @@ export function MoviesToolbar({
   onPosterSizeCommit,
   onSortChange,
   onFilterChange,
+  onRefresh,
+  refreshing,
 }: {
   posterSize: number;
   sortKey: MovieSortKey;
@@ -36,6 +39,8 @@ export function MoviesToolbar({
   onPosterSizeCommit: (size: number) => void;
   onSortChange: (key: MovieSortKey) => void;
   onFilterChange: (key: MovieFilterKey) => void;
+  onRefresh: () => void;
+  refreshing?: boolean;
 }) {
   const sortLabel = MOVIE_SORT_OPTIONS.find((o) => o.value === sortKey)?.label ?? "Sort";
   const filterLabel = MOVIE_FILTER_OPTIONS.find((o) => o.value === filterKey)?.label ?? "Filter";
@@ -116,6 +121,8 @@ export function MoviesToolbar({
           ))}
         </Menu.Dropdown>
       </Menu>
+
+      <LibraryRefreshButton loading={refreshing} onRefresh={onRefresh} />
     </Group>
   );
 }

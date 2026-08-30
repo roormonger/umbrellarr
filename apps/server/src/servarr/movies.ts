@@ -1,6 +1,8 @@
-import type { Availability, Instance, MovieListItem } from "@umbrellarr/shared";
+import type { Instance, MovieListItem } from "@umbrellarr/shared";
 import { arrJson } from "./client.js";
 import { toGridPosterPath } from "./mediaCover.js";
+import { moviePosterStatus } from "./posterStatus.js";
+import { fetchQueueEntityIds } from "./queueIds.js";
 
 type RadarrImage = {
   coverType?: string;
@@ -23,6 +25,7 @@ type RadarrMovie = {
   monitored: boolean;
   hasFile: boolean;
   isAvailable?: boolean;
+  status?: string;
   tmdbId?: number;
   studio?: string;
   qualityProfileId?: number;
@@ -74,12 +77,6 @@ function posterUrlFor(instance: Instance, movie: RadarrMovie): string | undefine
   return poster.remoteUrl;
 }
 
-function availabilityFor(movie: RadarrMovie): Availability {
-  if (movie.hasFile) return "downloaded";
-  if (!movie.monitored) return "unmonitored";
-  if (movie.isAvailable) return "missing";
-  return "unavailable";
-}
 
 async function fetchCutoffUnmetIds(instance: Instance): Promise<Set<number>> {
   const ids = new Set<number>();
@@ -109,6 +106,7 @@ export function mapRadarrMovie(
   profiles: Map<number, string>,
   tags: Map<number, string>,
   cutoffIds: Set<number>,
+  queuedIds: Set<number> = new Set(),
 ): MovieListItem {
   return {
     kind: "movie",
@@ -122,7 +120,13 @@ export function mapRadarrMovie(
     inLibrary: true,
     hasFile: movie.hasFile,
     isAvailable: movie.isAvailable,
-    availability: availabilityFor(movie),
+    availability: moviePosterStatus({
+      hasFile: movie.hasFile,
+      monitored: movie.monitored,
+      isAvailable: Boolean(movie.isAvailable),
+      status: movie.status,
+      downloading: queuedIds.has(movie.id),
+    }),
     tmdbId: movie.tmdbId,
     studio: movie.studio,
     qualityProfileId: movie.qualityProfileId,
@@ -148,7 +152,7 @@ export function mapRadarrMovie(
 }
 
 export async function fetchMoviesForInstance(instance: Instance): Promise<MovieListItem[]> {
-  const [movies, profiles, tagList, cutoffIds] = await Promise.all([
+  const [movies, profiles, tagList, cutoffIds, queuedIds] = await Promise.all([
     arrJson<RadarrMovie[]>(instance, "/api/v3/movie", { timeoutMs: 90_000 }),
     arrJson<QualityProfile[]>(instance, "/api/v3/qualityprofile"),
     arrJson<ArrTag[]>(instance, "/api/v3/tag"),
@@ -156,12 +160,15 @@ export async function fetchMoviesForInstance(instance: Instance): Promise<MovieL
       console.warn(`[movies] cutoff lookup failed for ${instance.id}`, error);
       return new Set<number>();
     }),
+    fetchQueueEntityIds(instance, "movieId"),
   ]);
 
   const profileMap = new Map(profiles.map((p) => [p.id, p.name]));
   const tagMap = new Map(tagList.map((t) => [t.id, t.label]));
 
-  return movies.map((movie) => mapRadarrMovie(instance, movie, profileMap, tagMap, cutoffIds));
+  return movies.map((movie) =>
+    mapRadarrMovie(instance, movie, profileMap, tagMap, cutoffIds, queuedIds),
+  );
 }
 
 export async function fetchAllMovies(instances: Instance[]): Promise<MovieListItem[]> {

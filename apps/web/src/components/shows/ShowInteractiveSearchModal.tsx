@@ -13,6 +13,8 @@ import type { SeriesRelease } from "@umbrellarr/shared";
 import { Quantum } from "ldrs/react";
 import { useMemo, useState } from "react";
 import {
+  getEpisodeReleases,
+  getSeasonReleases,
   getSeriesBlocklist,
   getSeriesHistory,
   getSeriesReleases,
@@ -28,6 +30,10 @@ type Props = {
   seriesId: number;
   title: string;
   year?: number;
+  seasonNumber?: number;
+  episodeId?: number;
+  episodeTitle?: string;
+  episodeNumber?: number;
 };
 
 type FilterKey = "all" | "approved" | "rejected" | "usenet" | "torrent";
@@ -66,6 +72,33 @@ function SearchLoading() {
   );
 }
 
+function searchHeading(props: {
+  title: string;
+  year?: number;
+  seasonNumber?: number;
+  episodeId?: number;
+  episodeTitle?: string;
+  episodeNumber?: number;
+}): string {
+  if (props.episodeId != null) {
+    const ep =
+      props.seasonNumber != null && props.episodeNumber != null
+        ? `S${String(props.seasonNumber).padStart(2, "0")}E${String(props.episodeNumber).padStart(2, "0")}`
+        : "Episode";
+    return props.episodeTitle
+      ? `Interactive Search - ${ep} · ${props.episodeTitle}`
+      : `Interactive Search - ${ep}`;
+  }
+  if (props.seasonNumber != null) {
+    const season =
+      props.seasonNumber === 0 ? "Specials" : `Season ${props.seasonNumber}`;
+    return `Interactive Search - ${season}`;
+  }
+  return props.year
+    ? `Interactive Search - ${props.title} (${props.year})`
+    : `Interactive Search - ${props.title}`;
+}
+
 export function ShowInteractiveSearchModal({
   opened,
   onClose,
@@ -73,12 +106,20 @@ export function ShowInteractiveSearchModal({
   seriesId,
   title,
   year,
+  seasonNumber,
+  episodeId,
+  episodeTitle,
+  episodeNumber,
 }: Props) {
   const [filter, setFilter] = useState<FilterKey>("all");
 
   const releasesQuery = useQuery({
-    queryKey: ["series-releases", instanceId, seriesId],
-    queryFn: () => getSeriesReleases(instanceId, seriesId),
+    queryKey: ["series-releases", instanceId, seriesId, seasonNumber ?? null, episodeId ?? null],
+    queryFn: () => {
+      if (episodeId != null) return getEpisodeReleases(instanceId, seriesId, episodeId);
+      if (seasonNumber != null) return getSeasonReleases(instanceId, seriesId, seasonNumber);
+      return getSeriesReleases(instanceId, seriesId);
+    },
     enabled: opened,
     staleTime: 0,
     gcTime: 5 * 60_000,
@@ -86,8 +127,8 @@ export function ShowInteractiveSearchModal({
   });
 
   const historyQuery = useQuery({
-    queryKey: ["series-history", instanceId, seriesId],
-    queryFn: () => getSeriesHistory(instanceId, seriesId),
+    queryKey: ["series-history", instanceId, seriesId, seasonNumber ?? null],
+    queryFn: () => getSeriesHistory(instanceId, seriesId, seasonNumber),
     enabled: opened,
     staleTime: 60_000,
   });
@@ -104,9 +145,14 @@ export function ShowInteractiveSearchModal({
     [releasesQuery.data?.releases, filter],
   );
 
-  const heading = year
-    ? `Interactive Search - ${title} (${year})`
-    : `Interactive Search - ${title}`;
+  const heading = searchHeading({
+    title,
+    year,
+    seasonNumber,
+    episodeId,
+    episodeTitle,
+    episodeNumber,
+  });
 
   const total = releasesQuery.data?.releases.length ?? 0;
   const shown = filtered.length;
