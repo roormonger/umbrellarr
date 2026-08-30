@@ -36,6 +36,7 @@ export function titleFromPath(pathname: string): string {
   if (/^\/movies\/[^/]+\/[^/]+/.test(pathname)) return "Movie";
   if (pathname.startsWith("/movies")) return "Movies";
   if (pathname.startsWith("/shows")) return "Shows";
+  if (/^\/music\/[^/]+\/[^/]+/.test(pathname)) return "Artist";
   if (pathname.startsWith("/music")) return "Music";
   if (pathname.startsWith("/activity/queue")) return "Queue";
   if (pathname.startsWith("/activity/calendar")) return "Calendar";

@@ -34,9 +34,17 @@ type Props = {
   artistId: number;
   title: string;
   onClose: () => void;
+  onDeleted?: () => void;
 };
 
-export function ArtistEditModal({ opened, instanceId, artistId, title, onClose }: Props) {
+export function ArtistEditModal({
+  opened,
+  instanceId,
+  artistId,
+  title,
+  onClose,
+  onDeleted,
+}: Props) {
   const queryClient = useQueryClient();
   const detailQuery = useQuery({
     queryKey: ["artist", instanceId, artistId],
@@ -133,6 +141,7 @@ export function ArtistEditModal({ opened, instanceId, artistId, title, onClose }
       notifications.show({ color: "green", message: "Artist removed from Lidarr" });
       await queryClient.invalidateQueries({ queryKey: ["artists"] });
       onClose();
+      onDeleted?.();
     },
     onError: (error) => {
       notifications.show({

@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/auth/session.test.ts && tsx src/cache/libraryCache.test.ts && tsx src/servarr/mediaCover.test.ts && tsx src/servarr/posterStatus.test.ts && tsx src/servarr/seriesSeasons.test.ts && tsx src/servarr/artists.test.ts"
+    "test": "tsx src/auth/session.test.ts && tsx src/cache/libraryCache.test.ts && tsx src/servarr/mediaCover.test.ts && tsx src/servarr/posterStatus.test.ts && tsx src/servarr/seriesSeasons.test.ts && tsx src/servarr/artists.test.ts && tsx --test src/servarr/artistAlbums.test.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.1",

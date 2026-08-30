@@ -87,10 +87,29 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `servarr/artistActions.ts` | GET | `/api/v1/metadataprofile` | Edit modal metadata profiles |
 | `servarr/artistActions.ts` | GET | `/api/v1/tag` | Edit modal options |
 | `servarr/artistActions.ts` | GET | `/api/v1/rootfolder` | Edit modal root-folder dropdown |
-| `servarr/artistActions.ts` | GET | `/api/v1/artist/{id}` | Artist edit fields |
+| `servarr/artistActions.ts` | GET | `/api/v1/artist/{id}` | Artist page/detail (+ edit fields, overview, stats, `albumTypes`) |
 | `servarr/artistActions.ts` | PUT | `/api/v1/artist/{id}` | Save edit (GET-merge-PUT) |
 | `servarr/artistActions.ts` | DELETE | `/api/v1/artist/{id}?deleteFiles=&addImportListExclusion=false` | Remove from Lidarr |
 | `servarr/artistActions.ts` | POST | `/api/v1/command` | `{ name: "RefreshArtist", artistIds }` |
+| `servarr/artistActions.ts` | POST | `/api/v1/command` | `{ name: "ArtistSearch", artistIds }` |
+| `servarr/artistAlbums.ts` | GET | `/api/v1/album?artistId=` | Album rows grouped by `albumType` (Lidarr `ArtistDetailsSeason.js`) |
+| `servarr/artistAlbums.ts` | PUT | `/api/v1/album/monitor` | `{ albumIds, monitored }` |
+| `servarr/artistAlbums.ts` | POST | `/api/v1/command` | `{ name: "AlbumSearch", albumIds }` |
+| `servarr/artistActions.ts` | GET | `/api/v1/history/artist?artistId=&includeTrack=true` | Artist history modal (+ `data` for info details) |
+| `servarr/artistActions.ts` | POST | `/api/v1/history/failed/{id}` | Mark grabbed history item as failed |
+| `servarr/artistActions.ts` | GET | `/api/v1/release?artistId=` | Interactive search (120s timeout) |
+| `servarr/artistActions.ts` | POST | `/api/v1/release` | Grab / override & grab release |
+| `servarr/artistActions.ts` | GET | `/api/v1/blocklist?page=&pageSize=100` | Interactive search History column (filter `artistId`) |
+| `servarr/artistActions.ts` | GET | `/api/v1/rename?artistId=` | Organize & Rename preview |
+| `servarr/artistActions.ts` | GET | `/api/v1/config/naming` | Naming pattern for organize modal (`renameTracks` + track formats) |
+| `servarr/artistActions.ts` | POST | `/api/v1/command` | `{ name: "RenameFiles", artistId, files }` |
+| `servarr/artistActions.ts` | GET | `/api/v1/retag?artistId=` | Preview Retag / write metadata tags |
+| `servarr/artistActions.ts` | POST | `/api/v1/command` | `{ name: "RetagFiles", artistId, files }` |
+| `servarr/artistActions.ts` | POST | `/api/v1/albumStudio` | Artist Monitoring (`monitoringOptions.monitor`) |
+| `servarr/artistActions.ts` | GET | `/api/v1/trackfile?artistId=` + `/api/v1/track?artistId=` | Manage Tracks modal (join like Lidarr TrackFileEditor) |
+| `servarr/artistActions.ts` | GET | `/api/v1/qualityprofile/schema` | Manage Tracks quality dropdown |
+| `servarr/artistActions.ts` | PUT | `/api/v1/trackfile/editor` | Manage Tracks bulk quality (`{ trackFileIds, quality }`) |
+| `servarr/artistActions.ts` | DELETE | `/api/v1/trackfile/bulk` | Manage Tracks Delete (`{ trackFileIds }`) |
 | `servarr/artistActions.ts` | — | (no upstream links API) | `buildArtistLinks` mirrors Lidarr UI (`ArtistDetailsLinks.js`: MusicBrainz + Arr `links[]`) |
 | `servarr/status.ts` | GET | `/api/v3/system/status` or `/api/v1/system/status` | Instance health (v1 for lidarr) |
 | `routes/media.ts` | GET | Radarr/Sonarr `{path}` e.g. `/MediaCover/{id}/poster-500.jpg`; Lidarr `/api/v1/mediacover/artist/{id}/{file}` (API is jpg/png/gif only; `.jpeg` posters fall back to fanart/banner) | Image proxy (`arrFetch`; reject non-image) |
@@ -104,9 +123,28 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `GET /api/movies?instanceId=` | `routes/movies.ts` | Library cache → Radarr `/movie` (+ profiles/tags/cutoff); optional instance filter |
 | `GET /api/artists?instanceId=` | `routes/artists.ts` | Library cache → Lidarr `/artist` (+ quality/metadata profiles/tags/cutoff); lidarr-only |
 | `GET /api/artists/:instanceId/options` | `routes/artists.ts` | qualityprofile + metadataprofile + tag + rootfolder |
-| `GET /api/artists/:instanceId/:artistId` | `routes/artists.ts` | `/artist/{id}` |
+| `GET /api/artists/:instanceId/naming` | `routes/artists.ts` | `/config/naming` |
+| `GET /api/artists/:instanceId/qualities` | `routes/artists.ts` | `/qualityprofile/schema` (flattened) |
+| `PUT /api/artists/:instanceId/files/bulk` | `routes/artists.ts` | `PUT /trackfile/editor` |
+| `DELETE /api/artists/:instanceId/files/bulk` | `routes/artists.ts` | `DELETE /trackfile/bulk` |
+| `POST /api/artists/:instanceId/history/:historyId/failed` | `routes/artists.ts` | `/history/failed/{id}` |
+| `POST /api/artists/:instanceId/releases/grab` | `routes/artists.ts` | `POST /release` |
+| `GET /api/artists/:instanceId/:artistId` | `routes/artists.ts` | `/artist/{id}` + quality/metadata profiles + tags (page detail) |
 | `GET /api/artists/:instanceId/:artistId/links` | `routes/artists.ts` | `/artist/{id}` then mirror Lidarr UI links |
+| `GET /api/artists/:instanceId/:artistId/albums` | `routes/artists.ts` | `/album?artistId=` grouped by `albumType` |
+| `PUT /api/artists/:instanceId/:artistId/albums/monitor` | `routes/artists.ts` | `PUT /album/monitor` |
+| `POST /api/artists/:instanceId/:artistId/albums/:albumId/search` | `routes/artists.ts` | `AlbumSearch` |
 | `POST /api/artists/:instanceId/:artistId/refresh` | `routes/artists.ts` | `RefreshArtist` + cache invalidate |
+| `POST /api/artists/:instanceId/:artistId/search` | `routes/artists.ts` | `ArtistSearch` |
+| `GET /api/artists/:instanceId/:artistId/history` | `routes/artists.ts` | `/history/artist` |
+| `GET /api/artists/:instanceId/:artistId/releases` | `routes/artists.ts` | `/release?artistId=` |
+| `GET /api/artists/:instanceId/:artistId/blocklist` | `routes/artists.ts` | `/blocklist` (filter artist) |
+| `GET /api/artists/:instanceId/:artistId/files` | `routes/artists.ts` | `/trackfile?artistId=` |
+| `GET /api/artists/:instanceId/:artistId/rename` | `routes/artists.ts` | `/rename?artistId=` |
+| `POST /api/artists/:instanceId/:artistId/organize` | `routes/artists.ts` | `RenameFiles` command |
+| `GET /api/artists/:instanceId/:artistId/retag` | `routes/artists.ts` | `/retag?artistId=` |
+| `POST /api/artists/:instanceId/:artistId/retag` | `routes/artists.ts` | `RetagFiles` command |
+| `POST /api/artists/:instanceId/:artistId/monitoring` | `routes/artists.ts` | `POST /albumStudio` |
 | `PUT /api/artists/:instanceId/:artistId` | `routes/artists.ts` | PUT `/artist/{id}` (`monitorNewItems`: all\|new\|none) + cache invalidate |
 | `DELETE /api/artists/:instanceId/:artistId` | `routes/artists.ts` | DELETE `/artist/{id}` + cache invalidate |
 | `GET /api/shows?instanceId=` | `routes/shows.ts` | Library cache → Sonarr `/series` (+ profiles/tags/cutoff); optional instance filter |
@@ -198,6 +236,14 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Show History modal | `ShowHistoryModal.tsx` | `GET .../history` (optional season filter) |
 | Show seasons accordion | `ShowSeasonsPanel.tsx`, `ShowSeasonHeader.tsx`, `ShowEpisodeTable.tsx` | seasons + episodes + SeasonSearch / EpisodeSearch + season/episode releases + season-scoped rename/files/history + season monitor |
 | Music artist grid | `ArtistsPage.tsx`, `VirtualizedArtistGrid`, `ArtistPosterCard` | `GET /api/artists?instanceId=` |
+| Artist poster click | `ArtistPosterCard.tsx` | navigates to `/music/:instanceId/:artistId` |
+| Artist detail (hero + toolbar + albums) | `ArtistDetailPage.tsx`, `ArtistDetailHero`, `ArtistDetailToolbar`, `ArtistAlbumsPanel`, `ArtistEditModal` | page detail + albums + RefreshArtist / ArtistSearch + album monitor / AlbumSearch |
+| Artist Interactive Search modal | `ArtistInteractiveSearchModal.tsx` | releases + grab + history + blocklist |
+| Artist Organize & Rename modal | `ArtistOrganizeModal.tsx` | rename preview + naming + `RenameFiles` |
+| Artist Preview Retag modal | `ArtistRetagModal.tsx` | retag preview + `RetagFiles` |
+| Artist Monitoring modal | `ArtistMonitoringModal.tsx` | `POST /albumStudio` monitoring options |
+| Artist Manage Tracks modal | `ArtistManageFilesModal.tsx` | track+trackfile join; Track/Path/Quality; Delete + Select Quality + Close |
+| Artist History modal | `ArtistHistoryModal.tsx` | `GET .../history` |
 | Artist hover refresh | `ArtistPosterCard.tsx` | `POST .../refresh` (`RefreshArtist`) |
 | Artist edit modal | `ArtistEditModal.tsx` | options + detail + PUT/DELETE (includes metadata profile) |
 | Artist links menu | `ArtistLinksMenu.tsx` | `GET .../links` (Lidarr UI patterns) |
@@ -209,8 +255,9 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Area | Notes |
 |------|-------|
 | Sonarr cast / crew | Not on series detail yet |
-| Lidarr artist detail / albums / tracks | Grid + edit/refresh/links only |
-| Lidarr interactive search / history / organize / manage files | Not started |
+| Lidarr album track expansion / album detail | Artist page lists albums only |
+| Lidarr Manual Import (interactive import) | Artist toolbar deferred; `/manualimport` not wired |
+| Lidarr retag | Artist Preview Retag **Wired** |
 | Queue / Calendar / Missing pages | Placeholders |
 | Dashboard queue/missing badges | Hardcoded `0` in stats |
 | Movie lookup / add | No BFF yet |
@@ -225,6 +272,6 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `packages/shared/src/media.ts` | `MediaItem`, `MediaKind` (`movie` \| `series` \| `artist`) |
 | `packages/shared/src/movies.ts` | `MovieListItem`, `MovieDetail`, `MoviePageDetail`, history/release/rename/manage-files, edit/links schemas |
 | `packages/shared/src/shows.ts` | `SeriesListItem`, `SeriesPageDetail`, edit/update/links schemas, history/release/rename/manage-files, `SeriesSeasonSummary` / `SeriesEpisode`, sort/filter options |
-| `packages/shared/src/artists.ts` | `ArtistListItem`, edit/update (incl. `metadataProfileId`), links, sort/filter options |
+| `packages/shared/src/artists.ts` | `ArtistListItem`, `ArtistPageDetail`, `ArtistAlbum` / album groups, edit/update (incl. `metadataProfileId`), history/release/rename/manage-files, links, sort/filter options |
 | `packages/shared/src/cache.ts` | `CacheStatus` (`HIT` / `MISS`) for library responses |
 | `packages/shared/src/stats.ts` | Dashboard stats shape |

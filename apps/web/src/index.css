@@ -4,6 +4,75 @@ body,
   min-height: 100%;
 }
 
+html {
+  background-color: var(--app-backdrop, #121018);
+}
+
 body {
   margin: 0;
+  background-color: transparent;
+  background-image:
+    radial-gradient(ellipse 90% 55% at 8% -8%, rgba(126, 20, 255, 0.28), transparent 52%),
+    radial-gradient(ellipse 55% 40% at 96% 4%, rgba(71, 191, 255, 0.1), transparent 48%),
+    radial-gradient(ellipse 50% 45% at 70% 108%, rgba(134, 59, 255, 0.16), transparent 50%);
+  background-attachment: fixed;
+}
+
+html[data-mantine-color-scheme="dark"] {
+  --app-backdrop: #121018;
+  --glass-bg: color-mix(in srgb, var(--mantine-color-dark-7) 48%, transparent);
+  --glass-bg-strong: color-mix(in srgb, var(--mantine-color-dark-8) 72%, transparent);
+  --glass-border: color-mix(in srgb, white 14%, transparent);
+  --glass-highlight: color-mix(in srgb, white 9%, transparent);
+  --glass-shadow: 0 10px 36px rgba(0, 0, 0, 0.32);
+  --glass-blur: 18px;
+  --glass-saturate: 1.25;
+}
+
+html[data-mantine-color-scheme="light"] {
+  --app-backdrop: #f3f0f8;
+  --glass-bg: color-mix(in srgb, white 58%, transparent);
+  --glass-bg-strong: color-mix(in srgb, white 80%, transparent);
+  --glass-border: color-mix(in srgb, white 55%, var(--mantine-color-default-border));
+  --glass-highlight: color-mix(in srgb, white 70%, transparent);
+  --glass-shadow: 0 10px 32px rgba(24, 16, 40, 0.08);
+  --glass-blur: 18px;
+  --glass-saturate: 1.2;
+}
+
+html[data-mantine-color-scheme="light"] body {
+  background-image:
+    radial-gradient(ellipse 90% 55% at 8% -8%, rgba(126, 20, 255, 0.14), transparent 52%),
+    radial-gradient(ellipse 55% 40% at 96% 4%, rgba(71, 191, 255, 0.08), transparent 48%),
+    radial-gradient(ellipse 50% 45% at 70% 108%, rgba(134, 59, 255, 0.08), transparent 50%);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-mantine-color-scheme="dark"] {
+    --glass-bg: var(--mantine-color-dark-7);
+    --glass-bg-strong: var(--mantine-color-dark-6);
+    --glass-blur: 0px;
+  }
+
+  html[data-mantine-color-scheme="light"] {
+    --glass-bg: var(--mantine-color-gray-0);
+    --glass-bg-strong: #fff;
+    --glass-blur: 0px;
+  }
+}
+
+.mantine-AppShell-main {
+  background-color: transparent;
+}
+
+.mantine-AppShell-header,
+.mantine-AppShell-navbar {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border-color: var(--glass-border);
+}
+
+.mantine-AppShell-navbar .mantine-NavLink-root {
+  border-radius: var(--mantine-radius-sm);
 }

@@ -30,6 +30,8 @@ export type MediaDetailHeroProps = {
   meta: ReactNode;
   youTubeTrailerId?: string;
   trailerLoading?: boolean;
+  /** Lidarr artist pages have no trailer slot. */
+  hideTrailer?: boolean;
 };
 
 export function MetaRow({
@@ -64,13 +66,14 @@ export function MediaDetailHero({
   meta,
   youTubeTrailerId,
   trailerLoading,
+  hideTrailer,
 }: MediaDetailHeroProps) {
   const hasTrailer = Boolean(youTubeTrailerId);
   const monitoredLabel = monitored ? "Monitored" : "Unmonitored";
 
   return (
     <section className={classes.hero}>
-      <div className={classes.top}>
+      <div className={hideTrailer ? classes.topNoTrailer : classes.top}>
         <div className={classes.posterWrap}>
           <div className={classes.poster}>
             {posterUrl ? <img src={posterUrl} alt="" /> : <div className={classes.posterFallback} />}
@@ -160,26 +163,28 @@ export function MediaDetailHero({
 
         <dl className={`${classes.panel} ${classes.metaPanel}`}>{meta}</dl>
 
-        <div className={`${classes.panel} ${classes.trailerPanel}`}>
-          {hasTrailer && youTubeTrailerId ? (
-            <div className={classes.trailer}>
-              <iframe
-                title={`${title} trailer`}
-                src={`https://www.youtube-nocookie.com/embed/${youTubeTrailerId}`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-              />
-            </div>
-          ) : (
-            <div className={classes.trailerEmpty}>
-              <Text size="sm" c="dimmed">
-                {trailerLoading ? "Looking for trailer…" : "No trailer available"}
-              </Text>
-            </div>
-          )}
-        </div>
+        {!hideTrailer && (
+          <div className={`${classes.panel} ${classes.trailerPanel}`}>
+            {hasTrailer && youTubeTrailerId ? (
+              <div className={classes.trailer}>
+                <iframe
+                  title={`${title} trailer`}
+                  src={`https://www.youtube-nocookie.com/embed/${youTubeTrailerId}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              </div>
+            ) : (
+              <div className={classes.trailerEmpty}>
+                <Text size="sm" c="dimmed">
+                  {trailerLoading ? "Looking for trailer…" : "No trailer available"}
+                </Text>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );

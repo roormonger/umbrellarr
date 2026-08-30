@@ -5,7 +5,7 @@
   min-width: 0;
 }
 
-.season {
+.section {
   border-radius: var(--mantine-radius-md);
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
@@ -74,20 +74,12 @@
   color: var(--mantine-color-teal-4);
 }
 
-.count[data-tone="partial"] {
-  color: var(--mantine-color-yellow-5);
+.count[data-tone="unmonitored"] {
+  color: var(--mantine-color-gray-5);
 }
 
-.count[data-tone="empty"] {
+.count[data-tone="missing"] {
   color: var(--mantine-color-red-4);
-}
-
-.tools {
-  display: flex;
-  align-items: center;
-  gap: 0.1rem;
-  flex-shrink: 0;
-  margin-left: auto;
 }
 
 .body {
@@ -95,13 +87,7 @@
   padding: 0.25rem 0.4rem 0.5rem;
 }
 
-.status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.epActions {
+.rowActions {
   display: flex;
   align-items: center;
   justify-content: flex-end;

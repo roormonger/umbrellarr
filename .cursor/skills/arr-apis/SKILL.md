@@ -51,17 +51,17 @@ Status legend for Umbrellarr: **Wired** / **Partial** / **Not started** / **Out 
 
 | Capability | Radarr v3 | Sonarr v3 | Lidarr v1 | Umbrellarr |
 |------------|-----------|-----------|-----------|------------|
-| Library list/detail/CRUD | `/movie` | `/series` (+ `/episode`) | `/artist`, `/album`, `/track` | Radarr list + detail **Wired**; Sonarr list + hero/toolbar + seasons/episodes **Wired**; Lidarr artist list + edit **Wired**; artist detail / albums **Not started** |
+| Library list/detail/CRUD | `/movie` | `/series` (+ `/episode`) | `/artist`, `/album`, `/track` | Radarr list + detail **Wired**; Sonarr list + hero/toolbar + seasons/episodes **Wired**; Lidarr artist list + detail + album rows **Wired**; album track expansion **Not started** |
 | Lookup / add | `/movie/lookup` | `/series/lookup` | `/artist/lookup`, `/album/lookup` | **Not started** |
-| Refresh / search / rename via command | `POST /command` | same | same (`/api/v1`) | Radarr RefreshMovie, MoviesSearch, RenameFiles **Wired**; Sonarr RefreshSeries, SeriesSearch, SeasonSearch, EpisodeSearch, RenameFiles **Wired**; Lidarr RefreshArtist **Wired** |
+| Refresh / search / rename via command | `POST /command` | same | same (`/api/v1`) | Radarr RefreshMovie, MoviesSearch, RenameFiles **Wired**; Sonarr RefreshSeries, SeriesSearch, SeasonSearch, EpisodeSearch, RenameFiles **Wired**; Lidarr RefreshArtist, ArtistSearch, AlbumSearch, RenameFiles, RetagFiles **Wired** |
 | Queue / grab / remove | `/queue*` | `/queue*` | `/queue*` | **Partial** — Sonarr episode `downloading` via `/queue/details`; Activity Queue UI still placeholder |
 | Calendar | `/calendar` | `/calendar` | `/calendar` | **Not started** |
-| History | `/history*` | `/history*` | `/history*` | Radarr movie + Sonarr series/season history + details **Wired**; Lidarr **Not started** |
+| History | `/history*` | `/history*` | `/history*` | Radarr movie + Sonarr series/season + Lidarr artist history + details **Wired** |
 | Wanted missing / cutoff | `/wanted/*` | `/wanted/*` | `/wanted/*` | Cutoff IDs **Partial** (movies + series list filters); Missing UI **Not started** |
 | Quality profiles + tags | yes | yes | yes (+ metadata profiles) | Radarr + Sonarr edit **Wired**; Lidarr quality + **metadata** profiles + tags **Wired** |
 | Root folders / filesystem | yes | yes | yes | **Not started** (path is text) |
-| Interactive search / release | `/release` | `/release` | `/release` | Radarr movie + Sonarr series / season / episode interactive search **Wired**; Lidarr **Not started** |
-| Movie file manage (metadata / delete) | `/moviefile*` | `/episodefile*` | `/trackfile*` | Radarr + Sonarr Manage Files **Wired**; Lidarr **Not started** |
+| Interactive search / release | `/release` | `/release` | `/release` | Radarr movie + Sonarr series / season / episode + Lidarr artist interactive search **Wired** |
+| Movie file manage (metadata / delete) | `/moviefile*` | `/episodefile*` | `/trackfile*` (+ `/track` join) | Radarr + Sonarr Manage Files **Wired**; Lidarr Manage Tracks (Track/Path/Quality) **Wired** |
 | Bulk editor | `/movie/editor` | `/series/editor` | `/artist/editor` | **Not started** |
 | System health / status | `/system/status`, `/health` | same | same | **Wired** (status) |
 | Covers | `/MediaCover/...` or mediacover API | similar | `/api/v1/mediacover/{artist or album}/{id}/{file}` (API matches jpg/png/gif only; SPA `/MediaCover/` is login HTML) | Radarr + Sonarr **Wired** (`/MediaCover/` + `-500`); Lidarr artist **Wired** (mediacover API; `.jpeg` posters use another Arr image) |
@@ -75,7 +75,7 @@ Status legend for Umbrellarr: **Wired** / **Partial** / **Not started** / **Out 
 |------|--------|--------------|---------------|
 | Radarr | Settings (SQLite) + optional first-run `RADARR_*` env import | yes | yes (per-instance `/movies/$instanceId`) |
 | Sonarr | Settings (SQLite) + optional first-run `SONARR_*` env import | yes | yes (per-instance `/shows/$instanceId`; detail + seasons/episodes) |
-| Lidarr | Settings (SQLite) + optional first-run `LIDARR_*` env import | yes | yes (per-instance `/music/$instanceId` artist grid; no detail yet) |
+| Lidarr | Settings (SQLite) + optional first-run `LIDARR_*` env import | yes | yes (per-instance `/music/$instanceId` + `/music/$instanceId/$artistId`) |
 
 API keys encrypted in SQLite (`INSTANCE_SECRETS_KEY`). Env Arr vars import once when the DB is empty.
 

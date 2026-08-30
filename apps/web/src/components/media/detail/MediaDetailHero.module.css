@@ -1,8 +1,11 @@
 .hero {
   padding: 1.25rem;
-  border: 1px solid var(--mantine-color-default-border);
+  border: 1px solid var(--glass-border);
   border-radius: var(--mantine-radius-md);
-  background: var(--mantine-color-body);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--glass-shadow);
 }
 
 /*
@@ -27,15 +30,11 @@
 .panel {
   padding: 0.85rem 1rem;
   border-radius: var(--mantine-radius-md);
-  background: var(--mantine-color-dark-6);
-  border: 1px solid color-mix(in srgb, var(--mantine-color-default-border) 80%, transparent);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
   min-width: 0;
   min-height: 0;
   box-sizing: border-box;
-}
-
-:global([data-mantine-color-scheme="light"]) .panel {
-  background: var(--mantine-color-gray-0);
 }
 
 .posterWrap {
@@ -136,6 +135,10 @@
   gap: 0.35rem;
   min-height: 0;
   overflow: hidden;
+}
+
+.topNoTrailer .linksPanel {
+  grid-row: 1 / -1;
 }
 
 .metaPanel {
@@ -250,8 +253,8 @@
 }
 
 .linksList {
-  --links-line: color-mix(in srgb, var(--mantine-color-default-border) 85%, transparent);
-  --links-cell-bg: var(--mantine-color-dark-6);
+  --links-line: var(--glass-border);
+  --links-cell-bg: var(--glass-bg-strong);
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   /* Equal row heights fill remaining panel; never grow past the container */
@@ -267,10 +270,11 @@
   background: var(--links-line);
 }
 
-:global([data-mantine-color-scheme="light"]) .linksList {
-  --links-line: var(--mantine-color-gray-3);
-  --links-cell-bg: var(--mantine-color-gray-0);
+.topNoTrailer .linksList {
+  overflow: auto;
+  grid-auto-rows: minmax(1.65rem, 1fr);
 }
+
 
 .linkCell {
   display: flex;

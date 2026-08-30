@@ -303,6 +303,7 @@ export function AppLayout() {
                 ]}
               />
               <UnstyledButton
+                style={{ borderRadius: "var(--mantine-radius-sm)" }}
                 onClick={async () => {
                   await logout();
                   clearAuthStatusCache(queryClient);

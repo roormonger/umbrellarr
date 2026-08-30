@@ -14,6 +14,7 @@ import { MoviesPage } from "@/pages/MoviesPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ShowDetailPage } from "@/pages/ShowDetailPage";
+import { ArtistDetailPage } from "@/pages/ArtistDetailPage";
 import { ArtistsPage } from "@/pages/ArtistsPage";
 import { ShowsPage } from "@/pages/ShowsPage";
 import { StatusPage } from "@/pages/StatusPage";
@@ -151,6 +152,12 @@ const musicInstanceRoute = createRoute({
   component: ArtistsPage,
 });
 
+const musicDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/music/$instanceId/$artistId",
+  component: ArtistDetailPage,
+});
+
 /** Legacy paths → new routes */
 const legacyMoviesRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -230,6 +237,7 @@ export const routeTree = rootRoute.addChildren([
     showDetailRoute,
     musicIndexRoute,
     musicInstanceRoute,
+    musicDetailRoute,
     legacyMoviesRoute,
     legacyMovieDetailRoute,
     legacyShowsRoute,

@@ -1,14 +1,13 @@
 .panel {
   padding: 0.85rem 1rem;
   border-radius: var(--mantine-radius-md);
-  background: var(--mantine-color-dark-6);
-  border: 1px solid color-mix(in srgb, var(--mantine-color-default-border) 80%, transparent);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   min-width: 0;
   box-sizing: border-box;
-}
-
-:global([data-mantine-color-scheme="light"]) .panel {
-  background: var(--mantine-color-gray-0);
 }
 
 .heading {

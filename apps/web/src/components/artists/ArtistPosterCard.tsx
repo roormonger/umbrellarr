@@ -2,6 +2,7 @@ import { ActionIcon, Image, Text, Tooltip } from "@mantine/core";
 import { useReducedMotion } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react/dist/csr/ArrowsClockwise";
 import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 import { LinkIcon } from "@phosphor-icons/react/dist/csr/Link";
@@ -70,6 +71,7 @@ export const ArtistPosterCard = memo(function ArtistPosterCard({
   item: ArtistListItem;
   onEdit?: (item: ArtistListItem) => void;
 }) {
+  const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const [linksOpen, setLinksOpen] = useState(false);
@@ -78,6 +80,16 @@ export const ArtistPosterCard = memo(function ArtistPosterCard({
     item.trackCount != null && item.trackCount > 0
       ? `${item.trackFileCount ?? 0}/${item.trackCount}`
       : undefined;
+
+  function openDetail() {
+    void navigate({
+      to: "/music/$instanceId/$artistId",
+      params: {
+        instanceId: item.instanceId,
+        artistId: String(item.externalId),
+      },
+    });
+  }
 
   const refreshMutation = useMutation({
     mutationFn: () => refreshArtist(item.instanceId, item.externalId),
@@ -99,7 +111,20 @@ export const ArtistPosterCard = memo(function ArtistPosterCard({
 
   const poster = (
     <div className={`${classes.posterWrap} ${classes.posterWrapSquare}`}>
-      <div className={classes.posterSurface}>
+      <div
+        className={classes.posterSurface}
+        role="link"
+        tabIndex={0}
+        aria-label={`Open ${item.title}`}
+        onClick={openDetail}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openDetail();
+          }
+        }}
+        style={{ cursor: "pointer" }}
+      >
         <div className={classes.posterHit}>
           <Image
             className={classes.poster}

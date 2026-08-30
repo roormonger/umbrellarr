@@ -9,7 +9,7 @@
 }
 
 .tableWrap {
-  border: 1px solid var(--mantine-color-dark-4);
+  border: 1px solid var(--glass-border);
   border-radius: var(--mantine-radius-md);
   overflow: hidden;
 }
