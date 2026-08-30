@@ -3,7 +3,11 @@ import { getCookie } from "hono/cookie";
 import type { AppVariables } from "../app.js";
 import { SESSION_COOKIE, verifySessionToken } from "../auth/session.js";
 
-const PUBLIC_API_PATHS = new Set(["/api/auth/login", "/api/auth/status"]);
+const PUBLIC_API_PATHS = new Set([
+  "/api/auth/login",
+  "/api/auth/status",
+  "/api/settings/appearance",
+]);
 
 export function createAuthMiddleware() {
   return createMiddleware<{ Variables: AppVariables }>(async (c, next) => {

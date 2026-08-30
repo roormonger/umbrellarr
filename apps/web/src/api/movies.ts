@@ -23,14 +23,20 @@ import { api } from "./client";
 export type MoviesResponse = {
   movies: MovieListItem[];
   count: number;
+  total?: number;
+  truncated?: boolean;
   cache?: CacheStatus;
   fetchedAt?: string;
 };
 
-export function listMovies(instanceId?: string, options?: { refresh?: boolean }) {
+export function listMovies(
+  instanceId?: string,
+  options?: { refresh?: boolean; limit?: number },
+) {
   const params = new URLSearchParams();
   if (instanceId) params.set("instanceId", instanceId);
   if (options?.refresh) params.set("refresh", "true");
+  if (options?.limit != null) params.set("limit", String(options.limit));
   const encoded = params.toString();
   const query = encoded ? `?${encoded}` : "";
   return api<MoviesResponse>(`/api/movies${query}`);

@@ -124,6 +124,58 @@ async function run() {
   assert.equal(forced.status, "STALE");
   assert.equal(ttlFetches, 3);
 
+  let headFetches = 0;
+  const headCache = new LibraryCache({
+    headSize: 2,
+    staleMs: 60_000,
+    now: () => 0,
+    fetchMovies: async () => {
+      headFetches += 1;
+      return [movie("Alpha", 1), movie("Beta", 2), movie("Charlie", 3)];
+    },
+  });
+  const full = await headCache.getMovies([instance]);
+  assert.equal(full.total, 3);
+  assert.equal(full.truncated, false);
+  assert.equal(headFetches, 1);
+  const head = await headCache.getMovies([instance], { limit: 2 });
+  assert.equal(head.status, "HIT");
+  assert.equal(head.movies.length, 2);
+  assert.equal(head.movies[0]?.title, "Alpha");
+  assert.equal(head.movies[1]?.title, "Beta");
+  assert.equal(head.total, 3);
+  assert.equal(head.truncated, true);
+  assert.equal(headFetches, 1);
+
+  let durableFetches = 0;
+  let durableClock = 0;
+  const durable = new LibraryCache({
+    headSize: 2,
+    staleMs: 60_000,
+    now: () => durableClock,
+    fetchMovies: async () => {
+      durableFetches += 1;
+      await wait(20);
+      return [movie("A", 1), movie("B", 2), movie("C", 3)];
+    },
+  });
+  await durable.getMovies([instance]);
+  assert.equal(durableFetches, 1);
+  durableClock = 120_000;
+  const started = Date.now();
+  const headAfterTtl = await durable.getMovies([instance], { limit: 2 });
+  assert.ok(Date.now() - started < 15, "head should not wait on a full Arr refresh");
+  assert.equal(headAfterTtl.status, "HIT");
+  assert.equal(headAfterTtl.movies.length, 2);
+  assert.equal(headAfterTtl.total, 3);
+  assert.equal(headAfterTtl.truncated, true);
+  await wait(40);
+  assert.equal(durableFetches, 2);
+
+  const forcedHead = await durable.getMovies([instance], { force: true, limit: 2 });
+  assert.equal(forcedHead.movies.length, 2);
+  assert.equal(durableFetches, 3);
+
   console.log("library cache tests passed");
 }
 

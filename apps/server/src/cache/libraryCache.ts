@@ -27,36 +27,52 @@ export type InstanceArtistSnapshot = {
   artists: ArtistListItem[];
 };
 
+type HeadSnapshot<T> = {
+  items: T[];
+  total: number;
+  fetchedAt: number;
+};
+
 export type LibraryCacheDeps = {
   fetchMovies?: (instance: Instance) => Promise<MovieListItem[]>;
   fetchSeries?: (instance: Instance) => Promise<SeriesListItem[]>;
   fetchArtists?: (instance: Instance) => Promise<ArtistListItem[]>;
   now?: () => number;
-  /** How long a snapshot is served without re-fetching Arr. Default 60s. */
+  /** How long a full snapshot is served without re-fetching Arr. Default 5 minutes. */
   staleMs?: number;
+  /** Items kept in the durable head cache. Default 60. */
+  headSize?: number;
 };
 
 export type LibraryReadOptions = {
   /** Bypass TTL and pull a fresh snapshot from Arr. */
   force?: boolean;
+  /** Return only the first N title-sorted items (serves durable head when possible). */
+  limit?: number;
 };
 
 export type MoviesCacheResult = {
   movies: MovieListItem[];
   status: CacheStatus;
   fetchedAt?: string;
+  total: number;
+  truncated: boolean;
 };
 
 export type SeriesCacheResult = {
   series: SeriesListItem[];
   status: CacheStatus;
   fetchedAt?: string;
+  total: number;
+  truncated: boolean;
 };
 
 export type ArtistsCacheResult = {
   artists: ArtistListItem[];
   status: CacheStatus;
   fetchedAt?: string;
+  total: number;
+  truncated: boolean;
 };
 
 function sortByTitle<T extends { sortTitle?: string; title: string }>(items: T[]): T[] {
@@ -73,18 +89,22 @@ function worstStatus(statuses: CacheStatus[]): CacheStatus {
   return "HIT";
 }
 
-const DEFAULT_STALE_MS = 60_000;
+const DEFAULT_STALE_MS = 5 * 60_000;
+export const DEFAULT_LIBRARY_HEAD_SIZE = 60;
 
 /**
  * In-memory library snapshots per Arr instance.
  * Movies for Radarr, series for Sonarr, artists for Lidarr.
- * Populated on demand / warm; revalidated after `staleMs` or `force`.
- * Also invalidated after Umbrellarr mutations.
+ * Full snapshots revalidate after `staleMs` or `force`.
+ * Durable heads survive full TTL so `?limit=` stays fast.
  */
 export class LibraryCache {
   private readonly movieSnapshots = new Map<string, InstanceMovieSnapshot>();
   private readonly seriesSnapshots = new Map<string, InstanceSeriesSnapshot>();
   private readonly artistSnapshots = new Map<string, InstanceArtistSnapshot>();
+  private readonly movieHeads = new Map<string, HeadSnapshot<MovieListItem>>();
+  private readonly seriesHeads = new Map<string, HeadSnapshot<SeriesListItem>>();
+  private readonly artistHeads = new Map<string, HeadSnapshot<ArtistListItem>>();
   private readonly movieInflight = new Map<string, Promise<InstanceMovieSnapshot>>();
   private readonly seriesInflight = new Map<string, Promise<InstanceSeriesSnapshot>>();
   private readonly artistInflight = new Map<string, Promise<InstanceArtistSnapshot>>();
@@ -93,6 +113,7 @@ export class LibraryCache {
   private readonly fetchArtists: (instance: Instance) => Promise<ArtistListItem[]>;
   private readonly now: () => number;
   private readonly staleMs: number;
+  private readonly headSize: number;
 
   constructor(options: LibraryCacheDeps = {}) {
     this.fetchMovies = options.fetchMovies ?? fetchMoviesForInstance;
@@ -100,6 +121,7 @@ export class LibraryCache {
     this.fetchArtists = options.fetchArtists ?? fetchArtistsForInstance;
     this.now = options.now ?? Date.now;
     this.staleMs = options.staleMs ?? DEFAULT_STALE_MS;
+    this.headSize = options.headSize ?? DEFAULT_LIBRARY_HEAD_SIZE;
   }
 
   getSnapshot(instanceId: string): InstanceMovieSnapshot | undefined {
@@ -119,28 +141,40 @@ export class LibraryCache {
       this.movieSnapshots.delete(instanceId);
       this.seriesSnapshots.delete(instanceId);
       this.artistSnapshots.delete(instanceId);
+      this.movieHeads.delete(instanceId);
+      this.seriesHeads.delete(instanceId);
+      this.artistHeads.delete(instanceId);
       return;
     }
     this.movieSnapshots.clear();
     this.seriesSnapshots.clear();
     this.artistSnapshots.clear();
+    this.movieHeads.clear();
+    this.seriesHeads.clear();
+    this.artistHeads.clear();
   }
 
-  /** Prefetch into memory (e.g. after adding a client). */
+  /** Prefetch into memory (startup / after adding a client). */
   warm(instances: Instance[]): void {
     for (const instance of instances) {
       if (instance.kind === "radarr") {
-        if (this.movieSnapshots.has(instance.id)) continue;
+        if (this.movieSnapshots.has(instance.id) && this.isFresh(this.movieSnapshots.get(instance.id)!.fetchedAt)) {
+          continue;
+        }
         void this.refreshMovies(instance).catch((error) => {
           console.warn(`[cache] warm movies failed for ${instance.id}`, error);
         });
       } else if (instance.kind === "sonarr") {
-        if (this.seriesSnapshots.has(instance.id)) continue;
+        if (this.seriesSnapshots.has(instance.id) && this.isFresh(this.seriesSnapshots.get(instance.id)!.fetchedAt)) {
+          continue;
+        }
         void this.refreshSeries(instance).catch((error) => {
           console.warn(`[cache] warm series failed for ${instance.id}`, error);
         });
       } else if (instance.kind === "lidarr") {
-        if (this.artistSnapshots.has(instance.id)) continue;
+        if (this.artistSnapshots.has(instance.id) && this.isFresh(this.artistSnapshots.get(instance.id)!.fetchedAt)) {
+          continue;
+        }
         void this.refreshArtists(instance).catch((error) => {
           console.warn(`[cache] warm artists failed for ${instance.id}`, error);
         });
@@ -154,23 +188,47 @@ export class LibraryCache {
   ): Promise<MoviesCacheResult> {
     const radarr = instances.filter((i) => i.kind === "radarr");
     if (radarr.length === 0) {
-      return { movies: [], status: "HIT" };
+      return { movies: [], status: "HIT", total: 0, truncated: false };
+    }
+
+    const limit = normalizeLimit(options.limit);
+    if (limit != null && !options.force && radarr.every((i) => this.movieHeads.has(i.id))) {
+      this.kickStaleMovieRefresh(radarr);
+      const movies = sortByTitle(radarr.flatMap((i) => this.movieHeads.get(i.id)!.items)).slice(
+        0,
+        limit,
+      );
+      const total = radarr.reduce((sum, i) => sum + (this.movieHeads.get(i.id)?.total ?? 0), 0);
+      const newest = radarr.reduce(
+        (max, i) => Math.max(max, this.movieHeads.get(i.id)?.fetchedAt ?? 0),
+        0,
+      );
+      return {
+        movies,
+        status: "HIT",
+        total,
+        truncated: movies.length < total,
+        fetchedAt: newest > 0 ? new Date(newest).toISOString() : undefined,
+      };
     }
 
     const statuses = await Promise.all(
       radarr.map((instance) => this.ensureMovies(instance, options.force)),
     );
-    const movies = sortByTitle(
+    const all = sortByTitle(
       radarr.flatMap((instance) => this.movieSnapshots.get(instance.id)?.movies ?? []),
     );
     const newest = radarr.reduce((max, instance) => {
       const fetchedAt = this.movieSnapshots.get(instance.id)?.fetchedAt ?? 0;
       return Math.max(max, fetchedAt);
     }, 0);
+    const movies = limit != null ? all.slice(0, limit) : all;
 
     return {
       movies,
       status: worstStatus(statuses),
+      total: all.length,
+      truncated: limit != null && movies.length < all.length,
       fetchedAt: newest > 0 ? new Date(newest).toISOString() : undefined,
     };
   }
@@ -181,23 +239,47 @@ export class LibraryCache {
   ): Promise<SeriesCacheResult> {
     const sonarr = instances.filter((i) => i.kind === "sonarr");
     if (sonarr.length === 0) {
-      return { series: [], status: "HIT" };
+      return { series: [], status: "HIT", total: 0, truncated: false };
+    }
+
+    const limit = normalizeLimit(options.limit);
+    if (limit != null && !options.force && sonarr.every((i) => this.seriesHeads.has(i.id))) {
+      this.kickStaleSeriesRefresh(sonarr);
+      const series = sortByTitle(sonarr.flatMap((i) => this.seriesHeads.get(i.id)!.items)).slice(
+        0,
+        limit,
+      );
+      const total = sonarr.reduce((sum, i) => sum + (this.seriesHeads.get(i.id)?.total ?? 0), 0);
+      const newest = sonarr.reduce(
+        (max, i) => Math.max(max, this.seriesHeads.get(i.id)?.fetchedAt ?? 0),
+        0,
+      );
+      return {
+        series,
+        status: "HIT",
+        total,
+        truncated: series.length < total,
+        fetchedAt: newest > 0 ? new Date(newest).toISOString() : undefined,
+      };
     }
 
     const statuses = await Promise.all(
       sonarr.map((instance) => this.ensureSeries(instance, options.force)),
     );
-    const series = sortByTitle(
+    const all = sortByTitle(
       sonarr.flatMap((instance) => this.seriesSnapshots.get(instance.id)?.series ?? []),
     );
     const newest = sonarr.reduce((max, instance) => {
       const fetchedAt = this.seriesSnapshots.get(instance.id)?.fetchedAt ?? 0;
       return Math.max(max, fetchedAt);
     }, 0);
+    const series = limit != null ? all.slice(0, limit) : all;
 
     return {
       series,
       status: worstStatus(statuses),
+      total: all.length,
+      truncated: limit != null && series.length < all.length,
       fetchedAt: newest > 0 ? new Date(newest).toISOString() : undefined,
     };
   }
@@ -208,23 +290,47 @@ export class LibraryCache {
   ): Promise<ArtistsCacheResult> {
     const lidarr = instances.filter((i) => i.kind === "lidarr");
     if (lidarr.length === 0) {
-      return { artists: [], status: "HIT" };
+      return { artists: [], status: "HIT", total: 0, truncated: false };
+    }
+
+    const limit = normalizeLimit(options.limit);
+    if (limit != null && !options.force && lidarr.every((i) => this.artistHeads.has(i.id))) {
+      this.kickStaleArtistRefresh(lidarr);
+      const artists = sortByTitle(lidarr.flatMap((i) => this.artistHeads.get(i.id)!.items)).slice(
+        0,
+        limit,
+      );
+      const total = lidarr.reduce((sum, i) => sum + (this.artistHeads.get(i.id)?.total ?? 0), 0);
+      const newest = lidarr.reduce(
+        (max, i) => Math.max(max, this.artistHeads.get(i.id)?.fetchedAt ?? 0),
+        0,
+      );
+      return {
+        artists,
+        status: "HIT",
+        total,
+        truncated: artists.length < total,
+        fetchedAt: newest > 0 ? new Date(newest).toISOString() : undefined,
+      };
     }
 
     const statuses = await Promise.all(
       lidarr.map((instance) => this.ensureArtists(instance, options.force)),
     );
-    const artists = sortByTitle(
+    const all = sortByTitle(
       lidarr.flatMap((instance) => this.artistSnapshots.get(instance.id)?.artists ?? []),
     );
     const newest = lidarr.reduce((max, instance) => {
       const fetchedAt = this.artistSnapshots.get(instance.id)?.fetchedAt ?? 0;
       return Math.max(max, fetchedAt);
     }, 0);
+    const artists = limit != null ? all.slice(0, limit) : all;
 
     return {
       artists,
       status: worstStatus(statuses),
+      total: all.length,
+      truncated: limit != null && artists.length < all.length,
       fetchedAt: newest > 0 ? new Date(newest).toISOString() : undefined,
     };
   }
@@ -271,6 +377,66 @@ export class LibraryCache {
     return this.now() - fetchedAt < this.staleMs;
   }
 
+  private kickStaleMovieRefresh(instances: Instance[]): void {
+    for (const instance of instances) {
+      const snap = this.movieSnapshots.get(instance.id);
+      if (!snap || !this.isFresh(snap.fetchedAt)) {
+        void this.refreshMovies(instance).catch((error) => {
+          console.warn(`[cache] background movies refresh failed for ${instance.id}`, error);
+        });
+      }
+    }
+  }
+
+  private kickStaleSeriesRefresh(instances: Instance[]): void {
+    for (const instance of instances) {
+      const snap = this.seriesSnapshots.get(instance.id);
+      if (!snap || !this.isFresh(snap.fetchedAt)) {
+        void this.refreshSeries(instance).catch((error) => {
+          console.warn(`[cache] background series refresh failed for ${instance.id}`, error);
+        });
+      }
+    }
+  }
+
+  private kickStaleArtistRefresh(instances: Instance[]): void {
+    for (const instance of instances) {
+      const snap = this.artistSnapshots.get(instance.id);
+      if (!snap || !this.isFresh(snap.fetchedAt)) {
+        void this.refreshArtists(instance).catch((error) => {
+          console.warn(`[cache] background artists refresh failed for ${instance.id}`, error);
+        });
+      }
+    }
+  }
+
+  private storeMovieHead(instanceId: string, movies: MovieListItem[], fetchedAt: number): void {
+    const sorted = sortByTitle(movies);
+    this.movieHeads.set(instanceId, {
+      items: sorted.slice(0, this.headSize),
+      total: sorted.length,
+      fetchedAt,
+    });
+  }
+
+  private storeSeriesHead(instanceId: string, series: SeriesListItem[], fetchedAt: number): void {
+    const sorted = sortByTitle(series);
+    this.seriesHeads.set(instanceId, {
+      items: sorted.slice(0, this.headSize),
+      total: sorted.length,
+      fetchedAt,
+    });
+  }
+
+  private storeArtistHead(instanceId: string, artists: ArtistListItem[], fetchedAt: number): void {
+    const sorted = sortByTitle(artists);
+    this.artistHeads.set(instanceId, {
+      items: sorted.slice(0, this.headSize),
+      total: sorted.length,
+      fetchedAt,
+    });
+  }
+
   private async ensureMovies(instance: Instance, force = false): Promise<CacheStatus> {
     const snap = this.movieSnapshots.get(instance.id);
     if (!force && snap && this.isFresh(snap.fetchedAt)) return "HIT";
@@ -302,6 +468,7 @@ export class LibraryCache {
         movies,
       };
       this.movieSnapshots.set(instance.id, snap);
+      this.storeMovieHead(instance.id, movies, snap.fetchedAt);
       return snap;
     } catch (error) {
       if (previous) {
@@ -322,6 +489,7 @@ export class LibraryCache {
         series,
       };
       this.seriesSnapshots.set(instance.id, snap);
+      this.storeSeriesHead(instance.id, series, snap.fetchedAt);
       return snap;
     } catch (error) {
       if (previous) {
@@ -342,6 +510,7 @@ export class LibraryCache {
         artists,
       };
       this.artistSnapshots.set(instance.id, snap);
+      this.storeArtistHead(instance.id, artists, snap.fetchedAt);
       return snap;
     } catch (error) {
       if (previous) {
@@ -351,4 +520,11 @@ export class LibraryCache {
       throw error;
     }
   }
+}
+
+function normalizeLimit(limit: number | undefined): number | undefined {
+  if (limit == null || !Number.isFinite(limit)) return undefined;
+  const n = Math.floor(limit);
+  if (n <= 0) return undefined;
+  return n;
 }

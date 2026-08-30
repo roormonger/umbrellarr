@@ -16,7 +16,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { FilmStripIcon } from "@phosphor-icons/react/dist/csr/FilmStrip";
 import { TelevisionIcon } from "@phosphor-icons/react/dist/csr/Television";
@@ -24,16 +24,20 @@ import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
 import { ListBulletsIcon } from "@phosphor-icons/react/dist/csr/ListBullets";
 import { CalendarBlankIcon } from "@phosphor-icons/react/dist/csr/CalendarBlank";
 import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
-import { HeartbeatIcon } from "@phosphor-icons/react/dist/csr/Heartbeat";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
 import { clearAuthStatusCache, logout } from "@/api/auth";
 import { listInstances } from "@/api/instances";
-import { listMovies } from "@/api/movies";
-import { listArtists } from "@/api/artists";
-import { listShows } from "@/api/shows";
+import {
+  prefetchArtistHead,
+  prefetchArtistLibrary,
+  prefetchMovieHead,
+  prefetchMovieLibrary,
+  prefetchShowHead,
+  prefetchShowLibrary,
+} from "@/api/libraryList";
 import { getDashboardStats } from "@/api/stats";
 import umbrellarrIcon from "@/assets/umbrellarr-icon.png";
 import {
@@ -68,6 +72,7 @@ function NavItem({
       active={active}
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
+      onPointerDown={onPrefetch}
       onClick={() => {
         onNavigate?.();
         void navigate({ to });
@@ -104,28 +109,51 @@ export function AppLayout() {
   const backTo = pageHeader.backTo;
 
   function prefetchMovies(instanceId: string) {
-    void queryClient.prefetchQuery({
-      queryKey: ["movies", instanceId],
-      queryFn: () => listMovies(instanceId),
-      staleTime: 60_000,
-    });
+    prefetchMovieLibrary(queryClient, instanceId);
   }
 
   function prefetchShows(instanceId: string) {
-    void queryClient.prefetchQuery({
-      queryKey: ["shows", instanceId],
-      queryFn: () => listShows(instanceId),
-      staleTime: 60_000,
-    });
+    prefetchShowLibrary(queryClient, instanceId);
   }
 
   function prefetchArtists(instanceId: string) {
-    void queryClient.prefetchQuery({
-      queryKey: ["artists", instanceId],
-      queryFn: () => listArtists(instanceId),
-      staleTime: 60_000,
-    });
+    prefetchArtistLibrary(queryClient, instanceId);
   }
+
+  const instanceIds = (instancesQuery.data?.instances ?? [])
+    .map((instance) => `${instance.kind}:${instance.id}`)
+    .join(",");
+
+  useEffect(() => {
+    const instances = instancesQuery.data?.instances ?? [];
+    if (instances.length === 0) return;
+
+    const timers: number[] = [];
+    const run = () => {
+      instances.forEach((instance, index) => {
+        const timer = window.setTimeout(() => {
+          if (instance.kind === "radarr") prefetchMovieHead(queryClient, instance.id);
+          else if (instance.kind === "sonarr") prefetchShowHead(queryClient, instance.id);
+          else if (instance.kind === "lidarr") prefetchArtistHead(queryClient, instance.id);
+        }, index * 50);
+        timers.push(timer);
+      });
+    };
+
+    let cancelIdle: (() => void) | undefined;
+    if (typeof window.requestIdleCallback === "function") {
+      const idleId = window.requestIdleCallback(run, { timeout: 2000 });
+      cancelIdle = () => window.cancelIdleCallback(idleId);
+    } else {
+      const timeoutId = window.setTimeout(run, 200);
+      cancelIdle = () => window.clearTimeout(timeoutId);
+    }
+
+    return () => {
+      cancelIdle?.();
+      for (const timer of timers) window.clearTimeout(timer);
+    };
+  }, [instanceIds, instancesQuery.data?.instances, queryClient]);
 
   return (
     <PageHeaderContext.Provider value={setPageHeader}>
@@ -282,7 +310,6 @@ export function AppLayout() {
                 />
               </NavLink>
 
-              <NavItem to="/status" label="Status" icon={<HeartbeatIcon />} onNavigate={close} />
               <NavItem to="/settings" label="Settings" icon={<GearSixIcon />} onNavigate={close} />
             </Stack>
           </AppShell.Section>

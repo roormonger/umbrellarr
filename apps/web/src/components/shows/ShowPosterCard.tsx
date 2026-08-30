@@ -131,7 +131,7 @@ export const ShowPosterCard = memo(function ShowPosterCard({
             className={classes.poster}
             src={item.posterUrl}
             alt={item.title}
-            loading="eager"
+            loading="lazy"
             decoding="async"
             ref={markPosterLoaded}
             onLoad={(event) => {

@@ -5,8 +5,9 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
-import { ensureAuthStatus } from "@/api/auth";
+import { ensureAuthStatus, peekAuthStatus } from "@/api/auth";
 import { listInstances } from "@/api/instances";
+import { ensureArtistLibrary, ensureMovieLibrary, ensureShowLibrary } from "@/api/libraryList";
 import { AppLayout } from "@/layout/AppLayout";
 import { LoginPage } from "@/pages/LoginPage";
 import { MovieDetailPage } from "@/pages/MovieDetailPage";
@@ -17,7 +18,6 @@ import { ShowDetailPage } from "@/pages/ShowDetailPage";
 import { ArtistDetailPage } from "@/pages/ArtistDetailPage";
 import { ArtistsPage } from "@/pages/ArtistsPage";
 import { ShowsPage } from "@/pages/ShowsPage";
-import { StatusPage } from "@/pages/StatusPage";
 
 export type RouterContext = {
   queryClient: QueryClient;
@@ -47,6 +47,14 @@ const appRoute = createRoute({
   id: "app",
   component: AppLayout,
   beforeLoad: async ({ context }) => {
+    const cached = peekAuthStatus(context.queryClient);
+    if (cached) {
+      if (!cached.authenticated) {
+        throw redirect({ to: "/login" });
+      }
+      void ensureAuthStatus(context.queryClient);
+      return;
+    }
     const status = await ensureAuthStatus(context.queryClient);
     if (!status.authenticated) {
       throw redirect({ to: "/login" });
@@ -86,6 +94,7 @@ const moviesInstanceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/movies/$instanceId",
   component: MoviesPage,
+  loader: ({ context, params }) => ensureMovieLibrary(context.queryClient, params.instanceId),
 });
 
 const movieDetailRoute = createRoute({
@@ -118,6 +127,7 @@ const showsInstanceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/shows/$instanceId",
   component: ShowsPage,
+  loader: ({ context, params }) => ensureShowLibrary(context.queryClient, params.instanceId),
 });
 
 const showDetailRoute = createRoute({
@@ -150,6 +160,7 @@ const musicInstanceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/music/$instanceId",
   component: ArtistsPage,
+  loader: ({ context, params }) => ensureArtistLibrary(context.queryClient, params.instanceId),
 });
 
 const musicDetailRoute = createRoute({
@@ -216,7 +227,9 @@ const missingRoute = createRoute({
 const statusRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/status",
-  component: StatusPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/settings" });
+  },
 });
 
 const settingsRoute = createRoute({

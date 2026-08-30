@@ -5,7 +5,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { useParams } from "@tanstack/react-router";
 import {
@@ -18,8 +18,13 @@ import {
   type ArtistSortKey,
 } from "@umbrellarr/shared";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { listArtists } from "@/api/artists";
 import { listInstances } from "@/api/instances";
+import {
+  artistsFullQueryKey,
+  artistsHeadQueryKey,
+  fetchArtistsFull,
+  fetchArtistsHead,
+} from "@/api/libraryList";
 import { AlphabetJumper } from "@/components/media/AlphabetJumper";
 import { ArtistEditModal } from "@/components/artists/ArtistEditModal";
 import {
@@ -30,6 +35,7 @@ import {
 } from "@/components/artists/ArtistsToolbar";
 import { VirtualizedArtistGrid } from "@/components/artists/VirtualizedArtistGrid";
 import { usePageHeader } from "@/layout/pageHeader";
+import { useProgressiveLibrary } from "@/lib/useProgressiveLibrary";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
 import { applyArtistQuery, filterArtists, sortArtists } from "@/lib/artistSortFilter";
 import { getPosterScale } from "@/lib/posterScale";
@@ -87,16 +93,14 @@ export function ArtistsPage() {
   const instanceName =
     instancesQuery.data?.instances.find((i) => i.id === instanceId)?.name ?? "Music";
 
-  const { data, isPending, error, isFetching } = useQuery({
-    queryKey: ["artists", instanceId],
-    queryFn: () => listArtists(instanceId),
-    staleTime: 60_000,
-    gcTime: 30 * 60_000,
-    placeholderData: keepPreviousData,
-    refetchOnWindowFocus: "always",
+  const { data, showingHead, showSkeleton, error, isFetching, refresh } = useProgressiveLibrary({
+    instanceId,
+    fullQueryKey: artistsFullQueryKey(instanceId),
+    headQueryKey: artistsHeadQueryKey(instanceId),
+    fetchHead: () => fetchArtistsHead(instanceId),
+    fetchFull: () => fetchArtistsFull(queryClient, instanceId),
+    fetchRefresh: () => fetchArtistsFull(queryClient, instanceId, { refresh: true }),
   });
-
-  const showSkeleton = isPending && !data;
 
   const artists = useMemo(() => {
     const items = data?.artists ?? [];
@@ -114,13 +118,16 @@ export function ArtistsPage() {
   }, [artists]);
 
   const headerCount = useMemo(() => {
-    if (data?.artists.length == null) return showSkeleton || isFetching ? "Loading…" : null;
-    const total = data.artists.length;
+    if (data?.artists == null) return showSkeleton || isFetching ? "Loading…" : null;
+    const libraryTotal = data.total ?? data.artists.length;
     const shown = artists.length;
-    const totalLabel = total.toLocaleString();
-    if (shown !== total) return `${shown.toLocaleString()} of ${totalLabel}`;
+    const totalLabel = libraryTotal.toLocaleString();
+    if (showingHead && data.truncated && !query && filterKey === "all") {
+      return totalLabel;
+    }
+    if (shown !== libraryTotal) return `${shown.toLocaleString()} of ${totalLabel}`;
     return totalLabel;
-  }, [data?.artists.length, artists.length, showSkeleton, isFetching]);
+  }, [data, artists.length, showSkeleton, isFetching, showingHead, query, filterKey]);
 
   usePageHeader(instanceName, headerCount);
 
@@ -182,15 +189,11 @@ export function ArtistsPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await queryClient.fetchQuery({
-        queryKey: ["artists", instanceId],
-        queryFn: () => listArtists(instanceId, { refresh: true }),
-        staleTime: 0,
-      });
+      await refresh();
     } finally {
       setRefreshing(false);
     }
-  }, [instanceId, queryClient]);
+  }, [refresh]);
 
   return (
     <div className={classes.page}>

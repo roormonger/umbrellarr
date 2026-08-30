@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import type { Env } from "./config/env.js";
 import type { Instance } from "@umbrellarr/shared";
+import type { AppearanceStore } from "./config/appearanceStore.js";
 import type { InstanceStore } from "./config/instanceStore.js";
 import { createAuthRoutes } from "./routes/auth.js";
 import { createHealthRoutes } from "./routes/health.js";
@@ -12,6 +13,7 @@ import { createMoviesRoutes } from "./routes/movies.js";
 import { createArtistsRoutes } from "./routes/artists.js";
 import { createShowsRoutes } from "./routes/shows.js";
 import { createStatsRoutes } from "./routes/stats.js";
+import { createSettingsRoutes } from "./routes/settings.js";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import type { LibraryCache } from "./cache/libraryCache.js";
 
@@ -19,10 +21,16 @@ export type AppVariables = {
   env: Env;
   instances: Instance[];
   instanceStore: InstanceStore;
+  appearanceStore: AppearanceStore;
   libraryCache: LibraryCache;
 };
 
-export function createApp(env: Env, instanceStore: InstanceStore, libraryCache: LibraryCache) {
+export function createApp(
+  env: Env,
+  instanceStore: InstanceStore,
+  libraryCache: LibraryCache,
+  appearanceStore: AppearanceStore,
+) {
   const app = new Hono<{ Variables: AppVariables }>();
 
   app.use("*", logger());
@@ -39,6 +47,7 @@ export function createApp(env: Env, instanceStore: InstanceStore, libraryCache: 
     c.set("env", env);
     c.set("instanceStore", instanceStore);
     c.set("instances", instanceStore.list());
+    c.set("appearanceStore", appearanceStore);
     c.set("libraryCache", libraryCache);
     await next();
   });
@@ -47,6 +56,8 @@ export function createApp(env: Env, instanceStore: InstanceStore, libraryCache: 
   app.use("/api/*", createAuthMiddleware());
   app.route("/api/health", createHealthRoutes());
   app.route("/api/instances", createInstancesRoutes());
+  // GET appearance is public (see auth middleware); PUT requires a session.
+  app.route("/api/settings", createSettingsRoutes());
   app.route("/api/stats", createStatsRoutes());
   app.route("/api/movies", createMoviesRoutes());
   app.route("/api/shows", createShowsRoutes());

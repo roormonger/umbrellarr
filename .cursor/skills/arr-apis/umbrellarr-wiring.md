@@ -227,7 +227,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | History modal | `MovieHistoryModal.tsx` | `GET .../history` |
 | Links menu | `MovieLinksMenu.tsx` | `GET .../links` |
 | Poster images | `PosterCard.tsx` | `GET /api/media/.../image` |
-| Status page | `StatusPage.tsx` | `/api/instances/status` |
+| Settings instance health | `SettingsPage.tsx` | `/api/instances/status` |
 | Shows library | `ShowsPage.tsx`, `ShowPosterCard`, sort/filter | `GET /api/shows` |
 | Show detail (hero + toolbar + seasons) | `ShowDetailPage.tsx`, `ShowDetailHero`, `ShowDetailToolbar`, `ShowSeasonsPanel`, `ShowEditModal` | detail/links/update/delete + RefreshSeries / SeriesSearch + seasons/episodes |
 | Show Interactive Search modal | `ShowInteractiveSearchModal.tsx` | releases + grab + history + blocklist |

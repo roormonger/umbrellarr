@@ -28,14 +28,20 @@ import { api } from "./client";
 export type ArtistsResponse = {
   artists: ArtistListItem[];
   count: number;
+  total?: number;
+  truncated?: boolean;
   cache?: CacheStatus;
   fetchedAt?: string;
 };
 
-export function listArtists(instanceId?: string, options?: { refresh?: boolean }) {
+export function listArtists(
+  instanceId?: string,
+  options?: { refresh?: boolean; limit?: number },
+) {
   const params = new URLSearchParams();
   if (instanceId) params.set("instanceId", instanceId);
   if (options?.refresh) params.set("refresh", "true");
+  if (options?.limit != null) params.set("limit", String(options.limit));
   const encoded = params.toString();
   const query = encoded ? `?${encoded}` : "";
   return api<ArtistsResponse>(`/api/artists${query}`);

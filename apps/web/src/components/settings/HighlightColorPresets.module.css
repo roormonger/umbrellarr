@@ -1,0 +1,82 @@
+.layout {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    "labelPicker labelPresets"
+    "picker presets"
+    "hex .";
+  column-gap: var(--mantine-spacing-lg);
+  row-gap: var(--mantine-spacing-xs);
+  align-items: start;
+  justify-content: start;
+}
+
+.labelPicker {
+  grid-area: labelPicker;
+  align-self: end;
+}
+
+.labelPresets {
+  grid-area: labelPresets;
+  align-self: end;
+  width: 100%;
+}
+
+.picker {
+  grid-area: picker;
+}
+
+.presets {
+  grid-area: presets;
+  align-self: start;
+}
+
+.hex {
+  grid-area: hex;
+  margin-top: var(--mantine-spacing-xs);
+  max-width: 200px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 28px);
+  grid-template-rows: repeat(4, 28px);
+  gap: 6px;
+  flex: 0 0 auto;
+  width: calc(5 * 28px + 4 * 6px);
+  height: calc(4 * 28px + 3 * 6px);
+  overflow: hidden;
+}
+
+.swatch {
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, white 18%, transparent);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.swatch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--mantine-color-violet-5);
+  outline-offset: 2px;
+}
+
+.check {
+  color: white;
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.65));
+}
+
+@media (max-width: 40em) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "labelPicker"
+      "picker"
+      "labelPresets"
+      "presets"
+      "hex";
+  }
+}

@@ -1,4 +1,6 @@
-import { createTheme } from "@mantine/core";
+import { generateColors } from "@mantine/colors-generator";
+import { createTheme, type MantineThemeOverride } from "@mantine/core";
+import { DEFAULT_HIGHLIGHT_COLOR } from "@umbrellarr/shared";
 
 const glassSurface = {
   backgroundColor: "var(--glass-bg)",
@@ -8,82 +10,90 @@ const glassSurface = {
   boxShadow: "var(--glass-shadow)",
 } as const;
 
-export const theme = createTheme({
-  primaryColor: "violet",
-  fontFamily: "Inter, system-ui, sans-serif",
-  defaultRadius: "md",
-  components: {
-    AppShell: {
-      styles: {
-        main: {
-          backgroundColor: "transparent",
-        },
-        header: {
-          backgroundColor: "var(--glass-bg)",
-          backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
-          WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
-          borderColor: "var(--glass-border)",
-        },
-        navbar: {
-          backgroundColor: "var(--glass-bg)",
-          backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
-          WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
-          borderColor: "var(--glass-border)",
-        },
-      },
+export function createAppTheme(highlightColor: string = DEFAULT_HIGHLIGHT_COLOR): MantineThemeOverride {
+  return createTheme({
+    primaryColor: "violet",
+    colors: {
+      violet: generateColors(highlightColor),
     },
-    Paper: {
-      styles: {
-        root: glassSurface,
-      },
-    },
-    Card: {
-      styles: {
-        root: glassSurface,
-      },
-    },
-    Modal: {
-      styles: {
-        overlay: {
-          backgroundColor: "rgba(12, 8, 18, 0.46)",
-        },
-        content: glassSurface,
-        header: {
-          backgroundColor: "transparent",
+    fontFamily: "Inter, system-ui, sans-serif",
+    defaultRadius: "md",
+    components: {
+      AppShell: {
+        styles: {
+          main: {
+            backgroundColor: "transparent",
+          },
+          header: {
+            backgroundColor: "var(--glass-bg)",
+            backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
+            WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
+            borderColor: "var(--glass-border)",
+          },
+          navbar: {
+            backgroundColor: "var(--glass-bg)",
+            backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
+            WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate))",
+            borderColor: "var(--glass-border)",
+          },
         },
       },
-    },
-    Menu: {
-      styles: {
-        dropdown: glassSurface,
+      Paper: {
+        styles: {
+          root: glassSurface,
+        },
       },
-    },
-    Popover: {
-      styles: {
-        dropdown: glassSurface,
+      Card: {
+        styles: {
+          root: glassSurface,
+        },
       },
-    },
-    Combobox: {
-      styles: {
-        dropdown: glassSurface,
+      Modal: {
+        styles: {
+          overlay: {
+            backgroundColor: "rgba(12, 8, 18, 0.46)",
+          },
+          content: glassSurface,
+          header: {
+            backgroundColor: "transparent",
+          },
+        },
       },
-    },
-    Tooltip: {
-      defaultProps: {
-        withArrow: true,
+      Menu: {
+        styles: {
+          dropdown: glassSurface,
+        },
       },
-      styles: {
-        tooltip: glassSurface,
-        arrow: {
-          backgroundColor: "var(--glass-bg)",
-          border: "1px solid var(--glass-border)",
+      Popover: {
+        styles: {
+          dropdown: glassSurface,
+        },
+      },
+      Combobox: {
+        styles: {
+          dropdown: glassSurface,
+        },
+      },
+      Tooltip: {
+        defaultProps: {
+          withArrow: true,
+        },
+        styles: {
+          tooltip: glassSurface,
+          arrow: {
+            backgroundColor: "var(--glass-bg)",
+            border: "1px solid var(--glass-border)",
+          },
+        },
+      },
+      Notification: {
+        styles: {
+          root: glassSurface,
         },
       },
     },
-    Notification: {
-      styles: {
-        root: glassSurface,
-      },
-    },
-  },
-});
+  });
+}
+
+/** @deprecated Prefer createAppTheme(highlight) — kept for any static imports. */
+export const theme = createAppTheme();

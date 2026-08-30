@@ -6,16 +6,13 @@ body,
 
 html {
   background-color: var(--app-backdrop, #121018);
+  --highlight: #7e14ff;
+  --highlight-rgb: 126, 20, 255;
 }
 
 body {
   margin: 0;
-  background-color: transparent;
-  background-image:
-    radial-gradient(ellipse 90% 55% at 8% -8%, rgba(126, 20, 255, 0.28), transparent 52%),
-    radial-gradient(ellipse 55% 40% at 96% 4%, rgba(71, 191, 255, 0.1), transparent 48%),
-    radial-gradient(ellipse 50% 45% at 70% 108%, rgba(134, 59, 255, 0.16), transparent 50%);
-  background-attachment: fixed;
+  background: transparent;
 }
 
 html[data-mantine-color-scheme="dark"] {
@@ -38,13 +35,6 @@ html[data-mantine-color-scheme="light"] {
   --glass-shadow: 0 10px 32px rgba(24, 16, 40, 0.08);
   --glass-blur: 18px;
   --glass-saturate: 1.2;
-}
-
-html[data-mantine-color-scheme="light"] body {
-  background-image:
-    radial-gradient(ellipse 90% 55% at 8% -8%, rgba(126, 20, 255, 0.14), transparent 52%),
-    radial-gradient(ellipse 55% 40% at 96% 4%, rgba(71, 191, 255, 0.08), transparent 48%),
-    radial-gradient(ellipse 50% 45% at 70% 108%, rgba(134, 59, 255, 0.08), transparent 50%);
 }
 
 @media (prefers-reduced-transparency: reduce) {

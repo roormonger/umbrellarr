@@ -5,7 +5,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { useParams } from "@tanstack/react-router";
 import {
@@ -19,7 +19,12 @@ import {
 } from "@umbrellarr/shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { listInstances } from "@/api/instances";
-import { listShows } from "@/api/shows";
+import {
+  fetchShowsFull,
+  fetchShowsHead,
+  showsFullQueryKey,
+  showsHeadQueryKey,
+} from "@/api/libraryList";
 import { AlphabetJumper } from "@/components/media/AlphabetJumper";
 import { ShowEditModal } from "@/components/shows/ShowEditModal";
 import {
@@ -30,6 +35,7 @@ import {
 } from "@/components/shows/ShowsToolbar";
 import { VirtualizedShowGrid } from "@/components/shows/VirtualizedShowGrid";
 import { usePageHeader } from "@/layout/pageHeader";
+import { useProgressiveLibrary } from "@/lib/useProgressiveLibrary";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
 import { getPosterScale } from "@/lib/posterScale";
 import { applySeriesQuery, filterSeries, sortSeries } from "@/lib/showSortFilter";
@@ -87,16 +93,14 @@ export function ShowsPage() {
   const instanceName =
     instancesQuery.data?.instances.find((i) => i.id === instanceId)?.name ?? "Shows";
 
-  const { data, isPending, error, isFetching } = useQuery({
-    queryKey: ["shows", instanceId],
-    queryFn: () => listShows(instanceId),
-    staleTime: 60_000,
-    gcTime: 30 * 60_000,
-    placeholderData: keepPreviousData,
-    refetchOnWindowFocus: "always",
+  const { data, showingHead, showSkeleton, error, isFetching, refresh } = useProgressiveLibrary({
+    instanceId,
+    fullQueryKey: showsFullQueryKey(instanceId),
+    headQueryKey: showsHeadQueryKey(instanceId),
+    fetchHead: () => fetchShowsHead(instanceId),
+    fetchFull: () => fetchShowsFull(queryClient, instanceId),
+    fetchRefresh: () => fetchShowsFull(queryClient, instanceId, { refresh: true }),
   });
-
-  const showSkeleton = isPending && !data;
 
   const series = useMemo(() => {
     const items = data?.series ?? [];
@@ -114,13 +118,16 @@ export function ShowsPage() {
   }, [series]);
 
   const headerCount = useMemo(() => {
-    if (data?.series.length == null) return showSkeleton || isFetching ? "Loading…" : null;
-    const total = data.series.length;
+    if (data?.series == null) return showSkeleton || isFetching ? "Loading…" : null;
+    const libraryTotal = data.total ?? data.series.length;
     const shown = series.length;
-    const totalLabel = total.toLocaleString();
-    if (shown !== total) return `${shown.toLocaleString()} of ${totalLabel}`;
+    const totalLabel = libraryTotal.toLocaleString();
+    if (showingHead && data.truncated && !query && filterKey === "all") {
+      return totalLabel;
+    }
+    if (shown !== libraryTotal) return `${shown.toLocaleString()} of ${totalLabel}`;
     return totalLabel;
-  }, [data?.series.length, series.length, showSkeleton, isFetching]);
+  }, [data, series.length, showSkeleton, isFetching, showingHead, query, filterKey]);
 
   usePageHeader(instanceName, headerCount);
 
@@ -187,15 +194,11 @@ export function ShowsPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await queryClient.fetchQuery({
-        queryKey: ["shows", instanceId],
-        queryFn: () => listShows(instanceId, { refresh: true }),
-        staleTime: 0,
-      });
+      await refresh();
     } finally {
       setRefreshing(false);
     }
-  }, [instanceId, queryClient]);
+  }, [refresh]);
 
   return (
     <div className={classes.page}>

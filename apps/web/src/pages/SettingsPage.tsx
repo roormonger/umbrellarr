@@ -1,18 +1,26 @@
 import {
   Badge,
   Button,
+  ColorPicker,
   Group,
   Modal,
+  Paper,
   Select,
   Stack,
   Table,
   Text,
   TextInput,
+  Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ArrKind, InstancePublic, InstanceStatus } from "@umbrellarr/shared";
-import { useEffect, useMemo, useState } from "react";
+import {
+  DEFAULT_HIGHLIGHT_COLOR,
+  type ArrKind,
+  type InstancePublic,
+  type InstanceStatus,
+} from "@umbrellarr/shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createInstance,
   deleteInstance,
@@ -21,7 +29,15 @@ import {
   testInstance,
   updateInstance,
 } from "@/api/instances";
+import { getAppearance, updateAppearance } from "@/api/settings";
+import { APPEARANCE_QUERY_KEY } from "@/appearance/AppearanceProvider";
+import { HighlightColorPresets } from "@/components/settings/HighlightColorPresets";
 import { usePageHeader } from "@/layout/pageHeader";
+
+function normalizeHighlightHex(value: string): string | null {
+  const match = /^#?([0-9A-Fa-f]{6})$/.exec(value.trim());
+  return match ? `#${match[1]!.toUpperCase()}` : null;
+}
 
 type FormState = {
   name: string;
@@ -54,6 +70,57 @@ export function SettingsPage() {
     queryFn: getInstanceStatuses,
     refetchInterval: 30_000,
   });
+
+  const appearanceQuery = useQuery({
+    queryKey: APPEARANCE_QUERY_KEY,
+    queryFn: getAppearance,
+    staleTime: 60_000,
+  });
+
+  const highlightColor = appearanceQuery.data?.highlightColor ?? DEFAULT_HIGHLIGHT_COLOR;
+  const [highlightDraft, setHighlightDraft] = useState(highlightColor);
+  const [hexField, setHexField] = useState(highlightColor);
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setHighlightDraft(highlightColor);
+    setHexField(highlightColor);
+  }, [highlightColor]);
+
+  useEffect(() => {
+    return () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+    };
+  }, []);
+
+  const highlightMutation = useMutation({
+    mutationFn: (next: string) => updateAppearance({ highlightColor: next }),
+    onSuccess: (settings) => {
+      queryClient.setQueryData(APPEARANCE_QUERY_KEY, settings);
+    },
+    onError: (error) => {
+      notifications.show({
+        color: "red",
+        title: "Could not save highlight color",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+  });
+
+  const applyHighlight = useCallback(
+    (raw: string) => {
+      const hex = normalizeHighlightHex(raw);
+      if (!hex) return;
+      setHighlightDraft(hex);
+      setHexField(hex);
+      queryClient.setQueryData(APPEARANCE_QUERY_KEY, { highlightColor: hex });
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      persistTimer.current = setTimeout(() => {
+        highlightMutation.mutate(hex);
+      }, 250);
+    },
+    [highlightMutation, queryClient],
+  );
 
   const instances = instancesQuery.data?.instances ?? [];
   const statusById = useMemo(() => {
@@ -165,13 +232,66 @@ export function SettingsPage() {
     (editing ? true : form.apiKey.trim().length > 0);
 
   return (
-    <Stack gap="md">
+    <Stack gap="lg">
+      <Paper p="md" withBorder>
+        <Stack gap="md">
+          <Group justify="space-between" align="flex-start" wrap="wrap">
+            <div>
+              <Title order={4}>Appearance</Title>
+              <Text c="dimmed" size="sm" mt={4} maw={520}>
+                Highlight color updates accent UI (buttons, badges, links) and the nebula backdrop in
+                real time. Stored on the server for this Umbrellarr install.
+              </Text>
+            </div>
+            <Button
+              variant="default"
+              disabled={highlightDraft.toUpperCase() === DEFAULT_HIGHLIGHT_COLOR}
+              onClick={() => applyHighlight(DEFAULT_HIGHLIGHT_COLOR)}
+            >
+              Reset default
+            </Button>
+          </Group>
+
+          <HighlightColorPresets
+            value={highlightDraft}
+            onChange={applyHighlight}
+            picker={
+              <ColorPicker
+                format="hex"
+                value={highlightDraft}
+                onChange={applyHighlight}
+                size="sm"
+              />
+            }
+            hexField={
+              <TextInput
+                label="Hex"
+                description="Applied as you type a valid color"
+                value={hexField}
+                onChange={(event) => {
+                  const next = event.currentTarget.value;
+                  setHexField(next);
+                  if (normalizeHighlightHex(next)) applyHighlight(next);
+                }}
+                placeholder={DEFAULT_HIGHLIGHT_COLOR}
+                spellCheck={false}
+              />
+            }
+          />
+        </Stack>
+      </Paper>
+
       <Group justify="space-between" align="flex-start">
-        <Text c="dimmed" size="sm" maw={520}>
-          Add Radarr, Sonarr, and Lidarr clients here. Names appear in the sidebar under Movies,
-          Shows, and Music. API keys are stored encrypted on the server and never sent back to the
-          browser.
-        </Text>
+        <div>
+          <Title order={4} mb={4}>
+            Arr clients
+          </Title>
+          <Text c="dimmed" size="sm" maw={520}>
+            Add Radarr, Sonarr, and Lidarr clients here. Names appear in the sidebar under Movies,
+            Shows, and Music. API keys are stored encrypted on the server and never sent back to the
+            browser.
+          </Text>
+        </div>
         <Button
           onClick={() => {
             setEditing(null);

@@ -10,6 +10,7 @@ import {
   ArtistUpdateRequestSchema,
 } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
+import { parseLibraryLimit } from "./libraryQuery.js";
 import {
   buildArtistLinks,
   bulkDeleteArtistFiles,
@@ -54,7 +55,8 @@ export function createArtistsRoutes() {
       return c.json({ error: `Instance ${instanceId} is not a Lidarr client` }, 400);
     }
     const force = c.req.query("refresh") === "true";
-    const result = await c.get("libraryCache").getArtists(scoped, { force });
+    const limit = parseLibraryLimit(c.req.query("limit"));
+    const result = await c.get("libraryCache").getArtists(scoped, { force, limit });
     c.header("X-Cache", result.status);
     if (result.fetchedAt) {
       c.header("X-Cache-Fetched-At", result.fetchedAt);
@@ -62,6 +64,8 @@ export function createArtistsRoutes() {
     return c.json({
       artists: result.artists,
       count: result.artists.length,
+      total: result.total,
+      truncated: result.truncated,
       cache: result.status,
       fetchedAt: result.fetchedAt,
     });

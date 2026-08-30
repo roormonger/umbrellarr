@@ -7,6 +7,7 @@ import {
   MovieUpdateRequestSchema,
 } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
+import { parseLibraryLimit } from "./libraryQuery.js";
 import {
   buildMovieLinks,
   bulkDeleteMovieFiles,
@@ -42,7 +43,8 @@ export function createMoviesRoutes() {
       return c.json({ error: `Instance ${instanceId} not found` }, 404);
     }
     const force = c.req.query("refresh") === "true";
-    const result = await c.get("libraryCache").getMovies(scoped, { force });
+    const limit = parseLibraryLimit(c.req.query("limit"));
+    const result = await c.get("libraryCache").getMovies(scoped, { force, limit });
     c.header("X-Cache", result.status);
     if (result.fetchedAt) {
       c.header("X-Cache-Fetched-At", result.fetchedAt);
@@ -50,6 +52,8 @@ export function createMoviesRoutes() {
     return c.json({
       movies: result.movies,
       count: result.movies.length,
+      total: result.total,
+      truncated: result.truncated,
       cache: result.status,
       fetchedAt: result.fetchedAt,
     });

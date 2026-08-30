@@ -11,6 +11,10 @@ export function getAuthStatus() {
   return api<AuthStatus>("/api/auth/status");
 }
 
+export function peekAuthStatus(queryClient: QueryClient) {
+  return queryClient.getQueryData<AuthStatus>(AUTH_STATUS_QUERY_KEY);
+}
+
 export function ensureAuthStatus(queryClient: QueryClient) {
   return queryClient.ensureQueryData({
     queryKey: AUTH_STATUS_QUERY_KEY,

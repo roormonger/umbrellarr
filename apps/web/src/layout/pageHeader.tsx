@@ -41,7 +41,6 @@ export function titleFromPath(pathname: string): string {
   if (pathname.startsWith("/activity/queue")) return "Queue";
   if (pathname.startsWith("/activity/calendar")) return "Calendar";
   if (pathname.startsWith("/activity/missing")) return "Missing";
-  if (pathname.startsWith("/status")) return "Status";
   if (pathname.startsWith("/settings")) return "Settings";
   return "Umbrellarr";
 }

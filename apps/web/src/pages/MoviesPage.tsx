@@ -5,7 +5,7 @@ import {
   Text,
   TextInput,
 } from "@mantine/core";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { useParams } from "@tanstack/react-router";
 import {
@@ -18,7 +18,12 @@ import {
 } from "@umbrellarr/shared";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { listInstances } from "@/api/instances";
-import { listMovies } from "@/api/movies";
+import {
+  fetchMoviesFull,
+  fetchMoviesHead,
+  moviesFullQueryKey,
+  moviesHeadQueryKey,
+} from "@/api/libraryList";
 import { AlphabetJumper } from "@/components/media/AlphabetJumper";
 import { MovieEditModal } from "@/components/movies/MovieEditModal";
 import {
@@ -29,6 +34,7 @@ import {
 } from "@/components/movies/MoviesToolbar";
 import { VirtualizedMovieGrid } from "@/components/movies/VirtualizedMovieGrid";
 import { usePageHeader } from "@/layout/pageHeader";
+import { useProgressiveLibrary } from "@/lib/useProgressiveLibrary";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
 import {
   applyMovieQuery,
@@ -92,17 +98,14 @@ export function MoviesPage() {
   const instanceName =
     instancesQuery.data?.instances.find((i) => i.id === instanceId)?.name ?? "Movies";
 
-  const { data, isPending, error, isFetching } = useQuery({
-    queryKey: ["movies", instanceId],
-    queryFn: () => listMovies(instanceId),
-    staleTime: 60_000,
-    gcTime: 30 * 60_000,
-    placeholderData: keepPreviousData,
-    refetchOnWindowFocus: "always",
+  const { data, showingHead, showSkeleton, error, isFetching, refresh } = useProgressiveLibrary({
+    instanceId,
+    fullQueryKey: moviesFullQueryKey(instanceId),
+    headQueryKey: moviesHeadQueryKey(instanceId),
+    fetchHead: () => fetchMoviesHead(instanceId),
+    fetchFull: () => fetchMoviesFull(queryClient, instanceId),
+    fetchRefresh: () => fetchMoviesFull(queryClient, instanceId, { refresh: true }),
   });
-
-  /** Only block the grid when we have nothing to show (avoid skeleton flash on cached return). */
-  const showSkeleton = isPending && !data;
 
   const movies = useMemo(() => {
     const items = data?.movies ?? [];
@@ -120,13 +123,16 @@ export function MoviesPage() {
   }, [movies]);
 
   const headerCount = useMemo(() => {
-    if (data?.movies.length == null) return showSkeleton || isFetching ? "Loading…" : null;
-    const total = data.movies.length;
+    if (data?.movies == null) return showSkeleton || isFetching ? "Loading…" : null;
+    const libraryTotal = data.total ?? data.movies.length;
     const shown = movies.length;
-    const totalLabel = total.toLocaleString();
-    if (shown !== total) return `${shown.toLocaleString()} of ${totalLabel}`;
+    const totalLabel = libraryTotal.toLocaleString();
+    if (showingHead && data.truncated && !query && filterKey === "all") {
+      return totalLabel;
+    }
+    if (shown !== libraryTotal) return `${shown.toLocaleString()} of ${totalLabel}`;
     return totalLabel;
-  }, [data?.movies.length, movies.length, showSkeleton, isFetching]);
+  }, [data, movies.length, showSkeleton, isFetching, showingHead, query, filterKey]);
 
   usePageHeader(instanceName, headerCount);
 
@@ -195,15 +201,11 @@ export function MoviesPage() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await queryClient.fetchQuery({
-        queryKey: ["movies", instanceId],
-        queryFn: () => listMovies(instanceId, { refresh: true }),
-        staleTime: 0,
-      });
+      await refresh();
     } finally {
       setRefreshing(false);
     }
-  }, [instanceId, queryClient]);
+  }, [refresh]);
 
   return (
     <div className={classes.page}>

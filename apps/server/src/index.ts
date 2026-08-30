@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app.js";
 import { LibraryCache } from "./cache/libraryCache.js";
+import { AppearanceStore } from "./config/appearanceStore.js";
 import { loadEnv } from "./config/env.js";
 import { InstanceStore } from "./config/instanceStore.js";
 import { openDatabase } from "./db/client.js";
@@ -28,9 +29,10 @@ async function main() {
     db,
     secretsKey: env.instanceSecretsKey,
   });
+  const appearanceStore = new AppearanceStore(db);
   const instances = instanceStore.bootstrapFromEnvIfEmpty();
 
-  const app = createApp(env, instanceStore, libraryCache);
+  const app = createApp(env, instanceStore, libraryCache, appearanceStore);
 
   const webDist = path.resolve(__dirname, "../../web/dist");
 
@@ -47,6 +49,12 @@ async function main() {
     `[umbrellarr] ${instances.length} instance(s) configured; auth ${env.authRequired ? "enabled" : "disabled (dev)"}`,
   );
   console.log("[cache] in-memory library snapshots (on demand + mutation refresh)");
+
+  // Warm heads + full snapshots in the background — do not block listen().
+  if (instances.length > 0) {
+    console.log(`[cache] warming ${instances.length} instance library snapshot(s)…`);
+    libraryCache.warm(instances);
+  }
 
   serve({ fetch: app.fetch, port: env.PORT, hostname: env.HOST }, (info) => {
     console.log(`[umbrellarr] listening on http://${info.address}:${info.port}`);
