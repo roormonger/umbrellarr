@@ -33,6 +33,7 @@ import { listInstances } from "@/api/instances";
 import { listMovies } from "@/api/movies";
 import { listShows } from "@/api/shows";
 import { getDashboardStats } from "@/api/stats";
+import umbrellarrIcon from "@/assets/umbrellarr-icon.png";
 import {
   PageHeaderContext,
   titleFromPath,
@@ -178,9 +179,18 @@ export function AppLayout() {
 
         <AppShell.Navbar p="md">
           <AppShell.Section>
-            <Text fw={700} size="sm" mb="xs">
-              Umbrellarr
-            </Text>
+            <Group gap="xs" wrap="nowrap" mb="xs">
+              <img
+                src={umbrellarrIcon}
+                alt=""
+                width={28}
+                height={28}
+                style={{ display: "block", borderRadius: 6, flexShrink: 0 }}
+              />
+              <Text fw={700} size="sm">
+                Umbrellarr
+              </Text>
+            </Group>
             <Text size="xs" c="dimmed" mb="md">
               Media operator console
             </Text>
