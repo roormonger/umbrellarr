@@ -3,7 +3,7 @@
 When you add a new upstream Arr call, **append a row** to the tables below.
 
 Auth to Arr: `X-Api-Key` via `apps/server/src/servarr/client.ts` (`arrFetch` / `arrJson`).  
-Seerr (not wired): same `X-Api-Key` header against `{server}/api/v1`; do not reuse the Arr client blindly (different paths and payloads).  
+Seerr uses the same client (`X-Api-Key`) against `{server}/api/v1` — different paths and payloads than Arr.  
 Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`) with the app session cookie when `APP_PASSWORD` is set.
 
 ## Upstream Arr calls (today)
@@ -113,6 +113,14 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `servarr/artistActions.ts` | PUT | `/api/v1/trackfile/editor` | Manage Tracks bulk quality (`{ trackFileIds, quality }`) |
 | `servarr/artistActions.ts` | DELETE | `/api/v1/trackfile/bulk` | Manage Tracks Delete (`{ trackFileIds }`) |
 | `servarr/artistActions.ts` | — | (no upstream links API) | `buildArtistLinks` mirrors Lidarr UI (`ArtistDetailsLinks.js`: MusicBrainz + Arr `links[]`) |
+| `servarr/seerrRequests.ts` | GET | `/api/v1/request?take=&skip=&filter=&mediaType=&sort=&sortDirection=` | Request list |
+| `servarr/seerrRequests.ts` | GET | `/api/v1/request/{id}` | Request detail |
+| `servarr/seerrRequests.ts` | GET | `/api/v1/movie/{tmdbId}`, `/api/v1/tv/{tmdbId}` | Title / poster / backdrop / season episode counts |
+| `servarr/seerrRequests.ts` | PUT | `/api/v1/request/{id}` | Edit overrides (server/profile/folder/tags/user/seasons) |
+| `servarr/seerrRequests.ts` | POST | `/api/v1/request/{id}/approve`, `/api/v1/request/{id}/decline` | Approve / decline |
+| `servarr/seerrRequests.ts` | GET | `/api/v1/service/radarr`, `/api/v1/service/sonarr` (+ `/{id}`) | Destination servers + profiles/folders/tags |
+| `servarr/seerrRequests.ts` | GET | `/api/v1/user?take=1000&sort=displayname` | Request As users |
+| `servarr/seerrRequests.ts` | GET | `/api/v1/request/count` | Request counts (BFF only; no sidebar badge yet) |
 | `servarr/status.ts` | GET | `/api/v3/system/status`, Lidarr `/api/v1/system/status`, Seerr `/api/v1/status` | Instance health |
 | `routes/media.ts` | GET | Radarr/Sonarr `{path}` e.g. `/MediaCover/{id}/poster-500.jpg`; Lidarr `/api/v1/mediacover/artist/{id}/{file}` (API is jpg/png/gif only; `.jpeg` posters fall back to fanart/banner) | Image proxy (`arrFetch`; reject non-image) |
 | `servarr/posterStatus.ts` | — | (derived) | Poster bar status from Arr `getProgressBarKind` + queue ids |
@@ -207,6 +215,15 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `POST /api/movies/:instanceId/:movieId/organize` | `routes/movies.ts` | `RenameFiles` command |
 | `PUT /api/movies/:instanceId/:movieId` | `routes/movies.ts` | PUT `/movie/{id}` + cache refresh |
 | `DELETE /api/movies/:instanceId/:movieId` | `routes/movies.ts` | DELETE `/movie/{id}` + cache refresh |
+| `GET /api/requests/:instanceId` | `routes/requests.ts` | Seerr `/request` + TMDB title enrich via `/movie` or `/tv` |
+| `GET /api/requests/:instanceId/count` | `routes/requests.ts` | Seerr `/request/count` |
+| `GET /api/requests/:instanceId/users` | `routes/requests.ts` | Seerr `/user` |
+| `GET /api/requests/:instanceId/services/:mediaType` | `routes/requests.ts` | Seerr `/service/radarr` or `/service/sonarr` |
+| `GET /api/requests/:instanceId/services/:mediaType/:serverId` | `routes/requests.ts` | Seerr `/service/{radarr\|sonarr}/{id}` |
+| `GET /api/requests/:instanceId/:requestId` | `routes/requests.ts` | Seerr `/request/{id}` + title/season options |
+| `PUT /api/requests/:instanceId/:requestId` | `routes/requests.ts` | PUT `/request/{id}` then optional POST `/approve` |
+| `POST /api/requests/:instanceId/:requestId/approve` | `routes/requests.ts` | POST `/request/{id}/approve` |
+| `POST /api/requests/:instanceId/:requestId/decline` | `routes/requests.ts` | POST `/request/{id}/decline` |
 | `GET /api/media/:instanceId/image?path=` | `routes/media.ts` | Proxy covers (Radarr/Sonarr prefer `-500`; Lidarr mediacover API, jpg/png/gif only) |
 | `GET /api/instances/status` | `routes/instances.ts` | Arr `/system/status` or Seerr `/api/v1/status` per instance |
 | `GET /api/stats` | `routes/stats.ts` | Counts; queue/missing still placeholder `0` |
@@ -231,7 +248,7 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Links menu | `MovieLinksMenu.tsx` | `GET .../links` |
 | Poster images | `PosterCard.tsx` | `GET /api/media/.../image` |
 | Settings instance health | `SettingsPage.tsx` | `/api/instances/status` |
-| Requests (placeholder) | `AppLayout.tsx`, `/requests/$instanceId` | none yet (Seerr `/request*` later) |
+| Requests page | `RequestsPage.tsx`, `RequestListRow`, `RequestEditModal` | `GET/PUT /api/requests…` → Seerr `/request*`, services, users |
 | Shows library | `ShowsPage.tsx`, `ShowPosterCard`, sort/filter | `GET /api/shows` |
 | Show detail (hero + toolbar + seasons) | `ShowDetailPage.tsx`, `ShowDetailHero`, `ShowDetailToolbar`, `ShowSeasonsPanel`, `ShowEditModal` | detail/links/update/delete + RefreshSeries / SeriesSearch + seasons/episodes |
 | Show Interactive Search modal | `ShowInteractiveSearchModal.tsx` | releases + grab + history + blocklist |
@@ -268,9 +285,9 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Movie lookup / add | No BFF yet |
 | Interactive search custom-filter builder | Presets only (All / Approved / Rejected / Usenet / Torrent) |
 | Folder browser for edit path | Not needed — root Select + movie-folder suffix |
-| Seerr instance + client | Settings kind `seerr` **Wired** (`GET /api/v1/status` health). No request BFF yet. |
+| Seerr instance + client | Settings kind `seerr` **Wired** (`GET /api/v1/status` health) |
 | Discover page | **In scope.** Use Seerr `GET /discover/*`, `/search`, `/movie/{id}`, `/tv/{id}`. No route yet. |
-| Requests page + create/approve/retry | Sidebar + `/requests/$instanceId` placeholder **Wired**. List/approve/retry **Not started**. Header Search is still “coming soon” — should hit Seerr `/search` once wired. |
+| Requests page + create/approve/retry | List + Approve/Decline + Edit (PUT then approve) **Wired**. Create-from-Discover / retry / delete **Not started**. Header Search still “coming soon”. |
 
 ## Shared types (Arr-facing)
 
@@ -281,5 +298,6 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `packages/shared/src/movies.ts` | `MovieListItem`, `MovieDetail`, `MoviePageDetail`, history/release/rename/manage-files, edit/links schemas |
 | `packages/shared/src/shows.ts` | `SeriesListItem`, `SeriesPageDetail`, edit/update/links schemas, history/release/rename/manage-files, `SeriesSeasonSummary` / `SeriesEpisode`, sort/filter options |
 | `packages/shared/src/artists.ts` | `ArtistListItem`, `ArtistPageDetail`, `ArtistAlbum` / album groups, edit/update (incl. `metadataProfileId`), history/release/rename/manage-files, links, sort/filter options |
+| `packages/shared/src/requests.ts` | Request list/query/update, `MediaRequestItem`, Seerr service/user/edit-detail schemas |
 | `packages/shared/src/cache.ts` | `CacheStatus` (`HIT` / `MISS`) for library responses |
 | `packages/shared/src/stats.ts` | Dashboard stats shape |

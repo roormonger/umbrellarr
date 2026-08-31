@@ -3,6 +3,7 @@ export * from "./media.js";
 export * from "./movies.js";
 export * from "./shows.js";
 export * from "./artists.js";
+export * from "./requests.js";
 export * from "./auth.js";
 export * from "./stats.js";
 export * from "./cache.js";

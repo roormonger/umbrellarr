@@ -13,6 +13,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { MovieDetailPage } from "@/pages/MovieDetailPage";
 import { MoviesPage } from "@/pages/MoviesPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
+import { RequestsPage } from "@/pages/RequestsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ShowDetailPage } from "@/pages/ShowDetailPage";
 import { ArtistDetailPage } from "@/pages/ArtistDetailPage";
@@ -223,12 +224,7 @@ const requestsIndexRoute = createRoute({
 const requestsInstanceRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/requests/$instanceId",
-  component: () => (
-    <PlaceholderPage
-      title="Requests"
-      description="Media requests from Seerr. Approve, decline, and retry will land here."
-    />
-  ),
+  component: RequestsPage,
 });
 
 const queueRoute = createRoute({

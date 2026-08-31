@@ -11,6 +11,7 @@ import { createInstancesRoutes } from "./routes/instances.js";
 import { createMediaRoutes } from "./routes/media.js";
 import { createMoviesRoutes } from "./routes/movies.js";
 import { createArtistsRoutes } from "./routes/artists.js";
+import { createRequestsRoutes } from "./routes/requests.js";
 import { createShowsRoutes } from "./routes/shows.js";
 import { createStatsRoutes } from "./routes/stats.js";
 import { createSettingsRoutes } from "./routes/settings.js";
@@ -62,6 +63,7 @@ export function createApp(
   app.route("/api/movies", createMoviesRoutes());
   app.route("/api/shows", createShowsRoutes());
   app.route("/api/artists", createArtistsRoutes());
+  app.route("/api/requests", createRequestsRoutes());
   app.route("/api/media", createMediaRoutes());
 
   app.get("/api", (c) => c.json({ name: "umbrellarr", ok: true }));

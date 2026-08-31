@@ -1,0 +1,44 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.seasonTable {
+  border: 1px solid var(--glass-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.seasonHead,
+.seasonRow {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1.2fr) 6rem 6rem;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.55rem 0.75rem;
+}
+
+.seasonHead {
+  background: color-mix(in srgb, var(--mantine-color-dark-6) 70%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--mantine-color-dimmed);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.seasonRow + .seasonRow {
+  border-top: 1px solid var(--glass-border);
+}
+
+@media (max-width: 36rem) {
+  .seasonHead,
+  .seasonRow {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto auto;
+    gap: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+  }
+}

@@ -113,13 +113,13 @@ Status legend for Umbrellarr: **Wired** / **Partial** / **In scope / Not started
 | Discover slider config | `GET /settings/discover` | **In scope / Not started** — optional: reuse Seerr’s row list instead of hardcoding |
 | Movie / TV details (+ similar, recommendations, ratings) | `GET /movie/{id}`, `GET /tv/{id}` (+ season) | **In scope / Not started** — TMDB via Seerr; `mediaInfo` = availability |
 | Filter helpers (genres, providers, certs, regions) | `/genres/*`, `/watchproviders/*`, `/certifications/*`, `/regions`, `/languages` | **In scope / Not started** — Discover filter UI |
-| Create / list / update / delete request | `GET/POST /request`, `GET/PUT/DELETE /request/{id}` | **In scope / Not started** |
-| Approve / decline / retry | `POST /request/{id}/{status}`, `POST /request/{id}/retry` | **In scope / Not started** — retry resends to Radarr/Sonarr |
-| Request counts | `GET /request/count` | **In scope / Not started** — badges / Requests page |
+| Create / list / update / delete request | `GET/POST /request`, `GET/PUT/DELETE /request/{id}` | List + PUT edit **Wired**; create/delete **Not started** |
+| Approve / decline / retry | `POST /request/{id}/{status}`, `POST /request/{id}/retry` | Approve/decline **Wired**; retry **Not started** |
+| Request counts | `GET /request/count` | **Partial** — BFF exists; sidebar badge not wired |
 | Tracked media + status | `GET /media`, `POST /media/{id}/{status}` | **In scope / Not started** — availability; file delete is Arr-side |
 | Watchlist | `POST/DELETE /watchlist`, `GET /user/{id}/watchlist`, `GET /discover/watchlist` | **In scope / Not started** — Discover row |
 | Blocklist | `GET/POST /blocklist`, `/blocklist/{tmdbId}` (`/blacklist` alias) | **In scope / Not started** — hide from Discover |
-| Radarr/Sonarr service list + profiles | `GET /service/radarr`, `GET /service/sonarr` (+ `/{id}`) | **In scope / Not started** — request target (server/profile/folder) |
+| Radarr/Sonarr service list + profiles | `GET /service/radarr`, `GET /service/sonarr` (+ `/{id}`) | **Wired** — Request edit modal |
 | Status | `GET /status` | **Wired** — Settings Test + instances-online |
 
 Seerr `mediaId` on requests is a **TMDB id**. Movie/TV only — no music. Request `status`: `1` pending, `2` approved, `3` declined. Media `status`: `1` unknown, `2` pending, `3` processing, `4` partial, `5` available, `6` deleted.
@@ -135,7 +135,7 @@ Users/quotas/permissions admin, issues, Plex/Jellyfin settings + sync, notificat
 | Radarr | Settings (SQLite) + optional first-run `RADARR_*` env import | yes | yes (per-instance `/movies/$instanceId`) |
 | Sonarr | Settings (SQLite) + optional first-run `SONARR_*` env import | yes | yes (per-instance `/shows/$instanceId`; detail + seasons/episodes) |
 | Lidarr | Settings (SQLite) + optional first-run `LIDARR_*` env import | yes | yes (per-instance `/music/$instanceId` + `/music/$instanceId/$artistId`) |
-| Seerr | Settings (SQLite) + optional first-run `SEERR_*` env import | `InstanceKind` only (not `ArrKind`) | no (Requests nav placeholder) |
+| Seerr | Settings (SQLite) + optional first-run `SEERR_*` env import | `InstanceKind` only (not `ArrKind`) | Requests list + approve/decline/edit **Wired**; Discover **Not started** |
 
 API keys encrypted in SQLite (`INSTANCE_SECRETS_KEY`). Env Arr vars import once when the DB is empty.
 
