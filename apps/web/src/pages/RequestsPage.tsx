@@ -186,6 +186,7 @@ export function RequestsPage() {
           {listQuery.data.results.map((item) => (
             <RequestListRow
               key={item.id}
+              instanceId={instanceId}
               request={item}
               approving={
                 approveMutation.isPending && approveMutation.variables === item.id

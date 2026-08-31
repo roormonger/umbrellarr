@@ -142,3 +142,80 @@ export const RequestEditDetailSchema = MediaRequestItemSchema.extend({
   seasonOptions: z.array(RequestSeasonSchema).default([]),
 });
 export type RequestEditDetail = z.infer<typeof RequestEditDetailSchema>;
+
+export const SeerrCreditSchema = z.object({
+  id: z.number().int(),
+  type: z.enum(["cast", "crew"]),
+  personName: z.string(),
+  character: z.string().optional(),
+  job: z.string().optional(),
+  order: z.number().int().optional(),
+  headshotUrl: z.string().optional(),
+});
+export type SeerrCredit = z.infer<typeof SeerrCreditSchema>;
+
+export const SeerrMediaSeasonDetailSchema = z.object({
+  seasonNumber: z.number().int(),
+  name: z.string().optional(),
+  episodeCount: z.number().int().optional(),
+  airDate: z.string().optional(),
+  overview: z.string().optional(),
+  /** Request season status when this season is on the Seerr request. */
+  requestStatus: RequestStatusSchema.optional(),
+});
+export type SeerrMediaSeasonDetail = z.infer<typeof SeerrMediaSeasonDetailSchema>;
+
+export const SeerrMediaLinkSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  url: z.string(),
+});
+export type SeerrMediaLink = z.infer<typeof SeerrMediaLinkSchema>;
+
+/** Availability from Seerr mediaInfo.status (not request.status). */
+export const SeerrMediaAvailabilitySchema = z.enum([
+  "unknown",
+  "pending",
+  "processing",
+  "partial",
+  "available",
+  "deleted",
+]);
+export type SeerrMediaAvailability = z.infer<typeof SeerrMediaAvailabilitySchema>;
+
+export const SeerrMediaDetailSchema = z.object({
+  mediaType: RequestMediaTypeSchema,
+  tmdbId: z.number().int(),
+  title: z.string(),
+  year: z.string().optional(),
+  overview: z.string().optional(),
+  tagline: z.string().optional(),
+  runtime: z.number().int().optional(),
+  genres: z.array(z.string()).default([]),
+  certification: z.string().optional(),
+  /** TMDB production status string, e.g. "Released" / "In Production". */
+  productionStatus: z.string().optional(),
+  mediaAvailability: SeerrMediaAvailabilitySchema.optional(),
+  voteAverage: z.number().optional(),
+  originalLanguage: z.string().optional(),
+  network: z.string().optional(),
+  studio: z.string().optional(),
+  releaseDate: z.string().optional(),
+  firstAirDate: z.string().optional(),
+  posterUrl: z.string().optional(),
+  backdropUrl: z.string().optional(),
+  trailerYouTubeId: z.string().optional(),
+  cast: z.array(SeerrCreditSchema).default([]),
+  crew: z.array(SeerrCreditSchema).default([]),
+  creators: z.array(z.string()).default([]),
+  seasons: z.array(SeerrMediaSeasonDetailSchema).default([]),
+  links: z.array(SeerrMediaLinkSchema).default([]),
+  keywords: z.array(z.string()).default([]),
+});
+export type SeerrMediaDetail = z.infer<typeof SeerrMediaDetailSchema>;
+
+export const RequestMediaPageDetailSchema = z.object({
+  request: RequestEditDetailSchema,
+  media: SeerrMediaDetailSchema,
+});
+export type RequestMediaPageDetail = z.infer<typeof RequestMediaPageDetailSchema>;

@@ -1,7 +1,8 @@
-import { Badge, Button, Group, Text } from "@mantine/core";
+import { Badge, Button, Group, Text, UnstyledButton } from "@mantine/core";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { PencilSimpleIcon } from "@phosphor-icons/react/dist/csr/PencilSimple";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
+import { useNavigate } from "@tanstack/react-router";
 import type { MediaRequestItem, RequestStatus } from "@umbrellarr/shared";
 import classes from "./RequestListRow.module.css";
 
@@ -39,6 +40,7 @@ function formatRequestedAt(value: string): string {
 }
 
 type Props = {
+  instanceId: string;
   request: MediaRequestItem;
   approving?: boolean;
   declining?: boolean;
@@ -48,6 +50,7 @@ type Props = {
 };
 
 export function RequestListRow({
+  instanceId,
   request,
   approving,
   declining,
@@ -55,11 +58,19 @@ export function RequestListRow({
   onDecline,
   onEdit,
 }: Props) {
+  const navigate = useNavigate();
   const pending = request.status === "pending";
   const seasonLabel =
     request.mediaType === "tv" && request.seasons.length === 1
       ? "Season"
       : "Seasons";
+
+  function openDetail() {
+    void navigate({
+      to: "/requests/$instanceId/$requestId",
+      params: { instanceId, requestId: String(request.id) },
+    });
+  }
 
   return (
     <div className={classes.row}>
@@ -74,17 +85,25 @@ export function RequestListRow({
       )}
 
       <div className={classes.body}>
-        {request.posterUrl ? (
-          <img className={classes.poster} src={request.posterUrl} alt="" loading="lazy" />
-        ) : (
-          <div className={classes.poster} aria-hidden />
-        )}
+        <UnstyledButton
+          className={classes.posterButton}
+          onClick={openDetail}
+          aria-label={`Open ${request.title}`}
+        >
+          {request.posterUrl ? (
+            <img className={classes.poster} src={request.posterUrl} alt="" loading="lazy" />
+          ) : (
+            <div className={classes.poster} aria-hidden />
+          )}
+        </UnstyledButton>
         <div className={classes.meta}>
           <div className={classes.titleRow}>
             {request.year ? <span className={classes.year}>{request.year}</span> : null}
-            <Text fw={700} size="md" lineClamp={2}>
-              {request.title}
-            </Text>
+            <UnstyledButton className={classes.titleButton} onClick={openDetail}>
+              <Text fw={700} size="md" lineClamp={2}>
+                {request.title}
+              </Text>
+            </UnstyledButton>
           </div>
           {request.mediaType === "tv" && request.seasons.length > 0 ? (
             <div className={classes.seasons}>

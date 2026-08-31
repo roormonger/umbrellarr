@@ -42,6 +42,18 @@
   min-width: 0;
 }
 
+.posterButton {
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: var(--mantine-radius-sm);
+  line-height: 0;
+}
+
+.posterButton:hover .poster {
+  outline: 2px solid color-mix(in srgb, var(--mantine-color-violet-5) 70%, transparent);
+  outline-offset: 1px;
+}
+
 .poster {
   width: 52px;
   height: 78px;
@@ -50,6 +62,17 @@
   flex-shrink: 0;
   background: color-mix(in srgb, var(--mantine-color-dark-6) 70%, transparent);
   border: 1px solid var(--glass-border);
+  display: block;
+}
+
+.titleButton {
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+
+.titleButton:hover {
+  color: var(--mantine-color-violet-3);
 }
 
 .meta {

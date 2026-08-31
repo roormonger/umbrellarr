@@ -8,6 +8,7 @@ import {
   approveMediaRequest,
   declineMediaRequest,
   getMediaRequestDetail,
+  getMediaRequestPage,
   getRequestCount,
   getSeerrServiceDetail,
   listMediaRequests,
@@ -76,6 +77,24 @@ export function createRequestsRoutes() {
       return c.json(detail);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load service detail";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/:requestId/page", async (c) => {
+    const requestId = Number(c.req.param("requestId"));
+    if (!Number.isFinite(requestId)) {
+      return c.json({ error: "Invalid request id" }, 400);
+    }
+    try {
+      const page = await getMediaRequestPage(
+        c.get("instances"),
+        c.req.param("instanceId"),
+        requestId,
+      );
+      return c.json(page);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load request page";
       return c.json({ error: message }, message.includes("not found") ? 404 : 502);
     }
   });

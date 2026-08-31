@@ -9,9 +9,14 @@ import type {
   MediaRequestListResponse,
   RequestEditDetail,
   RequestListQuery,
+  RequestMediaPageDetail,
   RequestSeason,
   RequestStatus,
   RequestUpdateBody,
+  SeerrCredit,
+  SeerrMediaAvailability,
+  SeerrMediaDetail,
+  SeerrMediaLink,
   SeerrServiceDetail,
   SeerrServiceServer,
 } from "@umbrellarr/shared";
@@ -67,12 +72,64 @@ type SeerrRequestList = {
   results?: SeerrRequest[];
 };
 
+type SeerrGenre = { id?: number; name?: string };
+type SeerrCompany = { id?: number; name?: string };
+type SeerrCast = {
+  id?: number;
+  castId?: number;
+  name?: string;
+  character?: string;
+  order?: number;
+  profilePath?: string | null;
+};
+type SeerrCrew = {
+  id?: number;
+  creditId?: string;
+  name?: string;
+  job?: string;
+  department?: string;
+  profilePath?: string | null;
+};
+type SeerrRelatedVideo = {
+  key?: string;
+  type?: string;
+  site?: string;
+  url?: string;
+};
+type SeerrExternalIds = {
+  imdbId?: string | null;
+  tvdbId?: number | null;
+  facebookId?: string | null;
+  instagramId?: string | null;
+  twitterId?: string | null;
+};
+type SeerrKeyword = { id?: number; name?: string };
+
 type SeerrMovie = {
   id?: number;
   title?: string;
   releaseDate?: string;
   posterPath?: string | null;
   backdropPath?: string | null;
+  overview?: string;
+  tagline?: string;
+  runtime?: number;
+  status?: string;
+  voteAverage?: number;
+  originalLanguage?: string;
+  genres?: SeerrGenre[];
+  productionCompanies?: SeerrCompany[];
+  credits?: { cast?: SeerrCast[]; crew?: SeerrCrew[] };
+  relatedVideos?: SeerrRelatedVideo[];
+  externalIds?: SeerrExternalIds;
+  keywords?: SeerrKeyword[] | { keywords?: SeerrKeyword[] };
+  releases?: {
+    results?: Array<{
+      iso_3166_1?: string;
+      release_dates?: Array<{ certification?: string; type?: number }>;
+    }>;
+  };
+  mediaInfo?: SeerrMedia;
 };
 
 type SeerrTv = {
@@ -81,11 +138,31 @@ type SeerrTv = {
   firstAirDate?: string;
   posterPath?: string | null;
   backdropPath?: string | null;
+  overview?: string;
+  tagline?: string;
+  status?: string;
+  voteAverage?: number;
+  originalLanguage?: string;
+  episodeRunTime?: number[];
+  genres?: SeerrGenre[];
+  networks?: SeerrCompany[];
+  productionCompanies?: SeerrCompany[];
+  createdBy?: Array<{ id?: number; name?: string }>;
+  credits?: { cast?: SeerrCast[]; crew?: SeerrCrew[] };
+  relatedVideos?: SeerrRelatedVideo[];
+  externalIds?: SeerrExternalIds;
+  keywords?: SeerrKeyword[];
+  contentRatings?: {
+    results?: Array<{ iso_3166_1?: string; rating?: string }>;
+  };
   seasons?: Array<{
     seasonNumber?: number;
     episodeCount?: number;
     name?: string;
+    airDate?: string | null;
+    overview?: string;
   }>;
+  mediaInfo?: SeerrMedia;
 };
 
 type SeerrServiceCommon = {
@@ -305,6 +382,263 @@ export async function getMediaRequestDetail(
   }
 
   return { ...item, seasonOptions };
+}
+
+function mapMediaAvailability(value?: number): SeerrMediaAvailability | undefined {
+  switch (value) {
+    case 1:
+      return "unknown";
+    case 2:
+      return "pending";
+    case 3:
+      return "processing";
+    case 4:
+      return "partial";
+    case 5:
+      return "available";
+    case 6:
+      return "deleted";
+    default:
+      return undefined;
+  }
+}
+
+function mapCredits(credits?: {
+  cast?: SeerrCast[];
+  crew?: SeerrCrew[];
+}): { cast: SeerrCredit[]; crew: SeerrCredit[] } {
+  const cast = (credits?.cast ?? [])
+    .filter((c) => c.id != null && c.name?.trim())
+    .map((c) => ({
+      id: c.id!,
+      type: "cast" as const,
+      personName: c.name!.trim(),
+      character: c.character?.trim() || undefined,
+      order: c.order,
+      headshotUrl: tmdbImageUrl("w185", c.profilePath),
+    }))
+    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+
+  const crew = (credits?.crew ?? [])
+    .filter((c) => c.id != null && c.name?.trim())
+    .map((c, index) => ({
+      id: c.id! * 1000 + index,
+      type: "crew" as const,
+      personName: c.name!.trim(),
+      job: c.job?.trim() || undefined,
+      headshotUrl: tmdbImageUrl("w185", c.profilePath),
+    }));
+
+  return { cast, crew };
+}
+
+function pickTrailerYouTubeId(videos?: SeerrRelatedVideo[]): string | undefined {
+  const list = videos ?? [];
+  const trailer =
+    list.find((v) => v.type === "Trailer" && v.key) ??
+    list.find((v) => v.type === "Teaser" && v.key) ??
+    list.find((v) => v.key);
+  return trailer?.key;
+}
+
+function movieCertification(movie: SeerrMovie): string | undefined {
+  const us = movie.releases?.results?.find((r) => r.iso_3166_1 === "US");
+  const theatrical = us?.release_dates?.find((d) => d.type === 3 && d.certification);
+  const any = us?.release_dates?.find((d) => d.certification);
+  return theatrical?.certification || any?.certification || undefined;
+}
+
+function tvCertification(tv: SeerrTv): string | undefined {
+  const us = tv.contentRatings?.results?.find((r) => r.iso_3166_1 === "US");
+  return us?.rating || tv.contentRatings?.results?.[0]?.rating || undefined;
+}
+
+function buildLinks(
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+  externalIds?: SeerrExternalIds,
+): SeerrMediaLink[] {
+  const links: SeerrMediaLink[] = [
+    {
+      id: "tmdb",
+      label: "TMDb",
+      url:
+        mediaType === "movie"
+          ? `https://www.themoviedb.org/movie/${tmdbId}`
+          : `https://www.themoviedb.org/tv/${tmdbId}`,
+    },
+  ];
+  if (externalIds?.imdbId) {
+    links.push({
+      id: "imdb",
+      label: "IMDb",
+      url: `https://www.imdb.com/title/${externalIds.imdbId}`,
+    });
+  }
+  if (mediaType === "tv" && externalIds?.tvdbId != null) {
+    links.push({
+      id: "tvdb",
+      label: "TVDb",
+      url: `https://thetvdb.com/?tab=series&id=${externalIds.tvdbId}`,
+    });
+  }
+  return links;
+}
+
+function keywordNames(
+  keywords: SeerrKeyword[] | { keywords?: SeerrKeyword[] } | undefined,
+): string[] {
+  const list = Array.isArray(keywords) ? keywords : (keywords?.keywords ?? []);
+  return list.map((k) => k.name?.trim()).filter((n): n is string => Boolean(n));
+}
+
+function mapSeerrMediaDetail(
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+  title: SeerrMovie | SeerrTv | null,
+  requestSeasons: RequestSeason[],
+): SeerrMediaDetail {
+  if (!title) {
+    return {
+      mediaType,
+      tmdbId,
+      title: tmdbId ? `TMDB ${tmdbId}` : "Unknown",
+      genres: [],
+      cast: [],
+      crew: [],
+      creators: [],
+      seasons: [],
+      links: buildLinks(mediaType, tmdbId),
+      keywords: [],
+    };
+  }
+
+  const movie = mediaType === "movie" ? (title as SeerrMovie) : null;
+  const tv = mediaType === "tv" ? (title as SeerrTv) : null;
+  const { cast, crew } = mapCredits(movie?.credits ?? tv?.credits);
+  const statusBySeason = new Map(requestSeasons.map((s) => [s.seasonNumber, s.status]));
+  const seasons =
+    mediaType === "tv"
+      ? (tv?.seasons ?? [])
+          .filter((s) => s.seasonNumber != null && s.seasonNumber > 0)
+          .map((s) => ({
+            seasonNumber: s.seasonNumber!,
+            name: s.name,
+            episodeCount: s.episodeCount,
+            airDate: s.airDate ?? undefined,
+            overview: s.overview,
+            requestStatus: statusBySeason.get(s.seasonNumber!),
+          }))
+          .sort((a, b) => a.seasonNumber - b.seasonNumber)
+      : [];
+
+  for (const season of requestSeasons) {
+    if (season.seasonNumber === 0 && !seasons.some((s) => s.seasonNumber === 0)) {
+      seasons.unshift({
+        seasonNumber: 0,
+        name: "Specials",
+        episodeCount: season.episodeCount,
+        airDate: undefined,
+        overview: undefined,
+        requestStatus: season.status,
+      });
+    }
+  }
+
+  const runtime =
+    movie?.runtime && movie.runtime > 0
+      ? movie.runtime
+      : tv?.episodeRunTime?.find((n) => n > 0);
+
+  return {
+    mediaType,
+    tmdbId,
+    title:
+      movie?.title?.trim() ||
+      tv?.name?.trim() ||
+      (tmdbId ? `TMDB ${tmdbId}` : "Unknown"),
+    year:
+      yearFromDate(movie?.releaseDate) || yearFromDate(tv?.firstAirDate) || undefined,
+    overview: movie?.overview?.trim() || tv?.overview?.trim() || undefined,
+    tagline: movie?.tagline?.trim() || tv?.tagline?.trim() || undefined,
+    runtime,
+    genres: (movie?.genres ?? tv?.genres ?? [])
+      .map((g) => g.name?.trim())
+      .filter((n): n is string => Boolean(n)),
+    certification: movie ? movieCertification(movie) : tv ? tvCertification(tv) : undefined,
+    productionStatus: movie?.status || tv?.status || undefined,
+    mediaAvailability: mapMediaAvailability(
+      movie?.mediaInfo?.status ?? tv?.mediaInfo?.status,
+    ),
+    voteAverage: movie?.voteAverage ?? tv?.voteAverage,
+    originalLanguage: movie?.originalLanguage || tv?.originalLanguage || undefined,
+    network: tv?.networks?.[0]?.name?.trim() || undefined,
+    studio:
+      movie?.productionCompanies?.[0]?.name?.trim() ||
+      tv?.productionCompanies?.[0]?.name?.trim() ||
+      undefined,
+    releaseDate: movie?.releaseDate,
+    firstAirDate: tv?.firstAirDate,
+    posterUrl: tmdbImageUrl(
+      "w600_and_h900_bestv2",
+      movie?.posterPath ?? tv?.posterPath,
+    ),
+    backdropUrl: tmdbImageUrl(
+      "w1920_and_h800_multi_faces",
+      movie?.backdropPath ?? tv?.backdropPath,
+    ),
+    trailerYouTubeId: pickTrailerYouTubeId(movie?.relatedVideos ?? tv?.relatedVideos),
+    cast,
+    crew,
+    creators: (tv?.createdBy ?? [])
+      .map((c) => c.name?.trim())
+      .filter((n): n is string => Boolean(n)),
+    seasons,
+    links: buildLinks(mediaType, tmdbId, movie?.externalIds ?? tv?.externalIds),
+    keywords: keywordNames(movie?.keywords ?? tv?.keywords),
+  };
+}
+
+export async function getMediaRequestPage(
+  instances: Instance[],
+  instanceId: string,
+  requestId: number,
+): Promise<RequestMediaPageDetail> {
+  const instance = requireSeerr(instances, instanceId);
+  const request = await arrJson<SeerrRequest>(instance, `/api/v1/request/${requestId}`);
+  const mediaType =
+    request.type === "tv" || request.media?.mediaType === "tv" ? "tv" : "movie";
+  const tmdbId = request.media?.tmdbId;
+  if (tmdbId == null) {
+    throw new Error("Request has no TMDB id");
+  }
+
+  const { title, episodeCounts } = await fetchTitle(instance, mediaType, tmdbId);
+  const item = mapItem(request, title, episodeCounts);
+  let seasonOptions: RequestSeason[] = item.seasons;
+
+  if (mediaType === "tv" && title && "seasons" in title) {
+    const tv = title as SeerrTv;
+    const statusBySeason = new Map(item.seasons.map((s) => [s.seasonNumber, s.status]));
+    seasonOptions = (tv.seasons ?? [])
+      .filter((s) => s.seasonNumber != null && s.seasonNumber > 0)
+      .map((s) => ({
+        seasonNumber: s.seasonNumber!,
+        status: statusBySeason.get(s.seasonNumber!) ?? "pending",
+        episodeCount: s.episodeCount,
+      }))
+      .sort((a, b) => a.seasonNumber - b.seasonNumber);
+
+    for (const season of item.seasons) {
+      if (season.seasonNumber === 0 && !seasonOptions.some((s) => s.seasonNumber === 0)) {
+        seasonOptions.unshift(season);
+      }
+    }
+  }
+
+  const requestDetail: RequestEditDetail = { ...item, seasonOptions };
+  const media = mapSeerrMediaDetail(mediaType, tmdbId, title, item.seasons);
+  return { request: requestDetail, media };
 }
 
 export async function approveMediaRequest(

@@ -23,15 +23,17 @@ export type MediaDetailHeroProps = {
   links: MediaDetailLink[];
   linksLoading?: boolean;
   linksError?: string;
-  monitored: boolean;
+  monitored?: boolean;
   monitorPending?: boolean;
-  onToggleMonitor: () => void;
+  onToggleMonitor?: () => void;
   /** Metadata `<dl>` children (MetaRow nodes). */
   meta: ReactNode;
   youTubeTrailerId?: string;
   trailerLoading?: boolean;
   /** Lidarr artist pages have no trailer slot. */
   hideTrailer?: boolean;
+  /** Seerr request / Discover pages — no Arr monitor toggle. */
+  hideMonitor?: boolean;
 };
 
 export function MetaRow({
@@ -60,13 +62,14 @@ export function MediaDetailHero({
   links,
   linksLoading,
   linksError,
-  monitored,
+  monitored = false,
   monitorPending,
   onToggleMonitor,
   meta,
   youTubeTrailerId,
   trailerLoading,
   hideTrailer,
+  hideMonitor,
 }: MediaDetailHeroProps) {
   const hasTrailer = Boolean(youTubeTrailerId);
   const monitoredLabel = monitored ? "Monitored" : "Unmonitored";
@@ -82,19 +85,21 @@ export function MediaDetailHero({
 
         <div className={`${classes.panel} ${classes.synopsisPanel}`}>
           <div className={classes.titleRow}>
-            <Tooltip label={`${monitoredLabel} — click to toggle`} withArrow position="top">
-              <UnstyledButton
-                className={classes.monitorToggle}
-                data-monitored={monitored || undefined}
-                data-pending={monitorPending || undefined}
-                aria-label={`${monitoredLabel}. Click to ${monitored ? "unmonitor" : "monitor"}`}
-                aria-pressed={monitored}
-                disabled={monitorPending}
-                onClick={onToggleMonitor}
-              >
-                <BookmarkSimpleIcon weight={monitored ? "fill" : "regular"} size="1em" />
-              </UnstyledButton>
-            </Tooltip>
+            {!hideMonitor && onToggleMonitor ? (
+              <Tooltip label={`${monitoredLabel} — click to toggle`} withArrow position="top">
+                <UnstyledButton
+                  className={classes.monitorToggle}
+                  data-monitored={monitored || undefined}
+                  data-pending={monitorPending || undefined}
+                  aria-label={`${monitoredLabel}. Click to ${monitored ? "unmonitor" : "monitor"}`}
+                  aria-pressed={monitored}
+                  disabled={monitorPending}
+                  onClick={onToggleMonitor}
+                >
+                  <BookmarkSimpleIcon weight={monitored ? "fill" : "regular"} size="1em" />
+                </UnstyledButton>
+              </Tooltip>
+            ) : null}
             <h1 className={classes.title}>{title}</h1>
           </div>
 

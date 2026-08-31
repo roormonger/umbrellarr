@@ -71,9 +71,23 @@ async function main() {
   if (!Array.isArray(all.results)) {
     throw new Error("Expected request results");
   }
-  console.log(
-    `api ok: ${pending.pageInfo.results} pending, ${all.pageInfo.results} all, ${users.users.length} users`,
-  );
+  const first = all.results[0];
+  if (first) {
+    const page = await apiJson(
+      `/api/requests/${encodeURIComponent(seerr.id)}/${first.id}/page`,
+      cookies.header,
+    );
+    if (!page.media?.title || page.request?.id !== first.id) {
+      throw new Error("Expected request page payload with media.title");
+    }
+    console.log(
+      `api ok: ${pending.pageInfo.results} pending, ${all.pageInfo.results} all, ${users.users.length} users, page “${page.media.title}” (${page.media.cast?.length ?? 0} cast)`,
+    );
+  } else {
+    console.log(
+      `api ok: ${pending.pageInfo.results} pending, ${all.pageInfo.results} all, ${users.users.length} users`,
+    );
+  }
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -106,11 +120,23 @@ async function main() {
     await page.getByText(item.title, { exact: true }).first().waitFor({ timeout: 15_000 });
   }
 
+  if (all.results[0]) {
+    const firstTitle = all.results[0].title;
+    await page.getByRole("button", { name: firstTitle }).first().click();
+    await page.waitForURL(`**/requests/${seerr.id}/${all.results[0].id}`, {
+      timeout: 15_000,
+    });
+    await page.getByRole("heading", { level: 1 }).waitFor({ timeout: 20_000 });
+    await page.getByRole("toolbar", { name: "Request actions" }).waitFor();
+    await page.goBack();
+    await page.waitForURL(`**/requests/${seerr.id}`, { timeout: 15_000 });
+  }
+
   await page.getByRole("navigation").getByText("Requests").waitFor();
   await page.goto(`${webBase}/movies`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[id^=movie-]", { timeout: 20_000 });
 
-  console.log(`ui ok: /requests/${seerr.id} list + movies still load`);
+  console.log(`ui ok: /requests/${seerr.id} list → detail → back + movies still load`);
   await browser.close();
 }
 

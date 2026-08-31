@@ -202,6 +202,7 @@ export function RequestEditModal({ opened, onClose, instanceId, request }: Props
         message: approve ? "Request approved" : "Request updated",
       });
       await queryClient.invalidateQueries({ queryKey: ["requests", instanceId] });
+      await queryClient.invalidateQueries({ queryKey: ["request-page", instanceId] });
       onClose();
     },
     onError: (error) => {

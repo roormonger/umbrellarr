@@ -3,6 +3,7 @@ import type {
   MediaRequestListResponse,
   RequestEditDetail,
   RequestFilter,
+  RequestMediaPageDetail,
   RequestMediaType,
   RequestSort,
   RequestSortDirection,
@@ -39,6 +40,12 @@ export function listRequests(instanceId: string, options: ListRequestsOptions = 
 export function getRequestDetail(instanceId: string, requestId: number) {
   return api<RequestEditDetail>(
     `/api/requests/${encodeURIComponent(instanceId)}/${requestId}`,
+  );
+}
+
+export function getRequestMediaPage(instanceId: string, requestId: number) {
+  return api<RequestMediaPageDetail>(
+    `/api/requests/${encodeURIComponent(instanceId)}/${requestId}/page`,
   );
 }
 

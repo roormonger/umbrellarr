@@ -13,6 +13,7 @@ import { LoginPage } from "@/pages/LoginPage";
 import { MovieDetailPage } from "@/pages/MovieDetailPage";
 import { MoviesPage } from "@/pages/MoviesPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
+import { RequestDetailPage } from "@/pages/RequestDetailPage";
 import { RequestsPage } from "@/pages/RequestsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ShowDetailPage } from "@/pages/ShowDetailPage";
@@ -227,6 +228,12 @@ const requestsInstanceRoute = createRoute({
   component: RequestsPage,
 });
 
+const requestDetailRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/requests/$instanceId/$requestId",
+  component: RequestDetailPage,
+});
+
 const queueRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/activity/queue",
@@ -283,6 +290,7 @@ export const routeTree = rootRoute.addChildren([
     legacyShowsRoute,
     requestsIndexRoute,
     requestsInstanceRoute,
+    requestDetailRoute,
     queueRoute,
     calendarRoute,
     missingRoute,

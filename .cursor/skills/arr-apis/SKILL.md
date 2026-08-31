@@ -111,7 +111,7 @@ Status legend for Umbrellarr: **Wired** / **Partial** / **In scope / Not started
 | Search (movie / tv / person / collection) | `GET /search` | **In scope / Not started** — Discover + header search |
 | Discover rows + filters | `GET /discover/movies`, `/discover/tv`, `/discover/trending`, `.../upcoming`, genre/studio/network/keyword | **In scope / Not started** — our Discover page |
 | Discover slider config | `GET /settings/discover` | **In scope / Not started** — optional: reuse Seerr’s row list instead of hardcoding |
-| Movie / TV details (+ similar, recommendations, ratings) | `GET /movie/{id}`, `GET /tv/{id}` (+ season) | **In scope / Not started** — TMDB via Seerr; `mediaInfo` = availability |
+| Movie / TV details (+ similar, recommendations, ratings) | `GET /movie/{id}`, `GET /tv/{id}` (+ season) | **Partial** — request detail page (no recommendations/similar); Discover title pages **Not started** |
 | Filter helpers (genres, providers, certs, regions) | `/genres/*`, `/watchproviders/*`, `/certifications/*`, `/regions`, `/languages` | **In scope / Not started** — Discover filter UI |
 | Create / list / update / delete request | `GET/POST /request`, `GET/PUT/DELETE /request/{id}` | List + PUT edit **Wired**; create/delete **Not started** |
 | Approve / decline / retry | `POST /request/{id}/{status}`, `POST /request/{id}/retry` | Approve/decline **Wired**; retry **Not started** |
@@ -135,7 +135,7 @@ Users/quotas/permissions admin, issues, Plex/Jellyfin settings + sync, notificat
 | Radarr | Settings (SQLite) + optional first-run `RADARR_*` env import | yes | yes (per-instance `/movies/$instanceId`) |
 | Sonarr | Settings (SQLite) + optional first-run `SONARR_*` env import | yes | yes (per-instance `/shows/$instanceId`; detail + seasons/episodes) |
 | Lidarr | Settings (SQLite) + optional first-run `LIDARR_*` env import | yes | yes (per-instance `/music/$instanceId` + `/music/$instanceId/$artistId`) |
-| Seerr | Settings (SQLite) + optional first-run `SEERR_*` env import | `InstanceKind` only (not `ArrKind`) | Requests list + approve/decline/edit **Wired**; Discover **Not started** |
+| Seerr | Settings (SQLite) + optional first-run `SEERR_*` env import | `InstanceKind` only (not `ArrKind`) | Requests list + detail + approve/decline/edit **Wired**; Discover **Not started** |
 
 API keys encrypted in SQLite (`INSTANCE_SECRETS_KEY`). Env Arr vars import once when the DB is empty.
 
