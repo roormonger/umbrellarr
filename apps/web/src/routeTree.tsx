@@ -200,6 +200,37 @@ const legacyShowsRoute = createRoute({
   },
 });
 
+const requestsIndexRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/requests",
+  beforeLoad: async ({ context }) => {
+    const data = await context.queryClient.ensureQueryData({
+      queryKey: ["instances"],
+      queryFn: listInstances,
+      staleTime: INSTANCES_STALE_MS,
+    });
+    const first = data.instances.find((i) => i.kind === "seerr");
+    if (!first) {
+      throw redirect({ to: "/settings" });
+    }
+    throw redirect({
+      to: "/requests/$instanceId",
+      params: { instanceId: first.id },
+    });
+  },
+});
+
+const requestsInstanceRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/requests/$instanceId",
+  component: () => (
+    <PlaceholderPage
+      title="Requests"
+      description="Media requests from Seerr. Approve, decline, and retry will land here."
+    />
+  ),
+});
+
 const queueRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/activity/queue",
@@ -254,6 +285,8 @@ export const routeTree = rootRoute.addChildren([
     legacyMoviesRoute,
     legacyMovieDetailRoute,
     legacyShowsRoute,
+    requestsIndexRoute,
+    requestsInstanceRoute,
     queueRoute,
     calendarRoute,
     missingRoute,

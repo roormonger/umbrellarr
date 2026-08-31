@@ -196,7 +196,7 @@ export function ArtistHistoryModal({ opened, onClose, instanceId, artistId }: Pr
       >
         {historyQuery.isLoading && (
           <Group justify="center" py="xl">
-            <Loader size="sm" />
+            <Loader size="xl" />
           </Group>
         )}
 

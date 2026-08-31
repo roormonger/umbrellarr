@@ -1,10 +1,10 @@
 import type {
-  ArrKind,
   Instance,
   InstanceCreateRequest,
+  InstanceKind,
   InstanceUpdateRequest,
 } from "@umbrellarr/shared";
-import { ArrKindSchema, InstanceSchema } from "@umbrellarr/shared";
+import { InstanceKindSchema, InstanceSchema } from "@umbrellarr/shared";
 import { eq } from "drizzle-orm";
 import { decryptSecret, encryptSecret, parseSecretsKey, type SealedSecret } from "../crypto/secrets.js";
 import type { AppDatabase } from "../db/client.js";
@@ -90,7 +90,7 @@ export class InstanceStore {
     return this.cache;
   }
 
-  listByKind(kind: ArrKind): Instance[] {
+  listByKind(kind: InstanceKind): Instance[] {
     return this.cache.filter((i) => i.kind === kind);
   }
 
@@ -99,7 +99,7 @@ export class InstanceStore {
   }
 
   create(input: InstanceCreateRequest): Instance {
-    const kind = ArrKindSchema.parse(input.kind);
+    const kind = InstanceKindSchema.parse(input.kind);
     const name = input.name.trim();
     const baseUrl = normalizeBaseUrl(input.baseUrl);
     const apiKey = input.apiKey.trim();
@@ -141,7 +141,7 @@ export class InstanceStore {
       throw new Error(`Instance ${id} not found`);
     }
 
-    const kind = ArrKindSchema.parse(input.kind);
+    const kind = InstanceKindSchema.parse(input.kind);
     const name = input.name.trim();
     const baseUrl = normalizeBaseUrl(input.baseUrl);
     this.assertUniqueUrl(kind, baseUrl, id);
@@ -185,7 +185,7 @@ export class InstanceStore {
     this.emitChange();
   }
 
-  private assertUniqueUrl(kind: ArrKind, baseUrl: string, exceptId?: string) {
+  private assertUniqueUrl(kind: InstanceKind, baseUrl: string, exceptId?: string) {
     const clash = this.cache.find(
       (i) => i.kind === kind && i.baseUrl === baseUrl && i.id !== exceptId,
     );
@@ -208,7 +208,7 @@ export class InstanceStore {
         `Failed to decrypt API key for instance "${row.id}". Check INSTANCE_SECRETS_KEY matches the key used when the DB was written.`,
       );
     }
-    const kind = ArrKindSchema.parse(row.kind);
+    const kind = InstanceKindSchema.parse(row.kind);
     return InstanceSchema.parse({
       id: row.id,
       name: row.name,

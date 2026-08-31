@@ -3,7 +3,8 @@
 When you add a new upstream Arr call, **append a row** to the tables below.
 
 Auth to Arr: `X-Api-Key` via `apps/server/src/servarr/client.ts` (`arrFetch` / `arrJson`).  
-Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with the app session cookie when `APP_PASSWORD` is set.
+Seerr (not wired): same `X-Api-Key` header against `{server}/api/v1`; do not reuse the Arr client blindly (different paths and payloads).  
+Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`) with the app session cookie when `APP_PASSWORD` is set.
 
 ## Upstream Arr calls (today)
 
@@ -95,6 +96,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `servarr/artistAlbums.ts` | GET | `/api/v1/album?artistId=` | Album rows grouped by `albumType` (Lidarr `ArtistDetailsSeason.js`) |
 | `servarr/artistAlbums.ts` | PUT | `/api/v1/album/monitor` | `{ albumIds, monitored }` |
 | `servarr/artistAlbums.ts` | POST | `/api/v1/command` | `{ name: "AlbumSearch", albumIds }` |
+| `servarr/artistAlbumTracks.ts` | GET | `/api/v1/album/{id}` + `/track?albumId=` + `/trackfile?albumId=` | Album modal tracks (join + cover + Details fields) |
 | `servarr/artistActions.ts` | GET | `/api/v1/history/artist?artistId=&includeTrack=true` | Artist history modal (+ `data` for info details) |
 | `servarr/artistActions.ts` | POST | `/api/v1/history/failed/{id}` | Mark grabbed history item as failed |
 | `servarr/artistActions.ts` | GET | `/api/v1/release?artistId=` | Interactive search (120s timeout) |
@@ -111,7 +113,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `servarr/artistActions.ts` | PUT | `/api/v1/trackfile/editor` | Manage Tracks bulk quality (`{ trackFileIds, quality }`) |
 | `servarr/artistActions.ts` | DELETE | `/api/v1/trackfile/bulk` | Manage Tracks Delete (`{ trackFileIds }`) |
 | `servarr/artistActions.ts` | — | (no upstream links API) | `buildArtistLinks` mirrors Lidarr UI (`ArtistDetailsLinks.js`: MusicBrainz + Arr `links[]`) |
-| `servarr/status.ts` | GET | `/api/v3/system/status` or `/api/v1/system/status` | Instance health (v1 for lidarr) |
+| `servarr/status.ts` | GET | `/api/v3/system/status`, Lidarr `/api/v1/system/status`, Seerr `/api/v1/status` | Instance health |
 | `routes/media.ts` | GET | Radarr/Sonarr `{path}` e.g. `/MediaCover/{id}/poster-500.jpg`; Lidarr `/api/v1/mediacover/artist/{id}/{file}` (API is jpg/png/gif only; `.jpeg` posters fall back to fanart/banner) | Image proxy (`arrFetch`; reject non-image) |
 | `servarr/posterStatus.ts` | — | (derived) | Poster bar status from Arr `getProgressBarKind` + queue ids |
 | `servarr/queueIds.ts` | GET | `/api/v3/queue` or `/api/v1/queue` | movieId / seriesId / artistId sets for queued/downloading bars |
@@ -132,6 +134,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `GET /api/artists/:instanceId/:artistId` | `routes/artists.ts` | `/artist/{id}` + quality/metadata profiles + tags (page detail) |
 | `GET /api/artists/:instanceId/:artistId/links` | `routes/artists.ts` | `/artist/{id}` then mirror Lidarr UI links |
 | `GET /api/artists/:instanceId/:artistId/albums` | `routes/artists.ts` | `/album?artistId=` grouped by `albumType` |
+| `GET /api/artists/:instanceId/:artistId/albums/:albumId/tracks` | `routes/artists.ts` | album + tracks + trackfiles for album modal |
 | `PUT /api/artists/:instanceId/:artistId/albums/monitor` | `routes/artists.ts` | `PUT /album/monitor` |
 | `POST /api/artists/:instanceId/:artistId/albums/:albumId/search` | `routes/artists.ts` | `AlbumSearch` |
 | `POST /api/artists/:instanceId/:artistId/refresh` | `routes/artists.ts` | `RefreshArtist` + cache invalidate |
@@ -182,7 +185,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `POST /api/instances` | `routes/instances.ts` | Create client (encrypt API key) |
 | `PUT /api/instances/:id` | `routes/instances.ts` | Update client |
 | `DELETE /api/instances/:id` | `routes/instances.ts` | Remove client + cache invalidate |
-| `POST /api/instances/test` | `routes/instances.ts` | Probe `/system/status` (no persist) |
+| `POST /api/instances/test` | `routes/instances.ts` | Probe Arr `/system/status` or Seerr `/api/v1/status` (no persist) |
 | `GET /api/movies/:instanceId/options` | `routes/movies.ts` | qualityprofile + tag + rootfolder |
 | `GET /api/movies/:instanceId/naming` | `routes/movies.ts` | `/config/naming` |
 | `GET /api/movies/:instanceId/qualities` | `routes/movies.ts` | `/qualityprofile/schema` (flattened) |
@@ -205,7 +208,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | `PUT /api/movies/:instanceId/:movieId` | `routes/movies.ts` | PUT `/movie/{id}` + cache refresh |
 | `DELETE /api/movies/:instanceId/:movieId` | `routes/movies.ts` | DELETE `/movie/{id}` + cache refresh |
 | `GET /api/media/:instanceId/image?path=` | `routes/media.ts` | Proxy covers (Radarr/Sonarr prefer `-500`; Lidarr mediacover API, jpg/png/gif only) |
-| `GET /api/instances/status` | `routes/instances.ts` | `/system/status` per instance |
+| `GET /api/instances/status` | `routes/instances.ts` | Arr `/system/status` or Seerr `/api/v1/status` per instance |
 | `GET /api/stats` | `routes/stats.ts` | Counts; queue/missing still placeholder `0` |
 | `GET /api/health` | `routes/health.ts` | App health only |
 | `/api/auth/*` | `routes/auth.ts` | App login; not Arr |
@@ -217,8 +220,8 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Movies grid | `apps/web/src/pages/MoviesPage.tsx`, `VirtualizedMovieGrid.tsx` | `GET /api/movies?instanceId=` |
 | Movie detail page | `MovieDetailPage.tsx`, `components/movies/detail/*` | `GET .../:movieId` (rich page payload) |
 | Poster click | `PosterCard.tsx` | navigates to `/movies/:instanceId/:movieId` |
-| Settings (Arr clients) | `SettingsPage.tsx` | instances CRUD + test |
-| Sidebar Movies/Shows/Music | `AppLayout.tsx` | `GET /api/instances` |
+| Settings (Arr + Seerr clients) | `SettingsPage.tsx` | instances CRUD + test |
+| Sidebar Movies/Shows/Music/Requests | `AppLayout.tsx` | `GET /api/instances` |
 | Poster hover refresh | `PosterCard.tsx` | `POST .../refresh` |
 | Edit modal | `MovieEditModal.tsx` | options + detail + PUT/DELETE |
 | Interactive Search modal | `MovieInteractiveSearchModal.tsx` | releases + grab + history + blocklist |
@@ -228,6 +231,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Links menu | `MovieLinksMenu.tsx` | `GET .../links` |
 | Poster images | `PosterCard.tsx` | `GET /api/media/.../image` |
 | Settings instance health | `SettingsPage.tsx` | `/api/instances/status` |
+| Requests (placeholder) | `AppLayout.tsx`, `/requests/$instanceId` | none yet (Seerr `/request*` later) |
 | Shows library | `ShowsPage.tsx`, `ShowPosterCard`, sort/filter | `GET /api/shows` |
 | Show detail (hero + toolbar + seasons) | `ShowDetailPage.tsx`, `ShowDetailHero`, `ShowDetailToolbar`, `ShowSeasonsPanel`, `ShowEditModal` | detail/links/update/delete + RefreshSeries / SeriesSearch + seasons/episodes |
 | Show Interactive Search modal | `ShowInteractiveSearchModal.tsx` | releases + grab + history + blocklist |
@@ -238,6 +242,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Music artist grid | `ArtistsPage.tsx`, `VirtualizedArtistGrid`, `ArtistPosterCard` | `GET /api/artists?instanceId=` |
 | Artist poster click | `ArtistPosterCard.tsx` | navigates to `/music/:instanceId/:artistId` |
 | Artist detail (hero + toolbar + albums) | `ArtistDetailPage.tsx`, `ArtistDetailHero`, `ArtistDetailToolbar`, `ArtistAlbumsPanel`, `ArtistEditModal` | page detail + albums + RefreshArtist / ArtistSearch + album monitor / AlbumSearch |
+| Artist album tracks modal | `ArtistAlbumModal.tsx`, `ArtistAlbumTrackDetailsModal.tsx` | album tracks + Details + Delete track file |
 | Artist Interactive Search modal | `ArtistInteractiveSearchModal.tsx` | releases + grab + history + blocklist |
 | Artist Organize & Rename modal | `ArtistOrganizeModal.tsx` | rename preview + naming + `RenameFiles` |
 | Artist Preview Retag modal | `ArtistRetagModal.tsx` | retag preview + `RetagFiles` |
@@ -255,7 +260,7 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Area | Notes |
 |------|-------|
 | Sonarr cast / crew | Not on series detail yet |
-| Lidarr album track expansion / album detail | Artist page lists albums only |
+| Lidarr album detail **page** (full route) | Album tracks shown in modal from artist page |
 | Lidarr Manual Import (interactive import) | Artist toolbar deferred; `/manualimport` not wired |
 | Lidarr retag | Artist Preview Retag **Wired** |
 | Queue / Calendar / Missing pages | Placeholders |
@@ -263,12 +268,15 @@ Browser never sees Arr API keys; it talks to the Umbrellarr BFF (`/api/*`) with 
 | Movie lookup / add | No BFF yet |
 | Interactive search custom-filter builder | Presets only (All / Approved / Rejected / Usenet / Torrent) |
 | Folder browser for edit path | Not needed — root Select + movie-folder suffix |
+| Seerr instance + client | Settings kind `seerr` **Wired** (`GET /api/v1/status` health). No request BFF yet. |
+| Discover page | **In scope.** Use Seerr `GET /discover/*`, `/search`, `/movie/{id}`, `/tv/{id}`. No route yet. |
+| Requests page + create/approve/retry | Sidebar + `/requests/$instanceId` placeholder **Wired**. List/approve/retry **Not started**. Header Search is still “coming soon” — should hit Seerr `/search` once wired. |
 
 ## Shared types (Arr-facing)
 
 | Package file | Types |
 |--------------|--------|
-| `packages/shared/src/instances.ts` | `ArrKind` (`radarr` \| `sonarr` \| `lidarr`), `Instance`, status |
+| `packages/shared/src/instances.ts` | `ArrKind` (`radarr` \| `sonarr` \| `lidarr`), `InstanceKind` (+ `seerr`), `Instance`, status |
 | `packages/shared/src/media.ts` | `MediaItem`, `MediaKind` (`movie` \| `series` \| `artist`) |
 | `packages/shared/src/movies.ts` | `MovieListItem`, `MovieDetail`, `MoviePageDetail`, history/release/rename/manage-files, edit/links schemas |
 | `packages/shared/src/shows.ts` | `SeriesListItem`, `SeriesPageDetail`, edit/update/links schemas, history/release/rename/manage-files, `SeriesSeasonSummary` / `SeriesEpisode`, sort/filter options |

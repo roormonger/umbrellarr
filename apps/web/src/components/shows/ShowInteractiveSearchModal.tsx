@@ -1,6 +1,7 @@
 import {
   Button,
   Group,
+  Loader,
   Menu,
   Modal,
   Text,
@@ -10,7 +11,6 @@ import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { FunnelIcon } from "@phosphor-icons/react/dist/csr/Funnel";
 import type { SeriesRelease } from "@umbrellarr/shared";
-import { Quantum } from "ldrs/react";
 import { useMemo, useState } from "react";
 import {
   getEpisodeReleases,
@@ -19,9 +19,9 @@ import {
   getSeriesHistory,
   getSeriesReleases,
 } from "@/api/shows";
+import { APP_LOADER_SIZE } from "@/components/QuantumLoader";
 import { ShowInteractiveSearchTable } from "@/components/shows/ShowInteractiveSearchTable";
 import classes from "../movies/MovieInteractiveSearchModal.module.css";
-import "ldrs/react/Quantum.css";
 
 type Props = {
   opened: boolean;
@@ -64,7 +64,7 @@ function filterReleases(releases: SeriesRelease[], filter: FilterKey): SeriesRel
 function SearchLoading() {
   return (
     <div className={classes.loading} role="status" aria-live="polite">
-      <Quantum size={56} speed={2.3} color="var(--mantine-color-violet-5)" />
+      <Loader size={APP_LOADER_SIZE} />
       <Text size="sm" c="dimmed">
         Searching indexers…
       </Text>

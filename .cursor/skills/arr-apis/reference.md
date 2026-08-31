@@ -1,8 +1,8 @@
-# Arr API Reference
+# Arr + Seerr API Reference
 
-Capability-oriented groups — not a full OpenAPI dump (~160 paths per app). For exhaustive schemas, use the OpenAPI JSON links in [SKILL.md](SKILL.md).
+Capability-oriented groups — not a full OpenAPI dump (~160 paths per Arr; Seerr is smaller). For exhaustive schemas, use the OpenAPI links in [SKILL.md](SKILL.md).
 
-Prefix: Radarr/Sonarr `/api/v3`, Lidarr `/api/v1`.
+Prefix: Radarr/Sonarr `/api/v3`, Lidarr `/api/v1`, Seerr `/api/v1`.
 
 ## Endpoint groups
 
@@ -128,19 +128,118 @@ Sort: links with a copyable external id first (same as Arr).
 
 Sonarr/Lidarr have analogous details-links components — mirror those sources when wiring Shows/Music links; do not reuse Radarr movie URL templates blindly.
 
+## Seerr (`/api/v1`)
+
+Seerr is request + discovery, not a library manager. Auth: `X-Api-Key` or `connect.sid`. Docs: https://docs.seerr.dev/api/seerr-api/
+
+Umbrellarr **will** build its own Discover page and request handling on these APIs. Pass query params through the BFF; do not invent filter names.
+
+### Discover page playbook
+
+Our page. Seerr data. Typical layout: stacked rows (trending, popular movies, upcoming, popular TV, …) plus a filterable Movies/TV browse.
+
+**Default rows** (no need to clone Seerr sliders unless we opt in):
+
+| Row | Path |
+|-----|------|
+| Trending | `GET /discover/trending` (`mediaType`: `all` \| `movie` \| `tv`; `timeWindow`: `day` \| `week` — confirm live spec) |
+| Popular movies | `GET /discover/movies` |
+| Upcoming movies | `GET /discover/movies/upcoming` |
+| Popular TV | `GET /discover/tv` |
+| Upcoming TV | `GET /discover/tv/upcoming` |
+| Genre chips | `GET /discover/genreslider/movie`, `/discover/genreslider/tv` |
+| Plex watchlist | `GET /discover/watchlist` |
+| Search | `GET /search?query=&page=` |
+
+Optional: `GET /settings/discover` returns Seerr’s slider list (`type`, `title`, `enabled`, `data`). Map `type` → path the way Seerr’s UI does — cite [Discover/index.tsx](https://github.com/seerr-team/seerr/blob/develop/src/components/Discover/index.tsx). Do not guess numeric `type` values; read that file. `GET` sliders only unless the user asks to edit Seerr’s slider admin.
+
+**Browse / filter** — `GET /discover/movies` and `GET /discover/tv` accept (passthrough):
+
+| Param | Movies | TV | Notes |
+|-------|--------|----|-------|
+| `page`, `language` | yes | yes | |
+| `genre` | yes | yes | genre id |
+| `studio` | yes | — | |
+| `network` | — | yes | |
+| `keywords`, `excludeKeywords` | yes | yes | comma-separated TMDB keyword ids |
+| `sortBy` | yes | yes | e.g. `popularity.desc` |
+| `primaryReleaseDateGte/Lte` | yes | — | `YYYY-MM-DD` |
+| `firstAirDateGte/Lte` | — | yes | |
+| `withRuntimeGte/Lte` | yes | yes | |
+| `voteAverageGte/Lte`, `voteCountGte/Lte` | yes | yes | |
+| `watchRegion`, `watchProviders` | yes | yes | providers like `8\|9` |
+| `status` | — | yes | e.g. `3\|4` |
+| `certification`, `certificationGte/Lte`, `certificationCountry`, `certificationMode` | yes | yes | mode: `exact` \| `range` |
+
+Shortcut paths: `/discover/movies/genre/{id}`, `/language/{code}`, `/studio/{id}`; TV: `/genre/{id}`, `/language/{code}`, `/network/{id}`; `/discover/keyword/{keywordId}/movies`.
+
+Filter option lists: `GET /genres/movie`, `/genres/tv`, `/watchproviders/movies?watchRegion=`, `/watchproviders/tv?watchRegion=`, `/watchproviders/regions`, `/certifications/movie`, `/certifications/tv`, `/regions`, `/languages`, `GET /search/keyword`, `GET /search/company`.
+
+**Cards:** `MovieResult` / `TvResult` include TMDB fields + `mediaInfo`. Badge from `mediaInfo.status` (and existing `requests`). Title click → `GET /movie/{tmdbId}` or `GET /tv/{tmdbId}` (optional `/season/{n}`, `/similar`, `/recommendations`, `/ratings`, `/ratingscombined`).
+
+**Images:** `posterPath` / `backdropPath` are TMDB relative. Seerr UI: `https://image.tmdb.org/t/p/{size}{path}` or `/imageproxy/tmdb/{size}{path}` when cache is on ([CachedImage](https://github.com/seerr-team/seerr/blob/develop/src/components/Common/CachedImage/index.tsx)). Prefer proxying through our BFF later so the browser never depends on TMDB directly if we want; still use Seerr/TMDB sizes, not Arr `-500` covers.
+
+### Request handling playbook
+
+| Action | Path |
+|--------|------|
+| List | `GET /request?take=&skip=&filter=&sort=&sortDirection=&requestedBy=&mediaType=` |
+| Counts | `GET /request/count` |
+| Get / edit / delete | `GET/PUT/DELETE /request/{requestId}` |
+| Approve / decline | `POST /request/{requestId}/{status}` — `status`: `approved` \| `declined` |
+| Retry (re-send to Radarr/Sonarr) | `POST /request/{requestId}/retry` |
+| Create | `POST /request` |
+
+`GET /request` `filter`: `all` \| `approved` \| `available` \| `pending` \| `processing` \| `unavailable` \| `failed` \| `deleted` \| `completed`. `sort`: `added` \| `modified`. `mediaType`: `movie` \| `tv` \| `all`.
+
+**Create body** — required `mediaType` (`movie` \| `tv`) + `mediaId` (TMDB). Optional: `tvdbId`, `seasons` (number[] or `"all"`), `is4k`, `serverId`, `profileId`, `rootFolder`, `languageProfileId`, `userId`, `ignoreQuota`.
+
+**From Discover:** movie → `{ mediaType: "movie", mediaId: tmdbId }`. TV → same + `seasons` (`"all"` or picked numbers from `GET /tv/{id}` / season endpoint). Advanced: `GET /service/radarr` / `/service/sonarr` then `GET /service/{radarr\|sonarr}/{id}` for profiles + root folders.
+
+`ADMIN` / `AUTO_APPROVE` auto-approve on create. `REQUEST` required to create. `MANAGE_REQUESTS` (or `ADMIN`) to approve/decline/retry/edit others.
+
+Request `status` numbers: `1` pending, `2` approved, `3` declined.  
+Media `status` numbers: `1` unknown, `2` pending, `3` processing, `4` partial, `5` available, `6` deleted.
+
+### Other Seerr paths
+
+| Domain | Paths |
+|--------|--------|
+| Person / collection | `GET /person/{id}`, `/person/{id}/combined_credits`, `GET /collection/{id}` |
+| Media (tracked) | `GET /media`, `DELETE /media/{mediaId}`, `DELETE /media/{mediaId}/file?is4k=`, `POST /media/{mediaId}/{status}`, `GET /media/{mediaId}/watch_data` |
+| Watchlist | `POST /watchlist`, `DELETE /watchlist/{tmdbId}` |
+| Blocklist | `GET/POST /blocklist`, `GET/DELETE /blocklist/{tmdbId}`, collection variants; `/blacklist` alias |
+| Radarr/Sonarr via Seerr | `GET /service/radarr`, `GET /service/radarr/{id}`, `GET /service/sonarr`, `GET /service/sonarr/{id}`, `GET /service/sonarr/lookup/{tmdbId}` |
+| Admin Arr config | `/settings/radarr*`, `/settings/sonarr*` (usually out of scope — Umbrellarr already configures Arr) |
+
+No Lidarr. Do not add music/artist requests through Seerr.
+
+### Users, auth, settings (usually out of scope)
+
+- Auth: `/auth/me`, `/auth/plex`, `/auth/jellyfin` (+ quickconnect), `/auth/local`, `/auth/logout`, `/auth/reset-password`
+- Users: `/user*`, quotas, permissions, linked accounts, push
+- Issues: `/issue*`
+- Settings: Plex/Jellyfin, notifications, jobs, cache, logs, initialize — **except** `GET /settings/discover` (read sliders for our Discover page)
+- Override rules: `/overrideRule*`
+- Public: `GET /status`, `GET /status/appdata`
+
 ## Do not invent
 
 - No Arr endpoint returns a ready-made “links[]” for a title.
 - No Arr-provided Letterboxd/Trakt/MDBList objects — only IDs + Arr UI URL templates.
 - Do not scrape Arr’s SPA HTML or CSS for data.
 - Do not call TMDb/IMDb/MusicBrainz/etc. as a substitute for Arr metadata.
-- Do not invent ratings, cast, plot, or availability beyond Arr fields.
+- For Discover/request features, do not call TMDB yourself — use Seerr’s `/search`, `/discover`, `/movie`, `/tv` (they already wrap TMDB and attach `mediaInfo`).
+- Do not add a title from Discover via Arr `/movie/lookup` or `/series/lookup` — that is Seerr `POST /request`.
+- Do not invent ratings, cast, plot, or availability beyond Arr or Seerr fields. Do not join Arr library onto Discover cards; use `mediaInfo`.
 - Do not assume command names or body shapes without checking Arr’s `commandNames` / a live test.
-- Do not check OpenAPI JSON into this repo (links go stale; fetch upstream when needed).
+- Do not treat Seerr `mediaId` as an Arr movie/series id — it is TMDB.
+- Do not invent Lidarr/music support on Seerr.
+- Do not check OpenAPI JSON/YAML into this repo (links go stale; fetch upstream when needed).
 
 ## When adding a feature
 
-1. Find the tag/path in OpenAPI or Arr frontend.
-2. Add BFF route + shared Zod types that **passthrough/select** Arr fields (reshape for UI OK; inventing facts not OK).
-3. Prefer `POST /command` for Arr jobs (refresh, search, rename) over inventing side effects.
+1. Find the tag/path in Arr OpenAPI / Arr frontend, or in [seerr-api.yml](https://raw.githubusercontent.com/seerr-team/seerr/develop/seerr-api.yml).
+2. Add BFF route + shared Zod types that **passthrough/select** upstream fields (reshape for UI OK; inventing facts not OK).
+3. Prefer `POST /command` for Arr jobs (refresh, search, rename). Prefer `POST /request` (create) + `/request/{id}/{status}` + `/retry` for request handling. Discover pages only read Seerr search/discover/details.
 4. Update [umbrellarr-wiring.md](umbrellarr-wiring.md).

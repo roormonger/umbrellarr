@@ -304,7 +304,7 @@ export function ShowManageFilesModal({
     >
       {loading && (
         <Group justify="center" py="xl">
-          <Loader size="sm" />
+          <Loader size="xl" />
         </Group>
       )}
 

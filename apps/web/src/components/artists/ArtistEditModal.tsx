@@ -165,7 +165,7 @@ export function ArtistEditModal({
     <Modal opened={opened} onClose={onClose} title={`Edit - ${title}`} size="lg" centered>
       {loading && (
         <Group justify="center" py="xl">
-          <Loader size="sm" />
+          <Loader size="xl" />
         </Group>
       )}
 

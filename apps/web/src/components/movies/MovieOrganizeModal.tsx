@@ -137,7 +137,7 @@ export function MovieOrganizeModal({
     <Modal opened={opened} onClose={onClose} title="Organize & Rename" size="lg" centered>
       {loading && (
         <Group justify="center" py="xl">
-          <Loader size="sm" />
+          <Loader size="xl" />
         </Group>
       )}
 

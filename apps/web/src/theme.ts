@@ -1,6 +1,7 @@
 import { generateColors } from "@mantine/colors-generator";
-import { createTheme, type MantineThemeOverride } from "@mantine/core";
+import { Loader, createTheme, type MantineThemeOverride } from "@mantine/core";
 import { DEFAULT_HIGHLIGHT_COLOR } from "@umbrellarr/shared";
+import { QuantumLoader } from "./components/QuantumLoader";
 
 const glassSurface = {
   backgroundColor: "var(--glass-bg)",
@@ -91,6 +92,16 @@ export function createAppTheme(highlightColor: string = DEFAULT_HIGHLIGHT_COLOR)
           root: glassSurface,
         },
       },
+      Loader: Loader.extend({
+        defaultProps: {
+          loaders: {
+            bars: QuantumLoader,
+            dots: QuantumLoader,
+            oval: QuantumLoader,
+          },
+          type: "oval",
+        },
+      }),
     },
   });
 }

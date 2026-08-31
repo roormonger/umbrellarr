@@ -1,0 +1,11 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--loader-size, 2.25rem);
+  height: var(--loader-size, 2.25rem);
+}
+
+.root > div {
+  --uib-size: var(--loader-size) !important;
+}

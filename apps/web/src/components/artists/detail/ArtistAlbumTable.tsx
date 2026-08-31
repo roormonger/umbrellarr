@@ -39,6 +39,7 @@ type Props = {
   monitoringAlbumId?: number;
   onToggleMonitor: (album: ArtistAlbum) => void;
   onSearch: (album: ArtistAlbum) => void;
+  onOpenAlbum: (album: ArtistAlbum) => void;
 };
 
 export function ArtistAlbumTable({
@@ -47,6 +48,7 @@ export function ArtistAlbumTable({
   monitoringAlbumId,
   onToggleMonitor,
   onSearch,
+  onOpenAlbum,
 }: Props) {
   if (albums.length === 0) {
     return (
@@ -74,7 +76,11 @@ export function ArtistAlbumTable({
           const total = album.statistics.trackCount ?? album.statistics.totalTrackCount ?? 0;
           const kind = albumTrackCountKind(album);
           return (
-            <Table.Tr key={album.id}>
+            <Table.Tr
+              key={album.id}
+              className={classes.albumRow}
+              onClick={() => onOpenAlbum(album)}
+            >
               <Table.Td>
                 <Tooltip
                   label={album.monitored ? "Unmonitor album" : "Monitor album"}
@@ -86,7 +92,10 @@ export function ArtistAlbumTable({
                     size="sm"
                     aria-label={album.monitored ? "Unmonitor album" : "Monitor album"}
                     loading={monitoringAlbumId === album.id}
-                    onClick={() => onToggleMonitor(album)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onToggleMonitor(album);
+                    }}
                   >
                     <BookmarkSimpleIcon
                       size={16}
@@ -96,7 +105,9 @@ export function ArtistAlbumTable({
                 </Tooltip>
               </Table.Td>
               <Table.Td>
-                <Text size="sm">{album.title}</Text>
+                <Text size="sm" className={classes.albumTitle}>
+                  {album.title}
+                </Text>
               </Table.Td>
               <Table.Td>
                 <Text size="sm" c="dimmed">
@@ -120,7 +131,10 @@ export function ArtistAlbumTable({
                       size="sm"
                       aria-label={`Search ${album.title}`}
                       loading={searchingAlbumId === album.id}
-                      onClick={() => onSearch(album)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onSearch(album);
+                      }}
                     >
                       <MagnifyingGlassIcon size={16} />
                     </ActionIcon>

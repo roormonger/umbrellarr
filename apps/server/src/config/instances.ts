@@ -1,9 +1,10 @@
-import type { ArrKind, Instance } from "@umbrellarr/shared";
+import type { Instance, InstanceKind } from "@umbrellarr/shared";
 
-const KIND_PREFIXES: Array<{ kind: ArrKind; prefix: string }> = [
+const KIND_PREFIXES: Array<{ kind: InstanceKind; prefix: string }> = [
   { kind: "radarr", prefix: "RADARR" },
   { kind: "sonarr", prefix: "SONARR" },
   { kind: "lidarr", prefix: "LIDARR" },
+  { kind: "seerr", prefix: "SEERR" },
 ];
 
 /**

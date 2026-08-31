@@ -1,15 +1,14 @@
-import { Button, Group, Menu, Modal, Text } from "@mantine/core";
+import { Button, Group, Loader, Menu, Modal, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CheckIcon } from "@phosphor-icons/react/dist/csr/Check";
 import { FunnelIcon } from "@phosphor-icons/react/dist/csr/Funnel";
 import type { ArtistRelease } from "@umbrellarr/shared";
-import { Quantum } from "ldrs/react";
 import { useMemo, useState } from "react";
 import { getArtistBlocklist, getArtistHistory, getArtistReleases } from "@/api/artists";
+import { APP_LOADER_SIZE } from "@/components/QuantumLoader";
 import { ArtistInteractiveSearchTable } from "@/components/artists/ArtistInteractiveSearchTable";
 import classes from "../movies/MovieInteractiveSearchModal.module.css";
-import "ldrs/react/Quantum.css";
 
 type Props = {
   opened: boolean;
@@ -47,7 +46,7 @@ function filterReleases(releases: ArtistRelease[], filter: FilterKey): ArtistRel
 function SearchLoading() {
   return (
     <div className={classes.loading} role="status" aria-live="polite">
-      <Quantum size={56} speed={2.3} color="var(--mantine-color-violet-5)" />
+      <Loader size={APP_LOADER_SIZE} />
       <Text size="sm" c="dimmed">
         Searching indexers…
       </Text>

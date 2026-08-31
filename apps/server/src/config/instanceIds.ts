@@ -1,4 +1,4 @@
-import type { ArrKind } from "@umbrellarr/shared";
+import type { InstanceKind } from "@umbrellarr/shared";
 
 export function slugifyName(name: string): string {
   return name
@@ -9,7 +9,7 @@ export function slugifyName(name: string): string {
 }
 
 /** Stable id for URLs/cache; renaming later does not change id. */
-export function makeInstanceId(kind: ArrKind, name: string, taken: Set<string>): string {
+export function makeInstanceId(kind: InstanceKind, name: string, taken: Set<string>): string {
   const slug = slugifyName(name) || kind;
   let id = slug === kind || slug.startsWith(`${kind}-`) ? slug : `${kind}-${slug}`;
   if (!taken.has(id)) return id;

@@ -141,7 +141,7 @@ export function ArtistRetagModal({
     <Modal opened={opened} onClose={onClose} title="Write Metadata Tags" size="lg" centered>
       {previewQuery.isLoading && (
         <Group justify="center" py="xl">
-          <Loader size="sm" />
+          <Loader size="xl" />
         </Group>
       )}
 

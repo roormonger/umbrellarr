@@ -28,6 +28,7 @@ import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGl
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
+import { TicketIcon } from "@phosphor-icons/react/dist/csr/Ticket";
 import { clearAuthStatusCache, logout } from "@/api/auth";
 import { listInstances } from "@/api/instances";
 import {
@@ -104,6 +105,7 @@ export function AppLayout() {
   const radarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "radarr");
   const sonarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "sonarr");
   const lidarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "lidarr");
+  const seerrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "seerr");
   const title = pageHeader.title ?? titleFromPath(pathname);
   const count = pageHeader.count;
   const backTo = pageHeader.backTo;
@@ -289,6 +291,24 @@ export function AppLayout() {
                       label={instance.name}
                       onNavigate={close}
                       onPrefetch={() => prefetchArtists(instance.id)}
+                    />
+                  ))}
+                </NavLink>
+              )}
+
+              {seerrInstances.length > 0 && (
+                <NavLink
+                  label="Requests"
+                  leftSection={<TicketIcon />}
+                  defaultOpened
+                  childrenOffset={16}
+                >
+                  {seerrInstances.map((instance) => (
+                    <NavItem
+                      key={instance.id}
+                      to={`/requests/${instance.id}`}
+                      label={instance.name}
+                      onNavigate={close}
                     />
                   ))}
                 </NavLink>

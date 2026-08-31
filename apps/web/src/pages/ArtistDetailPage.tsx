@@ -105,7 +105,7 @@ export function ArtistDetailPage() {
     <div className={classes.page}>
       {detailQuery.isLoading && (
         <Group justify="center" py="xl">
-          <Loader size="sm" />
+          <Loader size="xl" />
         </Group>
       )}
 
@@ -144,7 +144,11 @@ export function ArtistDetailPage() {
             }}
           />
           <ArtistDetailHero artist={detailQuery.data} />
-          <ArtistAlbumsPanel instanceId={instanceId} artistId={artistId} />
+          <ArtistAlbumsPanel
+            instanceId={instanceId}
+            artistId={artistId}
+            artistName={detailQuery.data.title}
+          />
         </Stack>
       )}
 

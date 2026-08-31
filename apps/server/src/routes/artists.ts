@@ -35,6 +35,7 @@ import {
   updateArtist,
   updateArtistAlbumMonitoring,
 } from "../servarr/artistActions.js";
+import { fetchArtistAlbumTracks } from "../servarr/artistAlbumTracks.js";
 import {
   fetchArtistAlbums,
   searchAlbum,
@@ -194,6 +195,26 @@ export function createArtistsRoutes() {
       return c.json({ ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Album search failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/:artistId/albums/:albumId/tracks", async (c) => {
+    try {
+      const artistId = Number(c.req.param("artistId"));
+      const albumId = Number(c.req.param("albumId"));
+      if (!Number.isFinite(artistId) || !Number.isFinite(albumId)) {
+        return c.json({ error: "Invalid artist or album id" }, 400);
+      }
+      const payload = await fetchArtistAlbumTracks(
+        c.get("instances"),
+        c.req.param("instanceId"),
+        artistId,
+        albumId,
+      );
+      return c.json(payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load album tracks";
       return c.json({ error: message }, message.includes("not found") ? 404 : 502);
     }
   });

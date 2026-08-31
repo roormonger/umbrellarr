@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ArtistAlbum, ArtistAlbumTypeGroup } from "@umbrellarr/shared";
 import { useState } from "react";
 import { getArtistAlbums, searchAlbum, setAlbumsMonitored } from "@/api/artists";
+import { ArtistAlbumModal } from "@/components/artists/ArtistAlbumModal";
 import { albumTypeStats } from "@/lib/albumTrackCountKind";
 import { formatFreeSpace } from "@/lib/moviePath";
 import { ArtistAlbumTable } from "./ArtistAlbumTable";
@@ -13,13 +14,15 @@ import classes from "./ArtistAlbumsPanel.module.css";
 type Props = {
   instanceId: string;
   artistId: number;
+  artistName: string;
 };
 
 type AlbumsResponse = { groups: ArtistAlbumTypeGroup[] };
 
-export function ArtistAlbumsPanel({ instanceId, artistId }: Props) {
+export function ArtistAlbumsPanel({ instanceId, artistId, artistName }: Props) {
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [openAlbum, setOpenAlbum] = useState<ArtistAlbum | null>(null);
 
   const albumsQuery = useQuery({
     queryKey: ["artist-albums", instanceId, artistId],
@@ -97,7 +100,7 @@ export function ArtistAlbumsPanel({ instanceId, artistId }: Props) {
     <section className={classes.panel} aria-label="Albums">
       {albumsQuery.isLoading && (
         <Group justify="center" py="md">
-          <Loader size="sm" />
+          <Loader size="xl" />
         </Group>
       )}
       {albumsQuery.error && (
@@ -152,12 +155,22 @@ export function ArtistAlbumsPanel({ instanceId, artistId }: Props) {
                     monitorMutation.mutate({ album, monitored: !album.monitored })
                   }
                   onSearch={(album) => searchMutation.mutate(album)}
+                  onOpenAlbum={setOpenAlbum}
                 />
               </div>
             )}
           </div>
         );
       })}
+
+      <ArtistAlbumModal
+        opened={openAlbum != null}
+        onClose={() => setOpenAlbum(null)}
+        instanceId={instanceId}
+        artistId={artistId}
+        artistName={artistName}
+        album={openAlbum}
+      />
     </section>
   );
 }

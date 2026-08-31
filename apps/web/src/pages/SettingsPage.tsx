@@ -16,7 +16,7 @@ import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DEFAULT_HIGHLIGHT_COLOR,
-  type ArrKind,
+  type InstanceKind,
   type InstancePublic,
   type InstanceStatus,
 } from "@umbrellarr/shared";
@@ -41,9 +41,16 @@ function normalizeHighlightHex(value: string): string | null {
 
 type FormState = {
   name: string;
-  kind: ArrKind;
+  kind: InstanceKind;
   baseUrl: string;
   apiKey: string;
+};
+
+const KIND_URL_PLACEHOLDER: Record<InstanceKind, string> = {
+  radarr: "http://localhost:7878",
+  sonarr: "http://localhost:8989",
+  lidarr: "http://localhost:8686",
+  seerr: "http://localhost:5055",
 };
 
 const EMPTY_FORM: FormState = {
@@ -427,7 +434,7 @@ export function SettingsPage() {
         <Stack gap="sm">
           <TextInput
             label="Name"
-            description="Shown in the sidebar under Movies, Shows, or Music"
+            description="Shown in the sidebar under Movies, Shows, Music, or Requests"
             value={form.name}
             onChange={(e) => {
               const name = e.currentTarget.value;
@@ -442,11 +449,12 @@ export function SettingsPage() {
               { value: "radarr", label: "Radarr (Movies)" },
               { value: "sonarr", label: "Sonarr (Shows)" },
               { value: "lidarr", label: "Lidarr (Music)" },
+              { value: "seerr", label: "Seerr (Requests)" },
             ]}
             value={form.kind}
             allowDeselect={false}
             onChange={(value) =>
-              setForm((prev) => ({ ...prev, kind: (value as ArrKind) ?? "radarr" }))
+              setForm((prev) => ({ ...prev, kind: (value as InstanceKind) ?? "radarr" }))
             }
           />
           <TextInput
@@ -456,7 +464,7 @@ export function SettingsPage() {
               const baseUrl = e.currentTarget.value;
               setForm((prev) => ({ ...prev, baseUrl }));
             }}
-            placeholder="http://localhost:7878"
+            placeholder={KIND_URL_PLACEHOLDER[form.kind]}
             required
           />
           <TextInput

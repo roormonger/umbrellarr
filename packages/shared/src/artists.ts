@@ -163,6 +163,7 @@ export const ArtistAlbumSchema = z.object({
   monitored: z.boolean(),
   rating: z.number().optional(),
   foreignAlbumId: z.string().optional(),
+  coverUrl: z.string().optional(),
   statistics: ArtistAlbumStatisticsSchema.default({}),
 });
 export type ArtistAlbum = z.infer<typeof ArtistAlbumSchema>;
@@ -172,6 +173,40 @@ export const ArtistAlbumTypeGroupSchema = z.object({
   albums: z.array(ArtistAlbumSchema),
 });
 export type ArtistAlbumTypeGroup = z.infer<typeof ArtistAlbumTypeGroupSchema>;
+
+/** One track row in the album tracks modal (Lidarr album detail table). */
+export const ArtistAlbumTrackSchema = z.object({
+  id: z.number().int(),
+  trackFileId: z.number().int().optional(),
+  trackNumber: z.string(),
+  absoluteTrackNumber: z.number().int().optional(),
+  mediumNumber: z.number().int().optional(),
+  mediumCount: z.number().int().optional(),
+  title: z.string(),
+  durationMs: z.number().int().optional(),
+  hasFile: z.boolean(),
+  quality: z.string().optional(),
+  audioInfo: z.string().optional(),
+  status: z.string().optional(),
+  relativePath: z.string().optional(),
+  path: z.string().optional(),
+  country: z.string().optional(),
+  year: z.number().int().optional(),
+  label: z.string().optional(),
+  foreignArtistId: z.string().optional(),
+  foreignAlbumId: z.string().optional(),
+  foreignReleaseId: z.string().optional(),
+  foreignRecordingId: z.string().optional(),
+  foreignTrackId: z.string().optional(),
+});
+export type ArtistAlbumTrack = z.infer<typeof ArtistAlbumTrackSchema>;
+
+export const ArtistAlbumTracksResponseSchema = z.object({
+  album: ArtistAlbumSchema,
+  artistName: z.string(),
+  tracks: z.array(ArtistAlbumTrackSchema),
+});
+export type ArtistAlbumTracksResponse = z.infer<typeof ArtistAlbumTracksResponseSchema>;
 
 export const ArtistAlbumsMonitorRequestSchema = z.object({
   albumIds: z.array(z.number().int()).min(1),

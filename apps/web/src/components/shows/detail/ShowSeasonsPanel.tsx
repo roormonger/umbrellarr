@@ -169,7 +169,7 @@ export function ShowSeasonsPanel({
       <section className={classes.panel} aria-label="Seasons">
         {seasonsQuery.isLoading && (
           <Group justify="center" py="md">
-            <Loader size="sm" />
+            <Loader size="xl" />
           </Group>
         )}
         {seasonsQuery.error && (

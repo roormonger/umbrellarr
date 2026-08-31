@@ -87,6 +87,18 @@
   padding: 0.25rem 0.4rem 0.5rem;
 }
 
+.albumRow {
+  cursor: pointer;
+}
+
+.albumTitle {
+  color: inherit;
+}
+
+.albumRow:hover .albumTitle {
+  text-decoration: underline;
+}
+
 .rowActions {
   display: flex;
   align-items: center;

@@ -1,4 +1,5 @@
 import type {
+  ArtistAlbumTracksResponse,
   ArtistAlbumTypeGroup,
   ArtistAlbumsMonitorRequest,
   ArtistBlocklistItem,
@@ -64,6 +65,16 @@ export function getArtistLinks(instanceId: string, artistId: number) {
 export function getArtistAlbums(instanceId: string, artistId: number) {
   return api<{ groups: ArtistAlbumTypeGroup[] }>(
     `/api/artists/${encodeURIComponent(instanceId)}/${artistId}/albums`,
+  );
+}
+
+export function getArtistAlbumTracks(
+  instanceId: string,
+  artistId: number,
+  albumId: number,
+) {
+  return api<ArtistAlbumTracksResponse>(
+    `/api/artists/${encodeURIComponent(instanceId)}/${artistId}/albums/${albumId}/tracks`,
   );
 }
 
