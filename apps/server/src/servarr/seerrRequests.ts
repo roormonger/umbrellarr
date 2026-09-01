@@ -316,6 +316,9 @@ export async function listMediaRequests(
     sort: query.sort,
     sortDirection: query.sortDirection,
   });
+  if (query.requestedBy != null) {
+    params.set("requestedBy", String(query.requestedBy));
+  }
   const payload = await arrJson<SeerrRequestList>(
     instance,
     `/api/v1/request?${params.toString()}`,

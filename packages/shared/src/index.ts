@@ -8,3 +8,4 @@ export * from "./auth.js";
 export * from "./stats.js";
 export * from "./cache.js";
 export * from "./appearance.js";
+export * from "./calendar.js";

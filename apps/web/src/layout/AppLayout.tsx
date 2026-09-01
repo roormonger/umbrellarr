@@ -16,8 +16,10 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import type { InstanceKind } from "@umbrellarr/shared";
+import { useEffect, useState, type ReactNode, type SyntheticEvent } from "react";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
+import { LinkIcon } from "@phosphor-icons/react/dist/csr/Link";
 import { FilmStripIcon } from "@phosphor-icons/react/dist/csr/FilmStrip";
 import { TelevisionIcon } from "@phosphor-icons/react/dist/csr/Television";
 import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
@@ -46,6 +48,11 @@ import {
   titleFromPath,
   type PageHeaderInfo,
 } from "@/layout/pageHeader";
+import classes from "./AppLayout.module.css";
+
+function stopNestedEvent(event: SyntheticEvent) {
+  event.stopPropagation();
+}
 
 function NavItem({
   to,
@@ -54,6 +61,8 @@ function NavItem({
   onNavigate,
   exact,
   onPrefetch,
+  externalUrl,
+  externalKind,
 }: {
   to: string;
   label: string;
@@ -61,6 +70,8 @@ function NavItem({
   onNavigate?: () => void;
   exact?: boolean;
   onPrefetch?: () => void;
+  externalUrl?: string;
+  externalKind?: InstanceKind;
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -68,6 +79,7 @@ function NavItem({
 
   return (
     <NavLink
+      component={externalUrl ? "div" : undefined}
       label={label}
       leftSection={icon}
       active={active}
@@ -78,6 +90,25 @@ function NavItem({
         onNavigate?.();
         void navigate({ to });
       }}
+      rightSection={
+        externalUrl ? (
+          <a
+            className={classes.externalLink}
+            href={externalUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={`Open ${externalUrl}`}
+            title={externalUrl}
+            data-instance-link={externalKind}
+            onClick={stopNestedEvent}
+            onPointerDown={stopNestedEvent}
+            onMouseDown={stopNestedEvent}
+            onKeyDown={stopNestedEvent}
+          >
+            <LinkIcon size={14} />
+          </a>
+        ) : undefined
+      }
     />
   );
 }
@@ -253,6 +284,8 @@ export function AppLayout() {
                       label={instance.name}
                       onNavigate={close}
                       onPrefetch={() => prefetchMovies(instance.id)}
+                      externalUrl={instance.baseUrl}
+                      externalKind={instance.kind}
                     />
                   ))}
                 </NavLink>
@@ -272,6 +305,8 @@ export function AppLayout() {
                       label={instance.name}
                       onNavigate={close}
                       onPrefetch={() => prefetchShows(instance.id)}
+                      externalUrl={instance.baseUrl}
+                      externalKind={instance.kind}
                     />
                   ))}
                 </NavLink>
@@ -291,6 +326,8 @@ export function AppLayout() {
                       label={instance.name}
                       onNavigate={close}
                       onPrefetch={() => prefetchArtists(instance.id)}
+                      externalUrl={instance.baseUrl}
+                      externalKind={instance.kind}
                     />
                   ))}
                 </NavLink>
@@ -309,6 +346,8 @@ export function AppLayout() {
                       to={`/requests/${instance.id}`}
                       label={instance.name}
                       onNavigate={close}
+                      externalUrl={instance.baseUrl}
+                      externalKind={instance.kind}
                     />
                   ))}
                 </NavLink>

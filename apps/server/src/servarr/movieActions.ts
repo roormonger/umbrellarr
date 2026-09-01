@@ -3,6 +3,7 @@ import {
   MovieMinimumAvailabilitySchema,
   MovieReleaseProtocolSchema,
   type Availability,
+  type MovieAddRequest,
   type MovieAlternativeTitle,
   type MovieBlocklistItem,
   type MovieCredit,
@@ -16,6 +17,7 @@ import {
   type MovieIndexerFlagOption,
   type MovieLanguageOption,
   type MovieLink,
+  type MovieLookupItem,
   type MovieManageFile,
   type MovieMinimumAvailability,
   type MovieNamingConfig,
@@ -60,6 +62,8 @@ type RadarrMovie = {
   studio?: string;
   certification?: string;
   genres?: string[];
+  /** Suggested folder name from lookup (e.g. "Rocky (1976)"). */
+  folder?: string;
   originalLanguage?: { id?: number; name?: string };
   collection?: { title?: string; name?: string };
   ratings?: {
@@ -289,6 +293,29 @@ function mediaCoverUrl(instance: Instance, image: RadarrImage | undefined): stri
     return `/api/media/${encodeURIComponent(instance.id)}/image?path=${encodeURIComponent(path)}`;
   }
   return image.remoteUrl ?? undefined;
+}
+
+function mapLookupItem(instance: Instance, movie: RadarrMovie & { tmdbId: number }): MovieLookupItem {
+  const poster = movie.images?.find((img) => img.coverType === "poster");
+  const inLibrary = typeof movie.id === "number" && movie.id > 0;
+  return {
+    tmdbId: movie.tmdbId,
+    title: movie.title,
+    year: movie.year,
+    overview: movie.overview,
+    runtime: movie.runtime,
+    certification: movie.certification,
+    genres: movie.genres ?? [],
+    studio: movie.studio,
+    originalLanguage: movie.originalLanguage?.name,
+    posterUrl: mediaCoverUrl(instance, poster),
+    tmdbRating: movie.ratings?.tmdb?.value,
+    imdbRating: movie.ratings?.imdb?.value,
+    tomatoRating: movie.ratings?.rottenTomatoes?.value,
+    folder: movie.folder,
+    inLibrary,
+    ...(inLibrary ? { externalId: movie.id } : {}),
+  };
 }
 
 function toEditDetail(instanceId: string, movie: RadarrMovie): MovieDetail {
@@ -837,6 +864,72 @@ export async function deleteMovie(
     `/api/v3/movie/${movieId}?deleteFiles=${deleteFiles ? "true" : "false"}&addImportExclusion=false`,
     { method: "DELETE" },
   );
+}
+
+export async function lookupMovies(
+  instances: Instance[],
+  instanceId: string,
+  term: string,
+): Promise<MovieLookupItem[]> {
+  const instance = requireInstance(instances, instanceId);
+  const trimmed = term.trim();
+  if (!trimmed) return [];
+  const results = await arrJson<RadarrMovie[]>(
+    instance,
+    `/api/v3/movie/lookup?term=${encodeURIComponent(trimmed)}`,
+    { timeoutMs: 20_000 },
+  );
+  return results
+    .filter((movie): movie is RadarrMovie & { tmdbId: number } =>
+      typeof movie.tmdbId === "number" && movie.tmdbId > 0,
+    )
+    .map((movie) => mapLookupItem(instance, movie));
+}
+
+export async function addMovie(
+  instances: Instance[],
+  instanceId: string,
+  request: MovieAddRequest,
+): Promise<MovieDetail> {
+  const instance = requireInstance(instances, instanceId);
+  const lookup = await arrJson<RadarrMovie[]>(
+    instance,
+    `/api/v3/movie/lookup?term=${encodeURIComponent(`tmdb:${request.tmdbId}`)}`,
+    { timeoutMs: 20_000 },
+  );
+  const seed = lookup.find((movie) => movie.tmdbId === request.tmdbId) ?? lookup[0];
+  if (!seed) {
+    throw new Error(`Movie not found for TMDb ${request.tmdbId}`);
+  }
+  if (typeof seed.id === "number" && seed.id > 0) {
+    const err = new Error("Movie is already in the library") as Error & { existingId?: number };
+    err.existingId = seed.id;
+    throw err;
+  }
+
+  const { id: _ignoredId, ...withoutId } = seed;
+  void _ignoredId;
+  const body: Record<string, unknown> = {
+    ...withoutId,
+    qualityProfileId: request.qualityProfileId,
+    rootFolderPath: request.rootFolderPath,
+    monitored: request.monitored,
+    minimumAvailability: request.minimumAvailability,
+    tags: request.tagIds,
+    addOptions: {
+      searchForMovie: request.searchForMovie,
+      monitor: request.monitored ? "movieOnly" : "none",
+    },
+  };
+  if (request.path) {
+    body.path = request.path;
+  }
+
+  const saved = await arrJson<RadarrMovie>(instance, "/api/v3/movie", {
+    method: "POST",
+    body,
+  });
+  return toEditDetail(instanceId, saved);
 }
 
 /**

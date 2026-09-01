@@ -4,8 +4,10 @@ import { logger } from "hono/logger";
 import type { Env } from "./config/env.js";
 import type { Instance } from "@umbrellarr/shared";
 import type { AppearanceStore } from "./config/appearanceStore.js";
+import type { CalendarFeedStore } from "./config/calendarFeedStore.js";
 import type { InstanceStore } from "./config/instanceStore.js";
 import { createAuthRoutes } from "./routes/auth.js";
+import { createCalendarIcsRoutes, createCalendarRoutes } from "./routes/calendar.js";
 import { createHealthRoutes } from "./routes/health.js";
 import { createInstancesRoutes } from "./routes/instances.js";
 import { createMediaRoutes } from "./routes/media.js";
@@ -23,6 +25,7 @@ export type AppVariables = {
   instances: Instance[];
   instanceStore: InstanceStore;
   appearanceStore: AppearanceStore;
+  calendarFeedStore: CalendarFeedStore;
   libraryCache: LibraryCache;
 };
 
@@ -31,6 +34,7 @@ export function createApp(
   instanceStore: InstanceStore,
   libraryCache: LibraryCache,
   appearanceStore: AppearanceStore,
+  calendarFeedStore: CalendarFeedStore,
 ) {
   const app = new Hono<{ Variables: AppVariables }>();
 
@@ -49,17 +53,21 @@ export function createApp(
     c.set("instanceStore", instanceStore);
     c.set("instances", instanceStore.list());
     c.set("appearanceStore", appearanceStore);
+    c.set("calendarFeedStore", calendarFeedStore);
     c.set("libraryCache", libraryCache);
     await next();
   });
 
   app.route("/api/auth", createAuthRoutes());
+  // Public ICS before auth middleware (token validated in the route).
+  app.route("/api", createCalendarIcsRoutes());
   app.use("/api/*", createAuthMiddleware());
   app.route("/api/health", createHealthRoutes());
   app.route("/api/instances", createInstancesRoutes());
   // GET appearance is public (see auth middleware); PUT requires a session.
   app.route("/api/settings", createSettingsRoutes());
   app.route("/api/stats", createStatsRoutes());
+  app.route("/api/calendar", createCalendarRoutes());
   app.route("/api/movies", createMoviesRoutes());
   app.route("/api/shows", createShowsRoutes());
   app.route("/api/artists", createArtistsRoutes());

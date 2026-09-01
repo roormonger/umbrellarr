@@ -5,6 +5,7 @@ import {
   SeriesTypeSchema,
   type Availability,
   type Instance,
+  type SeriesAddRequest,
   type SeriesBlocklistItem,
   type SeriesDetail,
   type SeriesEditOptions,
@@ -14,6 +15,7 @@ import {
   type SeriesIndexerFlagOption,
   type SeriesLanguageOption,
   type SeriesLink,
+  type SeriesLookupItem,
   type SeriesManageFile,
   type SeriesMonitorNewItems,
   type SeriesNamingConfig,
@@ -63,6 +65,8 @@ type SonarrSeries = {
   path?: string;
   certification?: string;
   genres?: string[];
+  /** Suggested folder name from lookup. */
+  folder?: string;
   tags?: number[];
   tvdbId?: number;
   tvMazeId?: number;
@@ -357,6 +361,32 @@ function mediaCoverUrl(instance: Instance, image: SonarrImage | undefined): stri
     return `/api/media/${encodeURIComponent(instance.id)}/image?path=${encodeURIComponent(path)}`;
   }
   return image.remoteUrl ?? undefined;
+}
+
+function mapLookupItem(instance: Instance, series: SonarrSeries & { tvdbId: number }): SeriesLookupItem {
+  const poster = series.images?.find((img) => img.coverType === "poster");
+  const inLibrary = typeof series.id === "number" && series.id > 0;
+  return {
+    tvdbId: series.tvdbId,
+    tmdbId: series.tmdbId,
+    title: series.title,
+    year: series.year,
+    overview: series.overview,
+    network: series.network,
+    runtime: series.runtime,
+    certification: series.certification,
+    genres: series.genres ?? [],
+    seriesType: SeriesTypeSchema.safeParse(series.seriesType).success
+      ? parseSeriesType(series.seriesType)
+      : undefined,
+    posterUrl: mediaCoverUrl(instance, poster),
+    tmdbRating: series.ratings?.tmdb?.value,
+    imdbRating: series.ratings?.imdb?.value,
+    traktRating: series.ratings?.trakt?.value,
+    folder: series.folder,
+    inLibrary,
+    ...(inLibrary ? { externalId: series.id } : {}),
+  };
 }
 
 function toEditDetail(instanceId: string, series: SonarrSeries): SeriesDetail {
@@ -800,6 +830,76 @@ export async function deleteSeries(
     `/api/v3/series/${seriesId}?deleteFiles=${deleteFiles ? "true" : "false"}&addImportListExclusion=false`,
     { method: "DELETE" },
   );
+}
+
+export async function lookupSeries(
+  instances: Instance[],
+  instanceId: string,
+  term: string,
+): Promise<SeriesLookupItem[]> {
+  const instance = requireInstance(instances, instanceId);
+  const trimmed = term.trim();
+  if (!trimmed) return [];
+  const results = await arrJson<SonarrSeries[]>(
+    instance,
+    `/api/v3/series/lookup?term=${encodeURIComponent(trimmed)}`,
+    { timeoutMs: 20_000 },
+  );
+  return results
+    .filter((series): series is SonarrSeries & { tvdbId: number } =>
+      typeof series.tvdbId === "number" && series.tvdbId > 0,
+    )
+    .map((series) => mapLookupItem(instance, series));
+}
+
+export async function addSeries(
+  instances: Instance[],
+  instanceId: string,
+  request: SeriesAddRequest,
+): Promise<SeriesDetail> {
+  const instance = requireInstance(instances, instanceId);
+  const lookup = await arrJson<SonarrSeries[]>(
+    instance,
+    `/api/v3/series/lookup?term=${encodeURIComponent(`tvdb:${request.tvdbId}`)}`,
+    { timeoutMs: 20_000 },
+  );
+  const seed = lookup.find((series) => series.tvdbId === request.tvdbId) ?? lookup[0];
+  if (!seed) {
+    throw new Error(`Series not found for TVDB ${request.tvdbId}`);
+  }
+  if (typeof seed.id === "number" && seed.id > 0) {
+    const err = new Error("Series is already in the library") as Error & { existingId?: number };
+    err.existingId = seed.id;
+    throw err;
+  }
+
+  const { id: _ignoredId, ...withoutId } = seed;
+  void _ignoredId;
+  const monitored = request.monitor !== "none";
+  const body: Record<string, unknown> = {
+    ...withoutId,
+    qualityProfileId: request.qualityProfileId,
+    rootFolderPath: request.rootFolderPath,
+    monitored,
+    monitorNewItems: request.monitorNewItems,
+    seriesType: request.seriesType,
+    seasonFolder: request.seasonFolder,
+    tags: request.tagIds,
+    addOptions: {
+      monitor: request.monitor,
+      searchForMissingEpisodes: request.searchForMissingEpisodes,
+      searchForCutoffUnmetEpisodes: request.searchForCutoffUnmetEpisodes,
+    },
+  };
+  if (request.path) {
+    body.path = request.path;
+  }
+
+  const saved = await arrJson<SonarrSeries>(instance, "/api/v3/series", {
+    method: "POST",
+    body,
+  });
+  return toEditDetail(instanceId, saved);
 }
 
 /**

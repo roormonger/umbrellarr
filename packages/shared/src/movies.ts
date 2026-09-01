@@ -221,6 +221,42 @@ export const MovieUpdateRequestSchema = z.object({
 });
 export type MovieUpdateRequest = z.infer<typeof MovieUpdateRequestSchema>;
 
+/** Radarr GET /movie/lookup result row (mapped). */
+export const MovieLookupItemSchema = z.object({
+  tmdbId: z.number().int(),
+  title: z.string(),
+  year: z.number().int().optional(),
+  overview: z.string().optional(),
+  runtime: z.number().int().optional(),
+  certification: z.string().optional(),
+  genres: z.array(z.string()).default([]),
+  studio: z.string().optional(),
+  originalLanguage: z.string().optional(),
+  posterUrl: z.string().optional(),
+  tmdbRating: z.number().optional(),
+  imdbRating: z.number().optional(),
+  tomatoRating: z.number().optional(),
+  /** Suggested movie folder name from Arr (e.g. "Rocky (2017)"). */
+  folder: z.string().optional(),
+  inLibrary: z.boolean(),
+  /** Radarr internal id when already in library. */
+  externalId: z.number().int().optional(),
+});
+export type MovieLookupItem = z.infer<typeof MovieLookupItemSchema>;
+
+export const MovieAddRequestSchema = z.object({
+  tmdbId: z.number().int().positive(),
+  qualityProfileId: z.number().int(),
+  rootFolderPath: z.string().min(1),
+  /** Full path when the user edits the movie folder; otherwise Arr names it. */
+  path: z.string().min(1).optional(),
+  monitored: z.boolean(),
+  minimumAvailability: MovieMinimumAvailabilitySchema,
+  tagIds: z.array(z.number().int()).default([]),
+  searchForMovie: z.boolean().default(true),
+});
+export type MovieAddRequest = z.infer<typeof MovieAddRequestSchema>;
+
 export const MovieLinkSchema = z.object({
   id: z.string(),
   label: z.string(),

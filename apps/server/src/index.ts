@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { createApp } from "./app.js";
 import { LibraryCache } from "./cache/libraryCache.js";
 import { AppearanceStore } from "./config/appearanceStore.js";
+import { CalendarFeedStore } from "./config/calendarFeedStore.js";
 import { loadEnv } from "./config/env.js";
 import { InstanceStore } from "./config/instanceStore.js";
 import { openDatabase } from "./db/client.js";
@@ -30,9 +31,16 @@ async function main() {
     secretsKey: env.instanceSecretsKey,
   });
   const appearanceStore = new AppearanceStore(db);
+  const calendarFeedStore = new CalendarFeedStore(db);
   const instances = instanceStore.bootstrapFromEnvIfEmpty();
 
-  const app = createApp(env, instanceStore, libraryCache, appearanceStore);
+  const app = createApp(
+    env,
+    instanceStore,
+    libraryCache,
+    appearanceStore,
+    calendarFeedStore,
+  );
 
   const webDist = path.resolve(__dirname, "../../web/dist");
 

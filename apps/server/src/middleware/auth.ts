@@ -7,6 +7,7 @@ const PUBLIC_API_PATHS = new Set([
   "/api/auth/login",
   "/api/auth/status",
   "/api/settings/appearance",
+  "/api/calendar.ics",
 ]);
 
 export function createAuthMiddleware() {

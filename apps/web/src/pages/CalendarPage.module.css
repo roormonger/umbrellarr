@@ -1,0 +1,18 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+  height: calc(100dvh - var(--app-shell-header-height, 60px) - 2 * var(--mantine-spacing-md));
+  min-height: 0;
+}
+
+.header,
+.footer {
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}

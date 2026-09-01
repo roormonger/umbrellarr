@@ -31,6 +31,7 @@ import {
 } from "@/api/instances";
 import { getAppearance, updateAppearance } from "@/api/settings";
 import { APPEARANCE_QUERY_KEY } from "@/appearance/AppearanceProvider";
+import { CalendarFeedPanel } from "@/components/settings/CalendarFeedPanel";
 import { HighlightColorPresets } from "@/components/settings/HighlightColorPresets";
 import { usePageHeader } from "@/layout/pageHeader";
 
@@ -285,6 +286,18 @@ export function SettingsPage() {
               />
             }
           />
+        </Stack>
+      </Paper>
+
+      <Paper p="md" withBorder>
+        <Stack gap="md">
+          <div>
+            <Title order={4}>Calendar feed</Title>
+            <Text c="dimmed" size="sm" mt={4} maw={520}>
+              Share upcoming movies, episodes, and albums without exposing Arr API keys.
+            </Text>
+          </div>
+          <CalendarFeedPanel />
         </Stack>
       </Paper>
 

@@ -196,6 +196,74 @@ export const SeriesUpdateRequestSchema = z.object({
 });
 export type SeriesUpdateRequest = z.infer<typeof SeriesUpdateRequestSchema>;
 
+/** Sonarr `addOptions.monitor` — labels mirror Sonarr Add New Series. */
+export const SeriesAddMonitorSchema = z.enum([
+  "all",
+  "future",
+  "missing",
+  "existing",
+  "firstSeason",
+  "lastSeason",
+  "pilot",
+  "recent",
+  "none",
+]);
+export type SeriesAddMonitor = z.infer<typeof SeriesAddMonitorSchema>;
+
+export const SERIES_ADD_MONITOR_OPTIONS: Array<{
+  value: SeriesAddMonitor;
+  label: string;
+}> = [
+  { value: "all", label: "All Episodes" },
+  { value: "future", label: "Future Episodes" },
+  { value: "missing", label: "Missing Episodes" },
+  { value: "existing", label: "Existing Episodes" },
+  { value: "firstSeason", label: "Only First Season" },
+  { value: "lastSeason", label: "Only Latest Season" },
+  { value: "pilot", label: "Pilot Episode" },
+  { value: "recent", label: "Recent Episodes" },
+  { value: "none", label: "None" },
+];
+
+/** Sonarr GET /series/lookup result row (mapped). */
+export const SeriesLookupItemSchema = z.object({
+  tvdbId: z.number().int(),
+  tmdbId: z.number().int().optional(),
+  title: z.string(),
+  year: z.number().int().optional(),
+  overview: z.string().optional(),
+  network: z.string().optional(),
+  runtime: z.number().int().optional(),
+  certification: z.string().optional(),
+  genres: z.array(z.string()).default([]),
+  seriesType: SeriesTypeSchema.optional(),
+  posterUrl: z.string().optional(),
+  tmdbRating: z.number().optional(),
+  imdbRating: z.number().optional(),
+  traktRating: z.number().optional(),
+  /** Suggested series folder name from Arr. */
+  folder: z.string().optional(),
+  inLibrary: z.boolean(),
+  /** Sonarr internal id when already in library. */
+  externalId: z.number().int().optional(),
+});
+export type SeriesLookupItem = z.infer<typeof SeriesLookupItemSchema>;
+
+export const SeriesAddRequestSchema = z.object({
+  tvdbId: z.number().int().positive(),
+  qualityProfileId: z.number().int(),
+  rootFolderPath: z.string().min(1),
+  path: z.string().min(1).optional(),
+  monitor: SeriesAddMonitorSchema.default("all"),
+  monitorNewItems: SeriesMonitorNewItemsSchema.default("all"),
+  seriesType: SeriesTypeSchema.default("standard"),
+  seasonFolder: z.boolean().default(true),
+  tagIds: z.array(z.number().int()).default([]),
+  searchForMissingEpisodes: z.boolean().default(true),
+  searchForCutoffUnmetEpisodes: z.boolean().default(false),
+});
+export type SeriesAddRequest = z.infer<typeof SeriesAddRequestSchema>;
+
 export const SeriesLinkSchema = z.object({
   id: z.string(),
   label: z.string(),

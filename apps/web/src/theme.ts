@@ -75,6 +75,27 @@ export function createAppTheme(highlightColor: string = DEFAULT_HIGHLIGHT_COLOR)
           dropdown: glassSurface,
         },
       },
+      // Selects use a text input under the hood; keep the pointer cursor of a dropdown.
+      Select: {
+        defaultProps: {
+          pointer: true,
+        },
+        styles: {
+          input: {
+            cursor: "pointer",
+          },
+        },
+      },
+      MultiSelect: {
+        defaultProps: {
+          pointer: true,
+        },
+        styles: {
+          input: {
+            cursor: "pointer",
+          },
+        },
+      },
       Tooltip: {
         defaultProps: {
           withArrow: true,

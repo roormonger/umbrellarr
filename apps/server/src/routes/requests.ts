@@ -181,6 +181,7 @@ export function createRequestsRoutes() {
       mediaType: c.req.query("mediaType") ?? undefined,
       sort: c.req.query("sort") ?? undefined,
       sortDirection: c.req.query("sortDirection") ?? undefined,
+      requestedBy: c.req.query("requestedBy") ?? undefined,
     });
     if (!parsed.success) {
       return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid query" }, 400);

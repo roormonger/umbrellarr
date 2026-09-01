@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  MovieAddRequestSchema,
   MovieFileBulkDeleteRequestSchema,
   MovieFileBulkUpdateRequestSchema,
   MovieOrganizeRequestSchema,
@@ -9,6 +10,7 @@ import {
 import type { AppVariables } from "../app.js";
 import { parseLibraryLimit } from "./libraryQuery.js";
 import {
+  addMovie,
   buildMovieLinks,
   bulkDeleteMovieFiles,
   bulkUpdateMovieFiles,
@@ -25,6 +27,7 @@ import {
   fetchMovieRenamePreview,
   fetchMovieReleases,
   grabMovieRelease,
+  lookupMovies,
   markMovieHistoryFailed,
   organizeMovieFiles,
   refreshMovie,
@@ -65,6 +68,47 @@ export function createMoviesRoutes() {
       return c.json(options);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load options";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/lookup", async (c) => {
+    const term = c.req.query("term")?.trim() ?? "";
+    if (!term) return c.json({ results: [] });
+    try {
+      const results = await lookupMovies(c.get("instances"), c.req.param("instanceId"), term);
+      return c.json({ results });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Lookup failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.post("/:instanceId", async (c) => {
+    const parsed = MovieAddRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) {
+      return c.json({ error: "Invalid movie add", details: parsed.error.flatten() }, 400);
+    }
+    const instanceId = c.req.param("instanceId");
+    try {
+      const detail = await addMovie(c.get("instances"), instanceId, parsed.data);
+      const instance = c.get("instances").find((i) => i.id === instanceId);
+      if (instance) {
+        await c.get("libraryCache").refresh(instance);
+      }
+      return c.json(detail);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Add failed";
+      const existingId =
+        error instanceof Error && "existingId" in error
+          ? Number((error as { existingId?: unknown }).existingId)
+          : undefined;
+      if (message.includes("already in the library")) {
+        return c.json(
+          { error: message, ...(Number.isFinite(existingId) ? { existingId } : {}) },
+          409,
+        );
+      }
       return c.json({ error: message }, message.includes("not found") ? 404 : 502);
     }
   });

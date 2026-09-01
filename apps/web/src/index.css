@@ -66,3 +66,9 @@ html[data-mantine-color-scheme="light"] {
 .mantine-AppShell-navbar .mantine-NavLink-root {
   border-radius: var(--mantine-radius-sm);
 }
+
+/* Dropdown triggers are inputs under the hood — use pointer, not the text caret. */
+.mantine-Select-input,
+.mantine-MultiSelect-input {
+  cursor: pointer;
+}

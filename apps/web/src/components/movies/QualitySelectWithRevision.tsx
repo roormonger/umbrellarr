@@ -87,6 +87,7 @@ export function QualitySelectWithRevision({
       <Combobox.Target>
         <InputBase
           size="xs"
+          pointer
           disabled={disabled}
           rightSection={<Combobox.Chevron />}
           rightSectionPointerEvents="none"
@@ -94,6 +95,7 @@ export function QualitySelectWithRevision({
           placeholder={placeholder}
           styles={{
             input: {
+              cursor: "pointer",
               minHeight: "var(--input-height-xs)",
               height: "var(--input-height-xs)",
             },

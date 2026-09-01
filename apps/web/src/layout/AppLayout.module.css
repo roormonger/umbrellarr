@@ -1,0 +1,18 @@
+.externalLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 4px;
+  color: var(--mantine-color-dimmed);
+  text-decoration: none;
+}
+
+.externalLink:hover,
+.externalLink:focus-visible {
+  color: var(--mantine-color-text);
+  background: color-mix(in srgb, var(--mantine-color-text) 8%, transparent);
+  outline: none;
+}

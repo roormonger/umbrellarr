@@ -1,5 +1,6 @@
 import { Button, Group, Loader, Select, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { UserIcon } from "@phosphor-icons/react/dist/csr/User";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "@tanstack/react-router";
 import type {
@@ -9,25 +10,24 @@ import type {
   RequestSortDirection,
 } from "@umbrellarr/shared";
 import { useMemo, useState } from "react";
-import { approveRequest, declineRequest, listRequests } from "@/api/requests";
+import {
+  approveRequest,
+  declineRequest,
+  listRequestUsers,
+  listRequests,
+} from "@/api/requests";
 import { APP_LOADER_SIZE } from "@/components/QuantumLoader";
 import { RequestEditModal } from "@/components/requests/RequestEditModal";
 import { RequestListRow } from "@/components/requests/RequestListRow";
+import {
+  requestSortPreset,
+  RequestsToolbar,
+  type RequestSortPreset,
+} from "@/components/requests/RequestsToolbar";
 import { usePageHeader } from "@/layout/pageHeader";
 import classes from "./RequestsPage.module.css";
 
 const PAGE_SIZE = 25;
-
-const FILTER_OPTIONS: { value: RequestFilter; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "processing", label: "Processing" },
-  { value: "available", label: "Available" },
-  { value: "unavailable", label: "Unavailable" },
-  { value: "failed", label: "Failed" },
-  { value: "completed", label: "Completed" },
-  { value: "all", label: "All" },
-];
 
 export function RequestsPage() {
   const { instanceId } = useParams({ from: "/app/requests/$instanceId" });
@@ -36,8 +36,20 @@ export function RequestsPage() {
   const [filter, setFilter] = useState<RequestFilter>("pending");
   const [sort, setSort] = useState<RequestSort>("added");
   const [sortDirection, setSortDirection] = useState<RequestSortDirection>("desc");
+  const [requestedBy, setRequestedBy] = useState<string>("all");
   const [page, setPage] = useState(0);
   const [editRequest, setEditRequest] = useState<MediaRequestItem | null>(null);
+
+  const usersQuery = useQuery({
+    queryKey: ["request-users", instanceId],
+    queryFn: () => listRequestUsers(instanceId),
+    staleTime: 60_000,
+  });
+
+  const requestedById =
+    requestedBy !== "all" && Number.isFinite(Number(requestedBy))
+      ? Number(requestedBy)
+      : undefined;
 
   const listQuery = useQuery({
     queryKey: [
@@ -47,6 +59,7 @@ export function RequestsPage() {
       filter,
       sort,
       sortDirection,
+      requestedById ?? "all",
       page,
     ],
     queryFn: () =>
@@ -57,6 +70,7 @@ export function RequestsPage() {
         filter,
         sort,
         sortDirection,
+        requestedBy: requestedById,
       }),
     refetchInterval: 15_000,
   });
@@ -64,10 +78,15 @@ export function RequestsPage() {
   const total = listQuery.data?.pageInfo.results ?? 0;
   const pages = Math.max(1, listQuery.data?.pageInfo.pages ?? 1);
 
-  usePageHeader(
-    "Requests",
-    listQuery.data ? String(total) : null,
-  );
+  usePageHeader("Requests", listQuery.data ? String(total) : null);
+
+  const userOptions = useMemo(() => {
+    const users = (usersQuery.data?.users ?? []).map((user) => ({
+      value: String(user.id),
+      label: user.email ? `${user.displayName} (${user.email})` : user.displayName,
+    }));
+    return [{ value: "all", label: "All" }, ...users];
+  }, [usersQuery.data?.users]);
 
   const approveMutation = useMutation({
     mutationFn: (requestId: number) => approveRequest(instanceId, requestId),
@@ -99,66 +118,56 @@ export function RequestsPage() {
     },
   });
 
-  const sortSelectValue = useMemo(() => {
-    if (sort === "added" && sortDirection === "desc") return "recent";
-    if (sort === "modified" && sortDirection === "desc") return "modified";
-    if (sort === "added" && sortDirection === "asc") return "oldest";
-    return "recent";
-  }, [sort, sortDirection]);
+  function handleSortPresetChange(preset: RequestSortPreset) {
+    if (preset === "oldest") {
+      setSort("added");
+      setSortDirection("asc");
+    } else if (preset === "modified") {
+      setSort("modified");
+      setSortDirection("desc");
+    } else {
+      setSort("added");
+      setSortDirection("desc");
+    }
+    setPage(0);
+  }
 
   return (
     <div className={classes.page}>
-      <div className={classes.toolbar}>
-        <Select
-          label="Type"
-          data={[
-            { value: "all", label: "All" },
-            { value: "movie", label: "Movies" },
-            { value: "tv", label: "Series" },
-          ]}
-          value={mediaType}
-          allowDeselect={false}
-          onChange={(value) => {
-            setMediaType((value as "all" | "movie" | "tv") ?? "all");
-            setPage(0);
-          }}
-          w={140}
-        />
-        <Select
-          label="Filter"
-          data={FILTER_OPTIONS}
-          value={filter}
-          allowDeselect={false}
-          onChange={(value) => {
-            setFilter((value as RequestFilter) ?? "pending");
-            setPage(0);
-          }}
-          w={160}
-        />
-        <Select
-          label="Sort"
-          data={[
-            { value: "recent", label: "Most Recent" },
-            { value: "oldest", label: "Oldest" },
-            { value: "modified", label: "Recently Modified" },
-          ]}
-          value={sortSelectValue}
-          allowDeselect={false}
-          onChange={(value) => {
-            if (value === "oldest") {
-              setSort("added");
-              setSortDirection("asc");
-            } else if (value === "modified") {
-              setSort("modified");
-              setSortDirection("desc");
-            } else {
-              setSort("added");
-              setSortDirection("desc");
-            }
-            setPage(0);
-          }}
-          w={180}
-        />
+      <div className={classes.header}>
+        <Group justify="space-between" align="center" gap="md" wrap="wrap">
+          <Select
+            placeholder="Filter by user…"
+            leftSection={<UserIcon />}
+            data={userOptions}
+            value={requestedBy}
+            allowDeselect={false}
+            searchable
+            nothingFoundMessage="No users"
+            onChange={(value) => {
+              setRequestedBy(value ?? "all");
+              setPage(0);
+            }}
+            maw={360}
+            style={{ flex: 1, minWidth: 220 }}
+            aria-label="Filter by user"
+          />
+
+          <RequestsToolbar
+            mediaType={mediaType}
+            filter={filter}
+            sortPreset={requestSortPreset(sort, sortDirection)}
+            onMediaTypeChange={(value) => {
+              setMediaType(value);
+              setPage(0);
+            }}
+            onFilterChange={(value) => {
+              setFilter(value);
+              setPage(0);
+            }}
+            onSortPresetChange={handleSortPresetChange}
+          />
+        </Group>
       </div>
 
       {listQuery.isLoading && (

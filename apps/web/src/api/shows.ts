@@ -1,4 +1,5 @@
 import type {
+  SeriesAddRequest,
   SeriesBlocklistItem,
   SeriesDetail,
   SeriesEditOptions,
@@ -9,6 +10,7 @@ import type {
   SeriesLanguageOption,
   SeriesLink,
   SeriesListItem,
+  SeriesLookupItem,
   SeriesManageFile,
   SeriesNamingConfig,
   SeriesPageDetail,
@@ -50,6 +52,20 @@ export function getSeriesDetail(instanceId: string, seriesId: number) {
 
 export function getSeriesEditOptions(instanceId: string) {
   return api<SeriesEditOptions>(`/api/shows/${encodeURIComponent(instanceId)}/options`);
+}
+
+export function lookupSeries(instanceId: string, term: string) {
+  const params = new URLSearchParams({ term });
+  return api<{ results: SeriesLookupItem[] }>(
+    `/api/shows/${encodeURIComponent(instanceId)}/lookup?${params}`,
+  );
+}
+
+export function addSeries(instanceId: string, body: SeriesAddRequest) {
+  return api<SeriesDetail>(`/api/shows/${encodeURIComponent(instanceId)}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export function getSeriesLinks(instanceId: string, seriesId: number) {

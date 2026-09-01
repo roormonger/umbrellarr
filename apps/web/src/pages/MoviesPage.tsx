@@ -1,5 +1,6 @@
 import {
   Alert,
+  Button,
   Group,
   Skeleton,
   Text,
@@ -7,6 +8,7 @@ import {
 } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { useParams } from "@tanstack/react-router";
 import {
   MovieFilterKeySchema,
@@ -25,6 +27,7 @@ import {
   moviesHeadQueryKey,
 } from "@/api/libraryList";
 import { AlphabetJumper } from "@/components/media/AlphabetJumper";
+import { MovieAddSearchModal } from "@/components/movies/MovieAddSearchModal";
 import { MovieEditModal } from "@/components/movies/MovieEditModal";
 import {
   MoviesToolbar,
@@ -85,6 +88,7 @@ export function MoviesPage() {
   const [previewSize, setPreviewSize] = useState(readStoredPosterSize);
   const [activeLetter, setActiveLetter] = useState<string>("#");
   const [editingMovie, setEditingMovie] = useState<MovieListItem | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const jumperRef = useRef<((letter: AlphabetKey) => void) | null>(null);
   /** Size when the current slider drag began — mode (scale vs live layout) is relative to this. */
   const dragOriginRef = useRef<number | null>(null);
@@ -211,17 +215,26 @@ export function MoviesPage() {
     <div className={classes.page}>
       <div className={classes.header}>
         <Group justify="space-between" align="center" gap="md" wrap="wrap">
-          <TextInput
-            placeholder="Filter movies…"
-            leftSection={<MagnifyingGlassIcon />}
-            value={query}
-            onChange={(e) => {
-              const next = e.currentTarget.value;
-              setQuery(next);
-            }}
-            maw={360}
-            style={{ flex: 1, minWidth: 220 }}
-          />
+          <Group gap="sm" wrap="nowrap" align="center" style={{ flex: 1, minWidth: 220 }}>
+            <TextInput
+              placeholder="Filter movies…"
+              leftSection={<MagnifyingGlassIcon />}
+              value={query}
+              onChange={(e) => {
+                const next = e.currentTarget.value;
+                setQuery(next);
+              }}
+              maw={360}
+              style={{ flex: 1, minWidth: 180 }}
+            />
+            <Button
+              size="sm"
+              leftSection={<PlusIcon size={16} weight="bold" />}
+              onClick={() => setAddOpen(true)}
+            >
+              Add New
+            </Button>
+          </Group>
 
           <MoviesToolbar
             posterSize={previewSize}
@@ -279,6 +292,14 @@ export function MoviesPage() {
             onJump={jumpToLetter}
           />
         </div>
+      )}
+
+      {addOpen && (
+        <MovieAddSearchModal
+          opened
+          instanceId={instanceId}
+          onClose={() => setAddOpen(false)}
+        />
       )}
 
       {editingMovie && (

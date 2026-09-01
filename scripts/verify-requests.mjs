@@ -109,13 +109,14 @@ async function main() {
     await page.goto(`${webBase}/requests/${seerr.id}`, { waitUntil: "domcontentloaded" });
   }
 
-  await page.getByText("Filter").waitFor({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Pending" }).waitFor({ timeout: 15_000 });
+  await page.getByRole("textbox", { name: "Filter by user" }).waitFor({ timeout: 15_000 });
   if (pending.pageInfo.results === 0) {
     await page.getByText("No requests match this filter.").waitFor({ timeout: 15_000 });
   }
 
-  await page.getByRole("textbox", { name: "Filter" }).click();
-  await page.getByRole("option", { name: "All" }).click();
+  await page.getByRole("button", { name: "Pending" }).click();
+  await page.getByRole("menuitem", { name: "All" }).click();
   for (const item of all.results.slice(0, 3)) {
     await page.getByText(item.title, { exact: true }).first().waitFor({ timeout: 15_000 });
   }

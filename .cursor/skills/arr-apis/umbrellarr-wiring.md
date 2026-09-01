@@ -24,6 +24,8 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `servarr/movieActions.ts` | GET | `/api/v3/alttitle?movieId=` | Detail alternative titles |
 | `servarr/movieActions.ts` | PUT | `/api/v3/movie/{id}` | Save edit |
 | `servarr/movieActions.ts` | DELETE | `/api/v3/movie/{id}?deleteFiles=&addImportExclusion=false` | Remove from Radarr |
+| `servarr/movieActions.ts` | GET | `/api/v3/movie/lookup?term=` | Add New search (mapped lookup rows) |
+| `servarr/movieActions.ts` | POST | `/api/v3/movie` | Add movie (lookup `tmdb:` seed + overrides; `addOptions.searchForMovie`) |
 | `servarr/movieActions.ts` | POST | `/api/v3/command` | `{ name: "RefreshMovie", movieIds }` |
 | `servarr/movieActions.ts` | POST | `/api/v3/command` | `{ name: "MoviesSearch", movieIds }` |
 | `servarr/movieActions.ts` | GET | `/api/v3/history/movie?movieId=` | Movie history modal (+ `data` for info details) |
@@ -51,6 +53,8 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `servarr/showActions.ts` | GET | `/api/v3/rootfolder` | Edit modal root-folder dropdown |
 | `servarr/showActions.ts` | PUT | `/api/v3/series/{id}` | Save edit (GET-merge-PUT; seasons preserved) |
 | `servarr/showActions.ts` | DELETE | `/api/v3/series/{id}?deleteFiles=&addImportListExclusion=false` | Remove from Sonarr |
+| `servarr/showActions.ts` | GET | `/api/v3/series/lookup?term=` | Add New search (mapped lookup rows) |
+| `servarr/showActions.ts` | POST | `/api/v3/series` | Add series (lookup `tvdb:` seed + overrides; `addOptions`) |
 | `servarr/showActions.ts` | POST | `/api/v3/command` | `{ name: "RefreshSeries", seriesId }` |
 | `servarr/showActions.ts` | POST | `/api/v3/command` | `{ name: "SeriesSearch", seriesId }` |
 | `servarr/seriesSeasons.ts` | GET | `/api/v3/series/{id}` | Season expander summaries (`seasons[]` + statistics) |
@@ -125,6 +129,7 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `routes/media.ts` | GET | Radarr/Sonarr `{path}` e.g. `/MediaCover/{id}/poster-500.jpg`; Lidarr `/api/v1/mediacover/artist/{id}/{file}` (API is jpg/png/gif only; `.jpeg` posters fall back to fanart/banner) | Image proxy (`arrFetch`; reject non-image) |
 | `servarr/posterStatus.ts` | — | (derived) | Poster bar status from Arr `getProgressBarKind` + queue ids |
 | `servarr/queueIds.ts` | GET | `/api/v3/queue` or `/api/v1/queue` | movieId / seriesId / artistId sets for queued/downloading bars |
+| `servarr/calendar.ts` | GET | Radarr `/api/v3/calendar`, Sonarr `/api/v3/calendar?includeSeries=true`, Lidarr `/api/v1/calendar?includeArtist=true` | Unified calendar events (+ queue ids for movie/episode status) |
 
 ## BFF routes → upstream
 
@@ -160,6 +165,8 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `DELETE /api/artists/:instanceId/:artistId` | `routes/artists.ts` | DELETE `/artist/{id}` + cache invalidate |
 | `GET /api/shows?instanceId=` | `routes/shows.ts` | Library cache → Sonarr `/series` (+ profiles/tags/cutoff); optional instance filter |
 | `GET /api/shows/:instanceId/options` | `routes/shows.ts` | qualityprofile + tag + rootfolder |
+| `GET /api/shows/:instanceId/lookup?term=` | `routes/shows.ts` | `/series/lookup?term=` |
+| `POST /api/shows/:instanceId` | `routes/shows.ts` | lookup `tvdb:` + `POST /series` + library cache invalidate |
 | `GET /api/shows/:instanceId/naming` | `routes/shows.ts` | `/config/naming` |
 | `GET /api/shows/:instanceId/qualities` | `routes/shows.ts` | `/qualityprofile/schema` (flattened) |
 | `GET /api/shows/:instanceId/languages` | `routes/shows.ts` | `/language` |
@@ -195,6 +202,8 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `DELETE /api/instances/:id` | `routes/instances.ts` | Remove client + cache invalidate |
 | `POST /api/instances/test` | `routes/instances.ts` | Probe Arr `/system/status` or Seerr `/api/v1/status` (no persist) |
 | `GET /api/movies/:instanceId/options` | `routes/movies.ts` | qualityprofile + tag + rootfolder |
+| `GET /api/movies/:instanceId/lookup?term=` | `routes/movies.ts` | `/movie/lookup?term=` |
+| `POST /api/movies/:instanceId` | `routes/movies.ts` | lookup `tmdb:` + `POST /movie` + library cache refresh |
 | `GET /api/movies/:instanceId/naming` | `routes/movies.ts` | `/config/naming` |
 | `GET /api/movies/:instanceId/qualities` | `routes/movies.ts` | `/qualityprofile/schema` (flattened) |
 | `GET /api/movies/:instanceId/languages` | `routes/movies.ts` | `/language` |
@@ -229,6 +238,11 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `GET /api/instances/status` | `routes/instances.ts` | Arr `/system/status` or Seerr `/api/v1/status` per instance |
 | `GET /api/stats` | `routes/stats.ts` | Counts; queue/missing still placeholder `0` |
 | `GET /api/health` | `routes/health.ts` | App health only |
+| `GET /api/calendar?start=&end=&unmonitored=` | `routes/calendar.ts` | Merge Radarr/Sonarr/Lidarr calendars; per-instance errors are soft-fail |
+| `GET /api/calendar.ics?token=` | `routes/calendar.ts` | Public aggregated iCal (token in `calendar_feed_token` meta; not Arr API keys) |
+| `GET /api/settings/calendar` | `routes/settings.ts` | Feed token presence + path (auth) |
+| `POST /api/settings/calendar/token` | `routes/settings.ts` | Regenerate feed token |
+| `POST /api/settings/calendar/token/ensure` | `routes/settings.ts` | Create feed token if missing |
 | `/api/auth/*` | `routes/auth.ts` | App login; not Arr |
 
 ## UI entry points
@@ -236,6 +250,7 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | UI | File(s) | BFF used |
 |----|---------|----------|
 | Movies grid | `apps/web/src/pages/MoviesPage.tsx`, `VirtualizedMovieGrid.tsx` | `GET /api/movies?instanceId=` |
+| Add New movie | `MovieAddSearchModal.tsx` | lookup + options + `POST /api/movies/:instanceId` |
 | Movie detail page | `MovieDetailPage.tsx`, `components/movies/detail/*` | `GET .../:movieId` (rich page payload) |
 | Poster click | `PosterCard.tsx` | navigates to `/movies/:instanceId/:movieId` |
 | Settings (Arr + Seerr clients) | `SettingsPage.tsx` | instances CRUD + test |
@@ -252,6 +267,7 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Requests page | `RequestsPage.tsx`, `RequestListRow`, `RequestEditModal` | `GET/PUT /api/requests…` → Seerr `/request*`, services, users |
 | Request media detail | `RequestDetailPage.tsx`, `RequestDetailHero`, seasons + cast | `GET /api/requests/:instanceId/:requestId/page` → Seerr `/request` + `/movie` or `/tv` |
 | Shows library | `ShowsPage.tsx`, `ShowPosterCard`, sort/filter | `GET /api/shows` |
+| Add New series | `ShowAddSearchModal.tsx` | lookup + options + `POST /api/shows/:instanceId` |
 | Show detail (hero + toolbar + seasons) | `ShowDetailPage.tsx`, `ShowDetailHero`, `ShowDetailToolbar`, `ShowSeasonsPanel`, `ShowEditModal` | detail/links/update/delete + RefreshSeries / SeriesSearch + seasons/episodes |
 | Show Interactive Search modal | `ShowInteractiveSearchModal.tsx` | releases + grab + history + blocklist |
 | Show Organize & Rename modal | `ShowOrganizeModal.tsx` | rename preview + naming + `RenameFiles` |
@@ -271,7 +287,9 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Artist hover refresh | `ArtistPosterCard.tsx` | `POST .../refresh` (`RefreshArtist`) |
 | Artist edit modal | `ArtistEditModal.tsx` | options + detail + PUT/DELETE (includes metadata profile) |
 | Artist links menu | `ArtistLinksMenu.tsx` | `GET .../links` (Lidarr UI patterns) |
-| Queue / Calendar / Missing | placeholders | none yet |
+| Calendar | `CalendarPage.tsx`, `components/calendar/*` | `GET /api/calendar`; iCal via feed token; click event → movie/show/artist detail |
+| Settings calendar feed | `CalendarFeedPanel.tsx` | `GET/POST /api/settings/calendar*` |
+| Queue / Missing | placeholders | none yet |
 | Header Search | “coming soon” | none yet |
 
 ## Not wired (configured or placeholder only)
@@ -282,9 +300,9 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Lidarr album detail **page** (full route) | Album tracks shown in modal from artist page |
 | Lidarr Manual Import (interactive import) | Artist toolbar deferred; `/manualimport` not wired |
 | Lidarr retag | Artist Preview Retag **Wired** |
-| Queue / Calendar / Missing pages | Placeholders |
+| Queue / Missing pages | Placeholders |
 | Dashboard queue/missing badges | Hardcoded `0` in stats |
-| Movie lookup / add | No BFF yet |
+| Movie / series lookup / add | Radarr + Sonarr Add New **Wired**. Lidarr **Not started**. |
 | Interactive search custom-filter builder | Presets only (All / Approved / Rejected / Usenet / Torrent) |
 | Folder browser for edit path | Not needed — root Select + movie-folder suffix |
 | Seerr instance + client | Settings kind `seerr` **Wired** (`GET /api/v1/status` health) |
@@ -297,9 +315,10 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 |--------------|--------|
 | `packages/shared/src/instances.ts` | `ArrKind` (`radarr` \| `sonarr` \| `lidarr`), `InstanceKind` (+ `seerr`), `Instance`, status |
 | `packages/shared/src/media.ts` | `MediaItem`, `MediaKind` (`movie` \| `series` \| `artist`) |
-| `packages/shared/src/movies.ts` | `MovieListItem`, `MovieDetail`, `MoviePageDetail`, history/release/rename/manage-files, edit/links schemas |
-| `packages/shared/src/shows.ts` | `SeriesListItem`, `SeriesPageDetail`, edit/update/links schemas, history/release/rename/manage-files, `SeriesSeasonSummary` / `SeriesEpisode`, sort/filter options |
+| `packages/shared/src/movies.ts` | `MovieListItem`, `MovieDetail`, `MoviePageDetail`, `MovieLookupItem`, `MovieAddRequest`, history/release/rename/manage-files, edit/links schemas |
+| `packages/shared/src/shows.ts` | `SeriesListItem`, `SeriesPageDetail`, `SeriesLookupItem`, `SeriesAddRequest`, edit/update/links schemas, history/release/rename/manage-files, `SeriesSeasonSummary` / `SeriesEpisode`, sort/filter options |
 | `packages/shared/src/artists.ts` | `ArtistListItem`, `ArtistPageDetail`, `ArtistAlbum` / album groups, edit/update (incl. `metadataProfileId`), history/release/rename/manage-files, links, sort/filter options |
 | `packages/shared/src/requests.ts` | Request list/query/update, `MediaRequestItem`, Seerr service/user/edit-detail, `RequestMediaPageDetail` / `SeerrMediaDetail` |
 | `packages/shared/src/cache.ts` | `CacheStatus` (`HIT` / `MISS`) for library responses |
 | `packages/shared/src/stats.ts` | Dashboard stats shape |
+| `packages/shared/src/calendar.ts` | `CalendarEvent`, `CalendarQuery`, `CalendarResponse`, `CalendarFeedSettings`, `CalendarView` |

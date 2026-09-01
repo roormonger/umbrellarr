@@ -18,5 +18,20 @@ export function createSettingsRoutes() {
     return c.json(settings);
   });
 
+  app.get("/calendar", (c) => {
+    return c.json(c.get("calendarFeedStore").getSettings());
+  });
+
+  app.post("/calendar/token", (c) => {
+    c.get("calendarFeedStore").regenerate();
+    return c.json(c.get("calendarFeedStore").getSettings());
+  });
+
+  /** Ensure a token exists (first visit from Calendar iCal Link). */
+  app.post("/calendar/token/ensure", (c) => {
+    c.get("calendarFeedStore").ensureToken();
+    return c.json(c.get("calendarFeedStore").getSettings());
+  });
+
   return app;
 }

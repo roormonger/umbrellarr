@@ -1,4 +1,5 @@
 import type {
+  MovieAddRequest,
   MovieBlocklistItem,
   MovieDetail,
   MovieEditOptions,
@@ -8,6 +9,7 @@ import type {
   MovieLanguageOption,
   MovieLink,
   MovieListItem,
+  MovieLookupItem,
   MovieManageFile,
   MovieNamingConfig,
   MoviePageDetail,
@@ -48,6 +50,20 @@ export function getMovieDetail(instanceId: string, movieId: number) {
 
 export function getMovieEditOptions(instanceId: string) {
   return api<MovieEditOptions>(`/api/movies/${encodeURIComponent(instanceId)}/options`);
+}
+
+export function lookupMovies(instanceId: string, term: string) {
+  const params = new URLSearchParams({ term });
+  return api<{ results: MovieLookupItem[] }>(
+    `/api/movies/${encodeURIComponent(instanceId)}/lookup?${params}`,
+  );
+}
+
+export function addMovie(instanceId: string, body: MovieAddRequest) {
+  return api<MovieDetail>(`/api/movies/${encodeURIComponent(instanceId)}`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export function getMovieLinks(instanceId: string, movieId: number) {

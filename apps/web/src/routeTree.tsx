@@ -12,6 +12,7 @@ import { AppLayout } from "@/layout/AppLayout";
 import { LoginPage } from "@/pages/LoginPage";
 import { MovieDetailPage } from "@/pages/MovieDetailPage";
 import { MoviesPage } from "@/pages/MoviesPage";
+import { CalendarPage } from "@/pages/CalendarPage";
 import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { RequestDetailPage } from "@/pages/RequestDetailPage";
 import { RequestsPage } from "@/pages/RequestsPage";
@@ -245,9 +246,7 @@ const queueRoute = createRoute({
 const calendarRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/activity/calendar",
-  component: () => (
-    <PlaceholderPage title="Calendar" description="Upcoming movies and episodes." />
-  ),
+  component: CalendarPage,
 });
 
 const missingRoute = createRoute({

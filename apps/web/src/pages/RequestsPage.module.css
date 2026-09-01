@@ -5,11 +5,8 @@
   min-width: 0;
 }
 
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: flex-end;
+.header {
+  flex-shrink: 0;
 }
 
 .list {

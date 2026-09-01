@@ -21,6 +21,7 @@ export type ListRequestsOptions = {
   mediaType?: "all" | RequestMediaType;
   sort?: RequestSort;
   sortDirection?: RequestSortDirection;
+  requestedBy?: number;
 };
 
 export function listRequests(instanceId: string, options: ListRequestsOptions = {}) {
@@ -31,6 +32,7 @@ export function listRequests(instanceId: string, options: ListRequestsOptions = 
   if (options.mediaType) params.set("mediaType", options.mediaType);
   if (options.sort) params.set("sort", options.sort);
   if (options.sortDirection) params.set("sortDirection", options.sortDirection);
+  if (options.requestedBy != null) params.set("requestedBy", String(options.requestedBy));
   const query = params.toString();
   return api<MediaRequestListResponse>(
     `/api/requests/${encodeURIComponent(instanceId)}${query ? `?${query}` : ""}`,

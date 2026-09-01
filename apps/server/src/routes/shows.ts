@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import {
+  SeriesAddRequestSchema,
   SeriesFileBulkDeleteRequestSchema,
   SeriesFileBulkUpdateRequestSchema,
   SeriesOrganizeRequestSchema,
@@ -10,6 +11,7 @@ import {
 import type { AppVariables } from "../app.js";
 import { parseLibraryLimit } from "./libraryQuery.js";
 import {
+  addSeries,
   buildSeriesLinks,
   bulkDeleteSeriesFiles,
   bulkUpdateSeriesFiles,
@@ -28,6 +30,7 @@ import {
   fetchSeriesRatings,
   fetchSeriesTrailer,
   grabSeriesRelease,
+  lookupSeries,
   markSeriesHistoryFailed,
   organizeSeriesFiles,
   refreshSeries,
@@ -95,6 +98,44 @@ export function createShowsRoutes() {
       return c.json(options);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load options";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.get("/:instanceId/lookup", async (c) => {
+    const term = c.req.query("term")?.trim() ?? "";
+    if (!term) return c.json({ results: [] });
+    try {
+      const results = await lookupSeries(c.get("instances"), c.req.param("instanceId"), term);
+      return c.json({ results });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Lookup failed";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
+
+  app.post("/:instanceId", async (c) => {
+    const parsed = SeriesAddRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) {
+      return c.json({ error: "Invalid series add", details: parsed.error.flatten() }, 400);
+    }
+    const instanceId = c.req.param("instanceId");
+    try {
+      const detail = await addSeries(c.get("instances"), instanceId, parsed.data);
+      c.get("libraryCache").invalidate(instanceId);
+      return c.json(detail);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Add failed";
+      const existingId =
+        error instanceof Error && "existingId" in error
+          ? Number((error as { existingId?: unknown }).existingId)
+          : undefined;
+      if (message.includes("already in the library")) {
+        return c.json(
+          { error: message, ...(Number.isFinite(existingId) ? { existingId } : {}) },
+          409,
+        );
+      }
       return c.json({ error: message }, message.includes("not found") ? 404 : 502);
     }
   });

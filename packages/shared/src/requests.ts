@@ -29,6 +29,8 @@ export const RequestListQuerySchema = z.object({
   mediaType: z.enum(["all", "movie", "tv"]).default("all"),
   sort: RequestSortSchema.default("added"),
   sortDirection: RequestSortDirectionSchema.default("desc"),
+  /** Seerr user id; omit for all requesters. */
+  requestedBy: z.coerce.number().int().positive().optional(),
 });
 export type RequestListQuery = z.infer<typeof RequestListQuerySchema>;
 

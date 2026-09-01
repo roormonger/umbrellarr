@@ -1,5 +1,6 @@
 import {
   Alert,
+  Button,
   Group,
   Skeleton,
   Text,
@@ -7,6 +8,7 @@ import {
 } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
 import { useParams } from "@tanstack/react-router";
 import {
   SeriesFilterKeySchema,
@@ -26,6 +28,7 @@ import {
   showsHeadQueryKey,
 } from "@/api/libraryList";
 import { AlphabetJumper } from "@/components/media/AlphabetJumper";
+import { ShowAddSearchModal } from "@/components/shows/ShowAddSearchModal";
 import { ShowEditModal } from "@/components/shows/ShowEditModal";
 import {
   POSTER_SIZE_DEFAULT,
@@ -81,6 +84,7 @@ export function ShowsPage() {
   const [previewSize, setPreviewSize] = useState(readStoredPosterSize);
   const [activeLetter, setActiveLetter] = useState<string>("#");
   const [editingSeries, setEditingSeries] = useState<SeriesListItem | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const jumperRef = useRef<((letter: AlphabetKey) => void) | null>(null);
   const dragOriginRef = useRef<number | null>(null);
 
@@ -204,14 +208,23 @@ export function ShowsPage() {
     <div className={classes.page}>
       <div className={classes.header}>
         <Group justify="space-between" align="center" gap="md" wrap="wrap">
-          <TextInput
-            placeholder="Filter shows…"
-            leftSection={<MagnifyingGlassIcon />}
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-            maw={360}
-            style={{ flex: 1, minWidth: 220 }}
-          />
+          <Group gap="sm" wrap="nowrap" align="center" style={{ flex: 1, minWidth: 220 }}>
+            <TextInput
+              placeholder="Filter shows…"
+              leftSection={<MagnifyingGlassIcon />}
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              maw={360}
+              style={{ flex: 1, minWidth: 180 }}
+            />
+            <Button
+              size="sm"
+              leftSection={<PlusIcon size={16} weight="bold" />}
+              onClick={() => setAddOpen(true)}
+            >
+              Add New
+            </Button>
+          </Group>
 
           <ShowsToolbar
             posterSize={previewSize}
@@ -269,6 +282,14 @@ export function ShowsPage() {
             onJump={jumpToLetter}
           />
         </div>
+      )}
+
+      {addOpen && (
+        <ShowAddSearchModal
+          opened
+          instanceId={instanceId}
+          onClose={() => setAddOpen(false)}
+        />
       )}
 
       {editingSeries && (
