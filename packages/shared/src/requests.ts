@@ -62,6 +62,8 @@ export type RequestSeason = z.infer<typeof RequestSeasonSchema>;
 
 export const MediaRequestItemSchema = z.object({
   id: z.number().int(),
+  instanceId: z.string().optional(),
+  instanceName: z.string().optional(),
   mediaType: RequestMediaTypeSchema,
   status: RequestStatusSchema,
   is4k: z.boolean(),
@@ -96,6 +98,24 @@ export const MediaRequestListResponseSchema = z.object({
   results: z.array(MediaRequestItemSchema),
 });
 export type MediaRequestListResponse = z.infer<typeof MediaRequestListResponseSchema>;
+
+export const UnifiedRequestListQuerySchema = RequestListQuerySchema.extend({
+  instanceId: z.string().optional(),
+});
+export type UnifiedRequestListQuery = z.infer<typeof UnifiedRequestListQuerySchema>;
+
+export const UnifiedMediaRequestListResponseSchema = MediaRequestListResponseSchema.extend({
+  errors: z
+    .array(
+      z.object({
+        instanceId: z.string(),
+        instanceName: z.string(),
+        message: z.string(),
+      }),
+    )
+    .optional(),
+});
+export type UnifiedMediaRequestListResponse = z.infer<typeof UnifiedMediaRequestListResponseSchema>;
 
 export const RequestUpdateBodySchema = z.object({
   mediaType: RequestMediaTypeSchema,

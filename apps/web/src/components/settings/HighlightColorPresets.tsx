@@ -243,7 +243,11 @@ export function HighlightColorPresets({ value, onChange, picker, hexField }: Pro
                 aria-pressed={selected}
                 onClick={() => onChange(hex)}
               >
-                {selected ? <CheckIcon className={classes.check} size={12} /> : null}
+                {selected ? (
+                  <span className={classes.check}>
+                    <CheckIcon size={12} />
+                  </span>
+                ) : null}
               </ColorSwatch>
             );
           })}

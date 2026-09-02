@@ -1,13 +1,14 @@
 import {
   Alert,
   Group,
+  Select,
   Skeleton,
   Text,
   TextInput,
 } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArtistFilterKeySchema,
   ArtistSortDirectionSchema,
@@ -38,6 +39,7 @@ import { usePageHeader } from "@/layout/pageHeader";
 import { useProgressiveLibrary } from "@/lib/useProgressiveLibrary";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
 import { applyArtistQuery, filterArtists, sortArtists } from "@/lib/artistSortFilter";
+import { groupArtists, instanceNameMap } from "@/lib/libraryDedup";
 import { getPosterScale } from "@/lib/posterScale";
 import classes from "./ArtistsPage.module.css";
 
@@ -72,7 +74,9 @@ function readStoredPosterSize(): number {
 
 export function ArtistsPage() {
   const queryClient = useQueryClient();
-  const { instanceId } = useParams({ from: "/app/music/$instanceId" });
+  const navigate = useNavigate();
+  const searchStr = useRouterState({ select: (s) => s.location.search });
+  const instanceFilter = new URLSearchParams(searchStr).get("instance") ?? undefined;
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<ArtistSortKey>(readStoredSortKey);
   const [sortDirection, setSortDirection] = useState<ArtistSortDirection>(readStoredSortDirection);
@@ -90,46 +94,76 @@ export function ArtistsPage() {
     staleTime: 60_000,
   });
 
-  const instanceName =
-    instancesQuery.data?.instances.find((i) => i.id === instanceId)?.name ?? "Music";
+  const instances = instancesQuery.data?.instances ?? [];
+  const lidarrInstances = useMemo(
+    () => instances.filter((instance) => instance.kind === "lidarr"),
+    [instances],
+  );
+  const instanceNames = useMemo(() => instanceNameMap(instances), [instances]);
+
+  const instanceOptions = useMemo(
+    () => [
+      { value: "all", label: "All instances" },
+      ...lidarrInstances.map((instance) => ({
+        value: instance.id,
+        label: instance.name,
+      })),
+    ],
+    [lidarrInstances],
+  );
+
+  const activeInstanceFilter =
+    instanceFilter && lidarrInstances.some((instance) => instance.id === instanceFilter)
+      ? instanceFilter
+      : undefined;
 
   const { data, showingHead, showSkeleton, error, isFetching, refresh } = useProgressiveLibrary({
-    instanceId,
-    fullQueryKey: artistsFullQueryKey(instanceId),
-    headQueryKey: artistsHeadQueryKey(instanceId),
-    fetchHead: () => fetchArtistsHead(instanceId),
-    fetchFull: () => fetchArtistsFull(queryClient, instanceId),
-    fetchRefresh: () => fetchArtistsFull(queryClient, instanceId, { refresh: true }),
+    instanceId: activeInstanceFilter,
+    fullQueryKey: artistsFullQueryKey(activeInstanceFilter),
+    headQueryKey: artistsHeadQueryKey(activeInstanceFilter),
+    fetchHead: () => fetchArtistsHead(activeInstanceFilter),
+    fetchFull: () => fetchArtistsFull(queryClient, activeInstanceFilter),
+    fetchRefresh: () => fetchArtistsFull(queryClient, activeInstanceFilter, { refresh: true }),
+    enabled: lidarrInstances.length > 0,
   });
 
-  const artists = useMemo(() => {
+  const artistGroups = useMemo(() => {
     const items = data?.artists ?? [];
     const filtered = filterArtists(items, filterKey);
     const searched = applyArtistQuery(filtered, query);
-    return sortArtists(searched, sortKey, sortDirection);
-  }, [data?.artists, filterKey, query, sortKey, sortDirection]);
+    const sorted = sortArtists(searched, sortKey, sortDirection);
+    return groupArtists(sorted, instances, instanceNames);
+  }, [data?.artists, filterKey, query, sortKey, sortDirection, instances, instanceNames]);
 
   const availableLetters = useMemo(() => {
     const set = new Set<string>();
-    for (const item of artists) {
+    for (const group of artistGroups) {
+      const item = group.primary;
       set.add(letterKey(item.sortTitle ?? item.title));
     }
     return set;
-  }, [artists]);
+  }, [artistGroups]);
 
   const headerCount = useMemo(() => {
     if (data?.artists == null) return showSkeleton || isFetching ? "Loading…" : null;
     const libraryTotal = data.total ?? data.artists.length;
-    const shown = artists.length;
+    const shown = artistGroups.length;
     const totalLabel = libraryTotal.toLocaleString();
     if (showingHead && data.truncated && !query && filterKey === "all") {
       return totalLabel;
     }
     if (shown !== libraryTotal) return `${shown.toLocaleString()} of ${totalLabel}`;
     return totalLabel;
-  }, [data, artists.length, showSkeleton, isFetching, showingHead, query, filterKey]);
+  }, [data, artistGroups.length, showSkeleton, isFetching, showingHead, query, filterKey]);
 
-  usePageHeader(instanceName, headerCount);
+  usePageHeader("Music", headerCount);
+
+  function setInstanceFilter(value: string) {
+    void navigate({
+      to: "/music",
+      search: { instance: value === "all" ? undefined : value },
+    });
+  }
 
   const skeletonStyle = useMemo(() => getPosterScale(previewSize, 1).style, [previewSize]);
 
@@ -199,6 +233,15 @@ export function ArtistsPage() {
     <div className={classes.page}>
       <div className={classes.header}>
         <Group justify="space-between" align="center" gap="md" wrap="wrap">
+          <Select
+            size="sm"
+            w={200}
+            allowDeselect={false}
+            aria-label="Instance filter"
+            data={instanceOptions}
+            value={activeInstanceFilter ?? "all"}
+            onChange={(value) => setInstanceFilter(value ?? "all")}
+          />
           <TextInput
             placeholder="Filter artists…"
             leftSection={<MagnifyingGlassIcon />}
@@ -239,7 +282,7 @@ export function ArtistsPage() {
         </div>
       )}
 
-      {!showSkeleton && artists.length === 0 && !error && (
+      {!showSkeleton && artistGroups.length === 0 && !error && (
         <Text c="dimmed">
           {query || filterKey !== "all"
             ? "No artists match your current sort/filter."
@@ -247,10 +290,11 @@ export function ArtistsPage() {
         </Text>
       )}
 
-      {!showSkeleton && artists.length > 0 && (
+      {!showSkeleton && artistGroups.length > 0 && (
         <div className={classes.body}>
           <VirtualizedArtistGrid
-            artists={artists}
+            groups={artistGroups}
+            instanceNames={instanceNames}
             posterSize={layoutSize}
             zoomScale={zoomScale}
             activeLetter={activeLetter}

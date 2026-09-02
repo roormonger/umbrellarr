@@ -42,6 +42,7 @@ function formatRequestedAt(value: string): string {
 type Props = {
   instanceId: string;
   request: MediaRequestItem;
+  showInstanceLabel?: boolean;
   approving?: boolean;
   declining?: boolean;
   onApprove: () => void;
@@ -52,6 +53,7 @@ type Props = {
 export function RequestListRow({
   instanceId,
   request,
+  showInstanceLabel,
   approving,
   declining,
   onApprove,
@@ -64,6 +66,7 @@ export function RequestListRow({
     request.mediaType === "tv" && request.seasons.length === 1
       ? "Season"
       : "Seasons";
+  const instanceName = request.instanceName;
 
   function openDetail() {
     void navigate({
@@ -105,6 +108,11 @@ export function RequestListRow({
               </Text>
             </UnstyledButton>
           </div>
+          {request.mediaType === "movie" && showInstanceLabel && instanceName ? (
+            <Text size="xs" c="dimmed">
+              {instanceName}
+            </Text>
+          ) : null}
           {request.mediaType === "tv" && request.seasons.length > 0 ? (
             <div className={classes.seasons}>
               <Text size="xs" c="dimmed">
@@ -116,6 +124,11 @@ export function RequestListRow({
                 </span>
               ))}
             </div>
+          ) : null}
+          {request.mediaType === "tv" && showInstanceLabel && instanceName ? (
+            <Text size="xs" c="dimmed">
+              {instanceName}
+            </Text>
           ) : null}
         </div>
       </div>

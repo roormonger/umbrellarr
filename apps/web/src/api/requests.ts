@@ -11,6 +11,7 @@ import type {
   RequestUser,
   SeerrServiceDetail,
   SeerrServiceServer,
+  UnifiedMediaRequestListResponse,
 } from "@umbrellarr/shared";
 import { api } from "./client";
 
@@ -36,6 +37,24 @@ export function listRequests(instanceId: string, options: ListRequestsOptions = 
   const query = params.toString();
   return api<MediaRequestListResponse>(
     `/api/requests/${encodeURIComponent(instanceId)}${query ? `?${query}` : ""}`,
+  );
+}
+
+export function listUnifiedRequests(
+  options: ListRequestsOptions & { instanceId?: string } = {},
+) {
+  const params = new URLSearchParams();
+  if (options.take != null) params.set("take", String(options.take));
+  if (options.skip != null) params.set("skip", String(options.skip));
+  if (options.filter) params.set("filter", options.filter);
+  if (options.mediaType) params.set("mediaType", options.mediaType);
+  if (options.sort) params.set("sort", options.sort);
+  if (options.sortDirection) params.set("sortDirection", options.sortDirection);
+  if (options.requestedBy != null) params.set("requestedBy", String(options.requestedBy));
+  if (options.instanceId) params.set("instanceId", options.instanceId);
+  const query = params.toString();
+  return api<UnifiedMediaRequestListResponse>(
+    `/api/requests/unified${query ? `?${query}` : ""}`,
   );
 }
 

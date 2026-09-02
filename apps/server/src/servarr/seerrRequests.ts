@@ -11,6 +11,8 @@ import type {
   RequestListQuery,
   RequestMediaPageDetail,
   RequestSeason,
+  RequestSort,
+  RequestSortDirection,
   RequestStatus,
   RequestUpdateBody,
   SeerrCredit,
@@ -19,6 +21,8 @@ import type {
   SeerrMediaLink,
   SeerrServiceDetail,
   SeerrServiceServer,
+  UnifiedMediaRequestListResponse,
+  UnifiedRequestListQuery,
 } from "@umbrellarr/shared";
 import { arrJson } from "./client.js";
 
@@ -343,7 +347,93 @@ export async function listMediaRequests(
       pages: pageInfo.pages ?? 1,
       results: pageInfo.results ?? enriched.length,
     },
-    results: enriched,
+    results: enriched.map((item) => ({
+      ...item,
+      instanceId: instance.id,
+      instanceName: instance.name,
+    })),
+  };
+}
+
+function sortRequestItems(
+  items: MediaRequestItem[],
+  sort: RequestSort,
+  sortDirection: RequestSortDirection,
+): MediaRequestItem[] {
+  const dir = sortDirection === "asc" ? 1 : -1;
+  return [...items].sort((a, b) => {
+    const aTime = new Date(sort === "modified" ? (a.updatedAt ?? a.createdAt) : a.createdAt).getTime();
+    const bTime = new Date(sort === "modified" ? (b.updatedAt ?? b.createdAt) : b.createdAt).getTime();
+    return (aTime - bTime) * dir;
+  });
+}
+
+export async function listUnifiedMediaRequests(
+  instances: Instance[],
+  query: UnifiedRequestListQuery,
+): Promise<UnifiedMediaRequestListResponse> {
+  const seerrInstances = instances.filter((instance) => instance.kind === "seerr");
+  const targets = query.instanceId
+    ? seerrInstances.filter((instance) => instance.id === query.instanceId)
+    : seerrInstances;
+
+  if (query.instanceId && targets.length === 0) {
+    throw new Error(`Seerr instance not found: ${query.instanceId}`);
+  }
+
+  if (targets.length === 0) {
+    return {
+      pageInfo: { page: 1, pageSize: query.take, pages: 1, results: 0 },
+      results: [],
+    };
+  }
+
+  if (targets.length === 1) {
+    const payload = await listMediaRequests(instances, targets[0]!.id, query);
+    return payload;
+  }
+
+  const fetchTake = Math.min(100, query.take + query.skip);
+  const fetchQuery: RequestListQuery = { ...query, take: fetchTake, skip: 0 };
+
+  const settled = await Promise.allSettled(
+    targets.map((instance) => listMediaRequests(instances, instance.id, fetchQuery)),
+  );
+
+  const merged: MediaRequestItem[] = [];
+  const errors: NonNullable<UnifiedMediaRequestListResponse["errors"]> = [];
+  let totalRecords = 0;
+
+  for (let i = 0; i < settled.length; i++) {
+    const result = settled[i]!;
+    const instance = targets[i]!;
+    if (result.status === "fulfilled") {
+      merged.push(...result.value.results);
+      totalRecords += result.value.pageInfo.results;
+    } else {
+      const message =
+        result.reason instanceof Error ? result.reason.message : "Request fetch failed";
+      errors.push({
+        instanceId: instance.id,
+        instanceName: instance.name,
+        message,
+      });
+    }
+  }
+
+  const sorted = sortRequestItems(merged, query.sort, query.sortDirection);
+  const results = sorted.slice(query.skip, query.skip + query.take);
+  const pages = Math.max(1, Math.ceil(totalRecords / query.take));
+
+  return {
+    pageInfo: {
+      page: Math.floor(query.skip / query.take) + 1,
+      pageSize: query.take,
+      pages,
+      results: totalRecords,
+    },
+    results,
+    errors: errors.length > 0 ? errors : undefined,
   };
 }
 
@@ -807,4 +897,21 @@ export async function getRequestCount(
 ): Promise<Record<string, number>> {
   const instance = requireSeerr(instances, instanceId);
   return arrJson<Record<string, number>>(instance, "/api/v1/request/count");
+}
+
+export async function getUnifiedPendingRequestCount(instances: Instance[]): Promise<number> {
+  const seerrInstances = instances.filter((instance) => instance.kind === "seerr");
+  if (seerrInstances.length === 0) return 0;
+
+  const settled = await Promise.allSettled(
+    seerrInstances.map((instance) => getRequestCount(instances, instance.id)),
+  );
+
+  let total = 0;
+  for (const result of settled) {
+    if (result.status === "fulfilled") {
+      total += result.value.pending ?? 0;
+    }
+  }
+  return total;
 }

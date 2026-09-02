@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Group,
+  Select,
   Skeleton,
   Text,
   TextInput,
@@ -9,7 +10,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   MovieFilterKeySchema,
   MovieSortDirectionSchema,
@@ -44,6 +45,8 @@ import {
   filterMovies,
   sortMovies,
 } from "@/lib/movieSortFilter";
+import { groupMovies, instanceNameMap } from "@/lib/libraryDedup";
+import { pickInstanceId } from "@/lib/lastInstance";
 import { getPosterScale } from "@/lib/posterScale";
 import type { MovieListItem } from "@umbrellarr/shared";
 import classes from "./MoviesPage.module.css";
@@ -79,7 +82,9 @@ function readStoredPosterSize(): number {
 
 export function MoviesPage() {
   const queryClient = useQueryClient();
-  const { instanceId } = useParams({ from: "/app/movies/$instanceId" });
+  const navigate = useNavigate();
+  const searchStr = useRouterState({ select: (s) => s.location.search });
+  const instanceFilter = new URLSearchParams(searchStr).get("instance") ?? undefined;
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<MovieSortKey>(readStoredSortKey);
   const [sortDirection, setSortDirection] = useState<MovieSortDirection>(readStoredSortDirection);
@@ -99,46 +104,79 @@ export function MoviesPage() {
     staleTime: 60_000,
   });
 
-  const instanceName =
-    instancesQuery.data?.instances.find((i) => i.id === instanceId)?.name ?? "Movies";
+  const instances = instancesQuery.data?.instances ?? [];
+  const radarrInstances = useMemo(
+    () => instances.filter((instance) => instance.kind === "radarr"),
+    [instances],
+  );
+  const instanceNames = useMemo(() => instanceNameMap(instances), [instances]);
+
+  const instanceOptions = useMemo(
+    () => [
+      { value: "all", label: "All instances" },
+      ...radarrInstances.map((instance) => ({
+        value: instance.id,
+        label: instance.name,
+      })),
+    ],
+    [radarrInstances],
+  );
+
+  const activeInstanceFilter =
+    instanceFilter && radarrInstances.some((instance) => instance.id === instanceFilter)
+      ? instanceFilter
+      : undefined;
+
+  const addInstanceId =
+    activeInstanceFilter ?? pickInstanceId("radarr", instances) ?? radarrInstances[0]?.id ?? "";
 
   const { data, showingHead, showSkeleton, error, isFetching, refresh } = useProgressiveLibrary({
-    instanceId,
-    fullQueryKey: moviesFullQueryKey(instanceId),
-    headQueryKey: moviesHeadQueryKey(instanceId),
-    fetchHead: () => fetchMoviesHead(instanceId),
-    fetchFull: () => fetchMoviesFull(queryClient, instanceId),
-    fetchRefresh: () => fetchMoviesFull(queryClient, instanceId, { refresh: true }),
+    instanceId: activeInstanceFilter,
+    fullQueryKey: moviesFullQueryKey(activeInstanceFilter),
+    headQueryKey: moviesHeadQueryKey(activeInstanceFilter),
+    fetchHead: () => fetchMoviesHead(activeInstanceFilter),
+    fetchFull: () => fetchMoviesFull(queryClient, activeInstanceFilter),
+    fetchRefresh: () => fetchMoviesFull(queryClient, activeInstanceFilter, { refresh: true }),
+    enabled: radarrInstances.length > 0,
   });
 
-  const movies = useMemo(() => {
+  const movieGroups = useMemo(() => {
     const items = data?.movies ?? [];
     const filtered = filterMovies(items, filterKey);
     const searched = applyMovieQuery(filtered, query);
-    return sortMovies(searched, sortKey, sortDirection);
-  }, [data?.movies, filterKey, query, sortKey, sortDirection]);
+    const sorted = sortMovies(searched, sortKey, sortDirection);
+    return groupMovies(sorted, instances, instanceNames);
+  }, [data?.movies, filterKey, query, sortKey, sortDirection, instances, instanceNames]);
 
   const availableLetters = useMemo(() => {
     const set = new Set<string>();
-    for (const movie of movies) {
+    for (const group of movieGroups) {
+      const movie = group.primary;
       set.add(letterKey(movie.sortTitle ?? movie.title));
     }
     return set;
-  }, [movies]);
+  }, [movieGroups]);
 
   const headerCount = useMemo(() => {
     if (data?.movies == null) return showSkeleton || isFetching ? "Loading…" : null;
     const libraryTotal = data.total ?? data.movies.length;
-    const shown = movies.length;
+    const shown = movieGroups.length;
     const totalLabel = libraryTotal.toLocaleString();
     if (showingHead && data.truncated && !query && filterKey === "all") {
       return totalLabel;
     }
     if (shown !== libraryTotal) return `${shown.toLocaleString()} of ${totalLabel}`;
     return totalLabel;
-  }, [data, movies.length, showSkeleton, isFetching, showingHead, query, filterKey]);
+  }, [data, movieGroups.length, showSkeleton, isFetching, showingHead, query, filterKey]);
 
-  usePageHeader(instanceName, headerCount);
+  usePageHeader("Movies", headerCount);
+
+  function setInstanceFilter(value: string) {
+    void navigate({
+      to: "/movies",
+      search: { instance: value === "all" ? undefined : value },
+    });
+  }
 
   const skeletonStyle = useMemo(() => getPosterScale(previewSize).style, [previewSize]);
 
@@ -215,6 +253,15 @@ export function MoviesPage() {
     <div className={classes.page}>
       <div className={classes.header}>
         <Group justify="space-between" align="center" gap="md" wrap="wrap">
+          <Select
+            size="sm"
+            w={200}
+            allowDeselect={false}
+            aria-label="Instance filter"
+            data={instanceOptions}
+            value={activeInstanceFilter ?? "all"}
+            onChange={(value) => setInstanceFilter(value ?? "all")}
+          />
           <Group gap="sm" wrap="nowrap" align="center" style={{ flex: 1, minWidth: 220 }}>
             <TextInput
               placeholder="Filter movies…"
@@ -267,7 +314,7 @@ export function MoviesPage() {
         </div>
       )}
 
-      {!showSkeleton && movies.length === 0 && !error && (
+      {!showSkeleton && movieGroups.length === 0 && !error && (
         <Text c="dimmed">
           {query || filterKey !== "all"
             ? "No movies match your current sort/filter."
@@ -275,10 +322,11 @@ export function MoviesPage() {
         </Text>
       )}
 
-      {!showSkeleton && movies.length > 0 && (
+      {!showSkeleton && movieGroups.length > 0 && (
         <div className={classes.body}>
           <VirtualizedMovieGrid
-            movies={movies}
+            groups={movieGroups}
+            instanceNames={instanceNames}
             posterSize={layoutSize}
             zoomScale={zoomScale}
             activeLetter={activeLetter}
@@ -294,13 +342,13 @@ export function MoviesPage() {
         </div>
       )}
 
-      {addOpen && (
+      {addOpen && addInstanceId ? (
         <MovieAddSearchModal
           opened
-          instanceId={instanceId}
+          instanceId={addInstanceId}
           onClose={() => setAddOpen(false)}
         />
-      )}
+      ) : null}
 
       {editingMovie && (
         <MovieEditModal

@@ -16,21 +16,19 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import type { InstanceKind } from "@umbrellarr/shared";
-import { useEffect, useState, type ReactNode, type SyntheticEvent } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
-import { LinkIcon } from "@phosphor-icons/react/dist/csr/Link";
-import { FilmStripIcon } from "@phosphor-icons/react/dist/csr/FilmStrip";
-import { TelevisionIcon } from "@phosphor-icons/react/dist/csr/Television";
-import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
-import { ListBulletsIcon } from "@phosphor-icons/react/dist/csr/ListBullets";
 import { CalendarBlankIcon } from "@phosphor-icons/react/dist/csr/CalendarBlank";
-import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { ClockCounterClockwiseIcon } from "@phosphor-icons/react/dist/csr/ClockCounterClockwise";
+import { DownloadSimpleIcon } from "@phosphor-icons/react/dist/csr/DownloadSimple";
+import { FilmStripIcon } from "@phosphor-icons/react/dist/csr/FilmStrip";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
-import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
+import { TelevisionIcon } from "@phosphor-icons/react/dist/csr/Television";
 import { TicketIcon } from "@phosphor-icons/react/dist/csr/Ticket";
+import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
 import { clearAuthStatusCache, logout } from "@/api/auth";
 import { listInstances } from "@/api/instances";
 import {
@@ -43,72 +41,87 @@ import {
 } from "@/api/libraryList";
 import { getDashboardStats } from "@/api/stats";
 import umbrellarrIcon from "@/assets/umbrellarr-icon.png";
-import {
-  PageHeaderContext,
-  titleFromPath,
-  type PageHeaderInfo,
-} from "@/layout/pageHeader";
+import { PageHeaderContext, titleFromPath, type PageHeaderInfo } from "@/layout/pageHeader";
+import { setLastInstanceId } from "@/lib/lastInstance";
+import { allLibrarySearch } from "@/lib/librarySearch";
+import { allIssuesSearch } from "@/lib/issuesSearch";
 import classes from "./AppLayout.module.css";
 
-function stopNestedEvent(event: SyntheticEvent) {
-  event.stopPropagation();
+const RESERVED_SEGMENTS = new Set(["collections", "queue", "history", "issues"]);
+
+function instanceFromSearch(pathname: string, prefix: string, search: string): string | undefined {
+  if (pathname !== prefix) return undefined;
+  const id = new URLSearchParams(search).get("instance");
+  return id && id.length > 0 ? id : undefined;
+}
+
+function instanceIdFromPath(pathname: string, prefix: string): string | undefined {
+  if (!pathname.startsWith(`${prefix}/`)) return undefined;
+  const id = pathname.slice(prefix.length + 1).split("/")[0] ?? "";
+  return id.length > 0 ? id : undefined;
+}
+
+function isLibraryActive(pathname: string, to: string): boolean {
+  if (pathname === to) return true;
+  if (!pathname.startsWith(`${to}/`)) return false;
+  const first = pathname.slice(to.length + 1).split("/")[0] ?? "";
+  return first.length > 0 && !RESERVED_SEGMENTS.has(first);
 }
 
 function NavItem({
   to,
   label,
   icon,
+  count,
   onNavigate,
-  exact,
+  match = "exact",
   onPrefetch,
-  externalUrl,
-  externalKind,
+  navLink,
 }: {
   to: string;
   label: string;
   icon?: ReactNode;
+  count?: number;
   onNavigate?: () => void;
-  exact?: boolean;
+  match?: "exact" | "library" | "prefix";
   onPrefetch?: () => void;
-  externalUrl?: string;
-  externalKind?: InstanceKind;
+  navLink?: string;
 }) {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const active = exact ? pathname === to : pathname === to || pathname.startsWith(`${to}/`);
+  const active =
+    match === "library"
+      ? isLibraryActive(pathname, to)
+      : match === "prefix"
+        ? pathname === to || pathname.startsWith(`${to}/`)
+        : pathname === to;
 
   return (
     <NavLink
-      component={externalUrl ? "div" : undefined}
       label={label}
       leftSection={icon}
+      rightSection={
+        count != null ? (
+          <Badge size="sm" variant="light" color="gray" className={classes.navCount}>
+            {count.toLocaleString()}
+          </Badge>
+        ) : undefined
+      }
       active={active}
+      data-nav-link={navLink}
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
       onPointerDown={onPrefetch}
       onClick={() => {
         onNavigate?.();
-        void navigate({ to });
+        if (to === "/movies" || to === "/shows" || to === "/music") {
+          void navigate({ to, search: allLibrarySearch });
+        } else if (to === "/issues") {
+          void navigate({ to, search: allIssuesSearch });
+        } else {
+          void navigate({ to });
+        }
       }}
-      rightSection={
-        externalUrl ? (
-          <a
-            className={classes.externalLink}
-            href={externalUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            aria-label={`Open ${externalUrl}`}
-            title={externalUrl}
-            data-instance-link={externalKind}
-            onClick={stopNestedEvent}
-            onPointerDown={stopNestedEvent}
-            onMouseDown={stopNestedEvent}
-            onKeyDown={stopNestedEvent}
-          >
-            <LinkIcon size={14} />
-          </a>
-        ) : undefined
-      }
     />
   );
 }
@@ -117,6 +130,7 @@ export function AppLayout() {
   const [opened, { toggle, close }] = useDisclosure();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const searchStr = useRouterState({ select: (s) => s.location.searchStr });
   const [pageHeader, setPageHeader] = useState<PageHeaderInfo>({});
   const queryClient = useQueryClient();
   const statsQuery = useQuery({
@@ -133,44 +147,106 @@ export function AppLayout() {
 
   const navigate = useNavigate();
   const stats = statsQuery.data;
-  const radarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "radarr");
-  const sonarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "sonarr");
-  const lidarrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "lidarr");
-  const seerrInstances = (instancesQuery.data?.instances ?? []).filter((i) => i.kind === "seerr");
+  const instances = instancesQuery.data?.instances ?? [];
+  const radarrInstances = useMemo(
+    () => instances.filter((i) => i.kind === "radarr"),
+    [instances],
+  );
+  const sonarrInstances = useMemo(
+    () => instances.filter((i) => i.kind === "sonarr"),
+    [instances],
+  );
+  const lidarrInstances = useMemo(
+    () => instances.filter((i) => i.kind === "lidarr"),
+    [instances],
+  );
+  const seerrInstances = useMemo(
+    () => instances.filter((i) => i.kind === "seerr"),
+    [instances],
+  );
+
+  const moviesPathId =
+    instanceIdFromPath(pathname, "/movies") ?? instanceFromSearch(pathname, "/movies", searchStr);
+  const showsPathId =
+    instanceIdFromPath(pathname, "/shows") ?? instanceFromSearch(pathname, "/shows", searchStr);
+  const musicPathId =
+    instanceIdFromPath(pathname, "/music") ?? instanceFromSearch(pathname, "/music", searchStr);
+  const requestsPathId = instanceIdFromPath(pathname, "/requests");
+
+  useEffect(() => {
+    if (moviesPathId && radarrInstances.some((instance) => instance.id === moviesPathId)) {
+      setLastInstanceId("radarr", moviesPathId);
+    }
+    if (showsPathId && sonarrInstances.some((instance) => instance.id === showsPathId)) {
+      setLastInstanceId("sonarr", showsPathId);
+    }
+    if (musicPathId && lidarrInstances.some((instance) => instance.id === musicPathId)) {
+      setLastInstanceId("lidarr", musicPathId);
+    }
+    if (requestsPathId && seerrInstances.some((instance) => instance.id === requestsPathId)) {
+      setLastInstanceId("seerr", requestsPathId);
+    }
+  }, [
+    moviesPathId,
+    showsPathId,
+    musicPathId,
+    requestsPathId,
+    searchStr,
+    radarrInstances,
+    sonarrInstances,
+    lidarrInstances,
+    seerrInstances,
+  ]);
+
   const title = pageHeader.title ?? titleFromPath(pathname);
   const count = pageHeader.count;
   const backTo = pageHeader.backTo;
+  const navCounts = stats?.nav;
 
-  function prefetchMovies(instanceId: string) {
-    prefetchMovieLibrary(queryClient, instanceId);
+  function prefetchMovies() {
+    prefetchMovieLibrary(queryClient);
   }
 
-  function prefetchShows(instanceId: string) {
-    prefetchShowLibrary(queryClient, instanceId);
+  function prefetchShows() {
+    prefetchShowLibrary(queryClient);
   }
 
-  function prefetchArtists(instanceId: string) {
-    prefetchArtistLibrary(queryClient, instanceId);
+  function prefetchArtists() {
+    prefetchArtistLibrary(queryClient);
   }
 
-  const instanceIds = (instancesQuery.data?.instances ?? [])
-    .map((instance) => `${instance.kind}:${instance.id}`)
+  const hasRadarr = radarrInstances.length > 0;
+  const hasSonarr = sonarrInstances.length > 0;
+  const hasLidarr = lidarrInstances.length > 0;
+
+  const libraryKinds = [
+    hasRadarr ? "radarr" : null,
+    hasSonarr ? "sonarr" : null,
+    hasLidarr ? "lidarr" : null,
+  ]
+    .filter(Boolean)
     .join(",");
 
   useEffect(() => {
-    const instances = instancesQuery.data?.instances ?? [];
-    if (instances.length === 0) return;
+    if (!hasRadarr && !hasSonarr && !hasLidarr) return;
 
     const timers: number[] = [];
     const run = () => {
-      instances.forEach((instance, index) => {
-        const timer = window.setTimeout(() => {
-          if (instance.kind === "radarr") prefetchMovieHead(queryClient, instance.id);
-          else if (instance.kind === "sonarr") prefetchShowHead(queryClient, instance.id);
-          else if (instance.kind === "lidarr") prefetchArtistHead(queryClient, instance.id);
-        }, index * 50);
+      let delay = 0;
+      if (hasRadarr) {
+        const timer = window.setTimeout(() => prefetchMovieHead(queryClient), delay);
         timers.push(timer);
-      });
+        delay += 50;
+      }
+      if (hasSonarr) {
+        const timer = window.setTimeout(() => prefetchShowHead(queryClient), delay);
+        timers.push(timer);
+        delay += 50;
+      }
+      if (hasLidarr) {
+        const timer = window.setTimeout(() => prefetchArtistHead(queryClient), delay);
+        timers.push(timer);
+      }
     };
 
     let cancelIdle: (() => void) | undefined;
@@ -186,7 +262,7 @@ export function AppLayout() {
       cancelIdle?.();
       for (const timer of timers) window.clearTimeout(timer);
     };
-  }, [instanceIds, instancesQuery.data?.instances, queryClient]);
+  }, [hasRadarr, hasSonarr, hasLidarr, libraryKinds, queryClient]);
 
   return (
     <PageHeaderContext.Provider value={setPageHeader}>
@@ -249,131 +325,113 @@ export function AppLayout() {
           </Group>
         </AppShell.Header>
 
-        <AppShell.Navbar p="md">
-          <AppShell.Section>
-            <Group gap="xs" wrap="nowrap" mb="xs">
-              <img
-                src={umbrellarrIcon}
-                alt=""
-                width={28}
-                height={28}
-                style={{ display: "block", borderRadius: 6, flexShrink: 0 }}
-              />
-              <Text fw={700} size="sm">
-                Umbrellarr
-              </Text>
-            </Group>
-            <Text size="xs" c="dimmed" mb="md">
-              Media operator console
-            </Text>
-          </AppShell.Section>
+        <AppShell.Navbar className={classes.navbar}>
+          <div className={classes.sidebarHeader} data-sidebar-header>
+            <img src={umbrellarrIcon} alt="" className={classes.sidebarLogo} />
+            <span className={classes.sidebarTitle}>Umbrellarr</span>
+          </div>
 
-          <AppShell.Section grow component={ScrollArea} type="hover">
-            <Stack gap={4}>
-              {radarrInstances.length > 0 && (
-                <NavLink
+          <ScrollArea className={classes.navScroll} type="hover" offsetScrollbars>
+            <div className={classes.navBody}>
+              {hasRadarr ? (
+                <NavItem
+                  to="/movies"
                   label="Movies"
-                  leftSection={<FilmStripIcon />}
-                  defaultOpened
-                  childrenOffset={16}
-                >
-                  {radarrInstances.map((instance) => (
-                    <NavItem
-                      key={instance.id}
-                      to={`/movies/${instance.id}`}
-                      label={instance.name}
-                      onNavigate={close}
-                      onPrefetch={() => prefetchMovies(instance.id)}
-                      externalUrl={instance.baseUrl}
-                      externalKind={instance.kind}
-                    />
-                  ))}
-                </NavLink>
-              )}
+                  icon={<FilmStripIcon />}
+                  count={navCounts?.movies}
+                  match="library"
+                  navLink="movies"
+                  onNavigate={close}
+                  onPrefetch={prefetchMovies}
+                />
+              ) : null}
 
-              {sonarrInstances.length > 0 && (
-                <NavLink
+              {hasSonarr ? (
+                <NavItem
+                  to="/shows"
                   label="Shows"
-                  leftSection={<TelevisionIcon />}
-                  defaultOpened
-                  childrenOffset={16}
-                >
-                  {sonarrInstances.map((instance) => (
-                    <NavItem
-                      key={instance.id}
-                      to={`/shows/${instance.id}`}
-                      label={instance.name}
-                      onNavigate={close}
-                      onPrefetch={() => prefetchShows(instance.id)}
-                      externalUrl={instance.baseUrl}
-                      externalKind={instance.kind}
-                    />
-                  ))}
-                </NavLink>
-              )}
+                  icon={<TelevisionIcon />}
+                  count={navCounts?.shows}
+                  match="library"
+                  navLink="shows"
+                  onNavigate={close}
+                  onPrefetch={prefetchShows}
+                />
+              ) : null}
 
-              {lidarrInstances.length > 0 && (
-                <NavLink
+              {hasLidarr ? (
+                <NavItem
+                  to="/music"
                   label="Music"
-                  leftSection={<MusicNotesIcon />}
-                  defaultOpened
-                  childrenOffset={16}
-                >
-                  {lidarrInstances.map((instance) => (
-                    <NavItem
-                      key={instance.id}
-                      to={`/music/${instance.id}`}
-                      label={instance.name}
-                      onNavigate={close}
-                      onPrefetch={() => prefetchArtists(instance.id)}
-                      externalUrl={instance.baseUrl}
-                      externalKind={instance.kind}
-                    />
-                  ))}
-                </NavLink>
-              )}
-
-              {seerrInstances.length > 0 && (
-                <NavLink
-                  label="Requests"
-                  leftSection={<TicketIcon />}
-                  defaultOpened
-                  childrenOffset={16}
-                >
-                  {seerrInstances.map((instance) => (
-                    <NavItem
-                      key={instance.id}
-                      to={`/requests/${instance.id}`}
-                      label={instance.name}
-                      onNavigate={close}
-                      externalUrl={instance.baseUrl}
-                      externalKind={instance.kind}
-                    />
-                  ))}
-                </NavLink>
-              )}
-
-              <NavLink label="Activity" leftSection={<PulseIcon />} defaultOpened childrenOffset={16}>
-                <NavItem to="/activity/queue" label="Queue" icon={<ListBulletsIcon />} onNavigate={close} />
-                <NavItem
-                  to="/activity/calendar"
-                  label="Calendar"
-                  icon={<CalendarBlankIcon />}
+                  icon={<MusicNotesIcon />}
+                  count={navCounts?.music}
+                  match="library"
+                  navLink="music"
                   onNavigate={close}
+                  onPrefetch={prefetchArtists}
                 />
-                <NavItem
-                  to="/activity/missing"
-                  label="Missing"
-                  icon={<WarningCircleIcon />}
-                  onNavigate={close}
-                />
-              </NavLink>
+              ) : null}
 
-              <NavItem to="/settings" label="Settings" icon={<GearSixIcon />} onNavigate={close} />
-            </Stack>
-          </AppShell.Section>
+              {seerrInstances.length > 0 ? (
+                <>
+                  <NavItem
+                    to="/requests"
+                    label="Requests"
+                    icon={<TicketIcon />}
+                    count={navCounts?.requests}
+                    match="prefix"
+                    navLink="requests"
+                    onNavigate={close}
+                  />
+                  <NavItem
+                    to="/issues"
+                    label="Issues"
+                    icon={<WarningCircleIcon />}
+                    count={navCounts?.issues}
+                    match="prefix"
+                    navLink="issues"
+                    onNavigate={close}
+                  />
+                </>
+              ) : null}
 
-          <AppShell.Section mt="md">
+              <NavItem
+                to="/activity/queue"
+                label="Queue"
+                icon={<DownloadSimpleIcon />}
+                count={navCounts?.queue}
+                match="prefix"
+                navLink="queue"
+                onNavigate={close}
+              />
+              <NavItem
+                to="/activity/history"
+                label="History"
+                icon={<ClockCounterClockwiseIcon />}
+                count={navCounts?.history}
+                match="prefix"
+                navLink="history"
+                onNavigate={close}
+              />
+              <NavItem
+                to="/activity/calendar"
+                label="Calendar"
+                icon={<CalendarBlankIcon />}
+                match="prefix"
+                navLink="calendar"
+                onNavigate={close}
+              />
+              <NavItem
+                to="/settings"
+                label="Settings"
+                icon={<GearSixIcon />}
+                navLink="settings"
+                onNavigate={close}
+              />
+            </div>
+          </ScrollArea>
+
+          <div className={classes.navFooter}>
             <Stack gap="sm">
               <Text size="xs" c="dimmed">
                 Appearance
@@ -402,7 +460,7 @@ export function AppLayout() {
                 </Group>
               </UnstyledButton>
             </Stack>
-          </AppShell.Section>
+          </div>
         </AppShell.Navbar>
 
         <AppShell.Main>

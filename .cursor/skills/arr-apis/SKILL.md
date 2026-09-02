@@ -87,9 +87,10 @@ Status legend for Umbrellarr: **Wired** / **Partial** / **In scope / Not started
 | Capability | Radarr v3 | Sonarr v3 | Lidarr v1 | Umbrellarr |
 |------------|-----------|-----------|-----------|------------|
 | Library list/detail/CRUD | `/movie` | `/series` (+ `/episode`) | `/artist`, `/album`, `/track` | Radarr list + detail **Wired**; Sonarr list + hero/toolbar + seasons/episodes **Wired**; Lidarr artist list + detail + album rows + album tracks modal **Wired**; album detail route **Not started** |
+| Collections | `/collection` + `RefreshCollections` | — | — | Radarr list + bulk update + refresh **Wired** (not Seerr/TMDB collections) |
 | Lookup / add | `/movie/lookup` | `/series/lookup` | `/artist/lookup`, `/album/lookup` | Radarr + Sonarr lookup + add **Wired**; Lidarr **Not started** |
 | Refresh / search / rename via command | `POST /command` | same | same (`/api/v1`) | Radarr RefreshMovie, MoviesSearch, RenameFiles **Wired**; Sonarr RefreshSeries, SeriesSearch, SeasonSearch, EpisodeSearch, RenameFiles **Wired**; Lidarr RefreshArtist, ArtistSearch, AlbumSearch, RenameFiles, RetagFiles **Wired** |
-| Queue / grab / remove | `/queue*` | `/queue*` | `/queue*` | **Partial** — Sonarr episode `downloading` via `/queue/details`; Activity Queue UI still placeholder |
+| Queue / grab / remove | `/queue*` | `/queue*` | `/queue*` | **Wired** (per-instance movies/shows/music queue: list/poll, grab, remove, manual import); unified `/activity/queue` still placeholder |
 | Calendar | `/calendar` | `/calendar` | `/calendar` | Unified `/activity/calendar` + aggregated `/api/calendar.ics` **Wired** |
 | History | `/history*` | `/history*` | `/history*` | Radarr movie + Sonarr series/season + Lidarr artist history + details **Wired** |
 | Wanted missing / cutoff | `/wanted/*` | `/wanted/*` | `/wanted/*` | Cutoff IDs **Partial** (movies + series list filters); Missing UI **Not started** |

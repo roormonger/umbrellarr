@@ -1,7 +1,7 @@
 import { Group, Loader, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 import { deleteMovie, getMovieDetail, refreshMovie, searchMovie } from "@/api/movies";
 import { MovieDetailCredits } from "@/components/movies/detail/MovieDetailCredits";
@@ -17,12 +17,34 @@ import { MovieOrganizeModal } from "@/components/movies/MovieOrganizeModal";
 import { usePageHeader } from "@/layout/pageHeader";
 import classes from "./MovieDetailPage.module.css";
 
+function movieLibraryPath(instanceId: string) {
+  return `/movies/${instanceId}`;
+}
+
+function movieCollectionsPath(instanceId: string) {
+  return `/movies/${instanceId}/collections`;
+}
+
+function backToFromState(instanceId: string, state: unknown): string {
+  const collections = movieCollectionsPath(instanceId);
+  if (
+    state &&
+    typeof state === "object" &&
+    "backTo" in state &&
+    (state as { backTo?: unknown }).backTo === collections
+  ) {
+    return collections;
+  }
+  return movieLibraryPath(instanceId);
+}
+
 export function MovieDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { instanceId, movieId: movieIdParam } = useParams({
     from: "/app/movies/$instanceId/$movieId",
   });
+  const locationState = useRouterState({ select: (s) => s.location.state });
   const movieId = Number(movieIdParam);
   const [editOpen, setEditOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -96,7 +118,7 @@ export function MovieDetailPage() {
       ? `${detailQuery.data.title} (${detailQuery.data.year})`
       : detailQuery.data.title
     : "Movie";
-  usePageHeader(title, null, `/movies/${instanceId}`);
+  usePageHeader(title, null, backToFromState(instanceId, locationState));
 
   if (!Number.isFinite(movieId)) {
     return <Text className={classes.error}>Invalid movie id</Text>;

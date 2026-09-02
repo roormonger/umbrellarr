@@ -53,14 +53,11 @@ async function main() {
   const seerr = (instances.instances ?? []).find((i) => i.kind === "seerr");
   if (!seerr) throw new Error("No Seerr instance configured");
 
-  const pending = await apiJson(
-    `/api/requests/${encodeURIComponent(seerr.id)}?take=25&filter=pending`,
+  const pendingUnified = await apiJson(
+    `/api/requests/unified?take=25&filter=pending`,
     cookies.header,
   );
-  const all = await apiJson(
-    `/api/requests/${encodeURIComponent(seerr.id)}?take=25&filter=all`,
-    cookies.header,
-  );
+  const all = await apiJson(`/api/requests/unified?take=25&filter=all`, cookies.header);
   const users = await apiJson(
     `/api/requests/${encodeURIComponent(seerr.id)}/users`,
     cookies.header,
@@ -71,21 +68,21 @@ async function main() {
   if (!Array.isArray(all.results)) {
     throw new Error("Expected request results");
   }
-  const first = all.results[0];
-  if (first) {
+  const first = all.results.find((item) => item.instanceId === seerr.id) ?? all.results[0];
+  if (first?.instanceId) {
     const page = await apiJson(
-      `/api/requests/${encodeURIComponent(seerr.id)}/${first.id}/page`,
+      `/api/requests/${encodeURIComponent(first.instanceId)}/${first.id}/page`,
       cookies.header,
     );
     if (!page.media?.title || page.request?.id !== first.id) {
       throw new Error("Expected request page payload with media.title");
     }
     console.log(
-      `api ok: ${pending.pageInfo.results} pending, ${all.pageInfo.results} all, ${users.users.length} users, page “${page.media.title}” (${page.media.cast?.length ?? 0} cast)`,
+      `api ok: ${pendingUnified.pageInfo.results} pending (unified), ${all.pageInfo.results} all, ${users.users.length} users, page “${page.media.title}” (${page.media.cast?.length ?? 0} cast)`,
     );
   } else {
     console.log(
-      `api ok: ${pending.pageInfo.results} pending, ${all.pageInfo.results} all, ${users.users.length} users`,
+      `api ok: ${pendingUnified.pageInfo.results} pending (unified), ${all.pageInfo.results} all, ${users.users.length} users`,
     );
   }
 
@@ -101,17 +98,17 @@ async function main() {
     ]);
   }
   const page = await context.newPage();
-  await page.goto(`${webBase}/requests/${seerr.id}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${webBase}/requests`, { waitUntil: "domcontentloaded" });
   if (page.url().includes("/login") && password) {
     await page.getByLabel("Password").fill(password);
     await page.getByRole("button", { name: /sign in/i }).click();
     await page.waitForFunction(() => !location.pathname.includes("/login"));
-    await page.goto(`${webBase}/requests/${seerr.id}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${webBase}/requests`, { waitUntil: "domcontentloaded" });
   }
 
+  await page.getByRole("textbox", { name: "Instance filter" }).waitFor({ timeout: 15_000 });
   await page.getByRole("button", { name: "Pending" }).waitFor({ timeout: 15_000 });
-  await page.getByRole("textbox", { name: "Filter by user" }).waitFor({ timeout: 15_000 });
-  if (pending.pageInfo.results === 0) {
+  if (pendingUnified.pageInfo.results === 0) {
     await page.getByText("No requests match this filter.").waitFor({ timeout: 15_000 });
   }
 
@@ -121,23 +118,24 @@ async function main() {
     await page.getByText(item.title, { exact: true }).first().waitFor({ timeout: 15_000 });
   }
 
-  if (all.results[0]) {
-    const firstTitle = all.results[0].title;
+  if (first) {
+    const firstTitle = first.title;
     await page.getByRole("button", { name: firstTitle }).first().click();
-    await page.waitForURL(`**/requests/${seerr.id}/${all.results[0].id}`, {
+    await page.waitForURL(`**/requests/${first.instanceId}/${first.id}`, {
       timeout: 15_000,
     });
     await page.getByRole("heading", { level: 1 }).waitFor({ timeout: 20_000 });
     await page.getByRole("toolbar", { name: "Request actions" }).waitFor();
     await page.goBack();
-    await page.waitForURL(`**/requests/${seerr.id}`, { timeout: 15_000 });
+    await page.waitForURL("**/requests", { timeout: 15_000 });
   }
 
-  await page.getByRole("navigation").getByText("Requests").waitFor();
+  await page.locator('[data-nav-link="requests"]').click();
+  await page.waitForURL("**/requests", { timeout: 10_000 });
   await page.goto(`${webBase}/movies`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector("[id^=movie-]", { timeout: 20_000 });
 
-  console.log(`ui ok: /requests/${seerr.id} list → detail → back + movies still load`);
+  console.log("ui ok: /requests list → detail → back + movies still load");
   await browser.close();
 }
 

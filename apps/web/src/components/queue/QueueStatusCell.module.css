@@ -1,0 +1,40 @@
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-5);
+}
+
+.wrap[data-status="downloading"] .dot {
+  background: var(--mantine-color-violet-6);
+}
+
+.wrap[data-status="paused"] .dot,
+.wrap[data-status="queued"] .dot {
+  background: var(--mantine-color-gray-5);
+}
+
+.wrap[data-status="completed"] .dot {
+  background: var(--mantine-color-teal-6);
+}
+
+.wrap[data-status="warning"] .dot {
+  background: var(--mantine-color-orange-6);
+}
+
+.wrap[data-status="failed"] .dot,
+.wrap[data-status="error"] .dot {
+  background: var(--mantine-color-red-6);
+}
+
+.wrap[data-status="delay"] .dot {
+  background: var(--mantine-color-yellow-6);
+}

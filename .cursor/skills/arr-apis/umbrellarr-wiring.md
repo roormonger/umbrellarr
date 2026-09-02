@@ -130,6 +130,17 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `servarr/posterStatus.ts` | — | (derived) | Poster bar status from Arr `getProgressBarKind` + queue ids |
 | `servarr/queueIds.ts` | GET | `/api/v3/queue` or `/api/v1/queue` | movieId / seriesId / artistId sets for queued/downloading bars |
 | `servarr/calendar.ts` | GET | Radarr `/api/v3/calendar`, Sonarr `/api/v3/calendar?includeSeries=true`, Lidarr `/api/v1/calendar?includeArtist=true` | Unified calendar events (+ queue ids for movie/episode status) |
+| `servarr/collections.ts` | GET | `/api/v3/collection` | Radarr collection list (+ nested movies) |
+| `servarr/collections.ts` | GET | `/api/v3/qualityprofile` | Profile names on collection rows |
+| `servarr/collections.ts` | PUT | `/api/v3/collection` | Bulk `CollectionUpdateResource` |
+| `servarr/collections.ts` | POST | `/api/v3/command` | `{ name: "RefreshCollections" }` |
+| `servarr/collections.ts` | GET | `/api/v3/qualityprofile` + `/api/v3/rootfolder` (+ tags via movie options) | Bulk-bar dropdowns |
+| `servarr/queue.ts` | GET | `/api/v3/queue` or `/api/v1/queue` (+ `includeMovie` / `includeSeries`+`includeEpisode` / `includeArtist`+`includeAlbum`, unknown-items flags) | Per-instance queue list |
+| `servarr/queue.ts` | GET | `/queue/status` | Queue counts / errors / warnings |
+| `servarr/queue.ts` | DELETE | `/queue/{id}` and `/queue/bulk` (`removeFromClient`, `blocklist`, `skipRedownload`, `changeCategory`) | Remove single / selected |
+| `servarr/queue.ts` | POST | `/queue/grab/{id}` and `/queue/grab/bulk` `{ ids }` | Grab delayed / unavailable items |
+| `servarr/queue.ts` | GET/POST | `/manualimport?downloadId=` then POST reprocess rows | Queue Manual Import modal |
+| `servarr/queue.ts` | POST | `/command` `{ name: "RefreshMonitoredDownloads" }` | Queue Refresh |
 
 ## BFF routes → upstream
 
@@ -240,6 +251,19 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `GET /api/health` | `routes/health.ts` | App health only |
 | `GET /api/calendar?start=&end=&unmonitored=` | `routes/calendar.ts` | Merge Radarr/Sonarr/Lidarr calendars; per-instance errors are soft-fail |
 | `GET /api/calendar.ics?token=` | `routes/calendar.ts` | Public aggregated iCal (token in `calendar_feed_token` meta; not Arr API keys) |
+| `GET /api/collections?instanceId=` | `routes/collections.ts` | Radarr `/collection` + quality profiles; join in-library posters via movie `tmdbId` |
+| `GET /api/collections/:instanceId/options` | `routes/collections.ts` | qualityprofile + rootfolder (movie edit options, no tags) |
+| `POST /api/collections/:instanceId/refresh` | `routes/collections.ts` | `RefreshCollections` command |
+| `PUT /api/collections/:instanceId` | `routes/collections.ts` | `PUT /collection` bulk update |
+| `GET /api/queue?instanceId=` | `routes/queue.ts` | Arr `/queue` + `/queue/status`; unknown/protocol/status filters |
+| `GET /api/queue/:instanceId/status` | `routes/queue.ts` | Arr `/queue/status` |
+| `POST /api/queue/:instanceId/refresh` | `routes/queue.ts` | `RefreshMonitoredDownloads` |
+| `DELETE /api/queue/:instanceId/:id` | `routes/queue.ts` | `DELETE /queue/{id}` |
+| `DELETE /api/queue/:instanceId/bulk` | `routes/queue.ts` | `DELETE /queue/bulk` |
+| `POST /api/queue/:instanceId/:id/grab` | `routes/queue.ts` | `POST /queue/grab/{id}` |
+| `POST /api/queue/:instanceId/grab/bulk` | `routes/queue.ts` | `POST /queue/grab/bulk` |
+| `GET /api/queue/:instanceId/manualimport` | `routes/queue.ts` | `GET /manualimport?downloadId=` |
+| `POST /api/queue/:instanceId/manualimport` | `routes/queue.ts` | `POST /manualimport` |
 | `GET /api/settings/calendar` | `routes/settings.ts` | Feed token presence + path (auth) |
 | `POST /api/settings/calendar/token` | `routes/settings.ts` | Regenerate feed token |
 | `POST /api/settings/calendar/token/ensure` | `routes/settings.ts` | Create feed token if missing |
@@ -288,8 +312,10 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Artist edit modal | `ArtistEditModal.tsx` | options + detail + PUT/DELETE (includes metadata profile) |
 | Artist links menu | `ArtistLinksMenu.tsx` | `GET .../links` (Lidarr UI patterns) |
 | Calendar | `CalendarPage.tsx`, `components/calendar/*` | `GET /api/calendar`; iCal via feed token; click event → movie/show/artist detail |
+| Collections | `CollectionsPage.tsx`, `VirtualizedCollectionList`, `components/collections/*` | `GET/PUT /api/collections`; refresh command; in-library poster → movie detail |
+| Queue (per-instance) | `QueuePage.tsx`, `components/queue/*` | `GET/DELETE/POST /api/queue`; grab/remove/manualimport; poll list. Routes: `/movies/:id/queue`, `/shows/:id/queue`, `/music/:id/queue` |
 | Settings calendar feed | `CalendarFeedPanel.tsx` | `GET/POST /api/settings/calendar*` |
-| Queue / Missing | placeholders | none yet |
+| Unified Activity Queue / Missing | placeholders | `/activity/queue` still placeholder |
 | Header Search | “coming soon” | none yet |
 
 ## Not wired (configured or placeholder only)
@@ -298,9 +324,9 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 |------|-------|
 | Sonarr cast / crew | Not on series detail yet |
 | Lidarr album detail **page** (full route) | Album tracks shown in modal from artist page |
-| Lidarr Manual Import (interactive import) | Artist toolbar deferred; `/manualimport` not wired |
+| Lidarr Manual Import (interactive import) | Queue person-icon modal **Wired**; artist-toolbar entry still deferred |
 | Lidarr retag | Artist Preview Retag **Wired** |
-| Queue / Missing pages | Placeholders |
+| Unified `/activity/queue` + Missing pages | Per-instance queue **Wired**; activity queue + missing placeholders |
 | Dashboard queue/missing badges | Hardcoded `0` in stats |
 | Movie / series lookup / add | Radarr + Sonarr Add New **Wired**. Lidarr **Not started**. |
 | Interactive search custom-filter builder | Presets only (All / Approved / Rejected / Usenet / Torrent) |
@@ -322,3 +348,5 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `packages/shared/src/cache.ts` | `CacheStatus` (`HIT` / `MISS`) for library responses |
 | `packages/shared/src/stats.ts` | Dashboard stats shape |
 | `packages/shared/src/calendar.ts` | `CalendarEvent`, `CalendarQuery`, `CalendarResponse`, `CalendarFeedSettings`, `CalendarView` |
+| `packages/shared/src/collections.ts` | `CollectionListItem`, `CollectionMovieItem`, `CollectionBulkUpdateRequest`, `CollectionEditOptions`, sort/filter keys |
+| `packages/shared/src/queue.ts` | `QueueListItem` / `QueueListResponse` / `QueueStatus`, remove/grab/manual-import request schemas, protocol/status filters |

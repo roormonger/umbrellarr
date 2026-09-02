@@ -2,6 +2,7 @@ import {
   Alert,
   Button,
   Group,
+  Select,
   Skeleton,
   Text,
   TextInput,
@@ -9,7 +10,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
-import { useParams } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   SeriesFilterKeySchema,
   SeriesSortDirectionSchema,
@@ -42,6 +43,8 @@ import { useProgressiveLibrary } from "@/lib/useProgressiveLibrary";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
 import { getPosterScale } from "@/lib/posterScale";
 import { applySeriesQuery, filterSeries, sortSeries } from "@/lib/showSortFilter";
+import { groupShows, instanceNameMap } from "@/lib/libraryDedup";
+import { pickInstanceId } from "@/lib/lastInstance";
 import classes from "./ShowsPage.module.css";
 
 const SORT_KEY_STORAGE = "umbrellarr.shows.sortKey";
@@ -75,7 +78,9 @@ function readStoredPosterSize(): number {
 
 export function ShowsPage() {
   const queryClient = useQueryClient();
-  const { instanceId } = useParams({ from: "/app/shows/$instanceId" });
+  const navigate = useNavigate();
+  const searchStr = useRouterState({ select: (s) => s.location.search });
+  const instanceFilter = new URLSearchParams(searchStr).get("instance") ?? undefined;
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SeriesSortKey>(readStoredSortKey);
   const [sortDirection, setSortDirection] = useState<SeriesSortDirection>(readStoredSortDirection);
@@ -94,46 +99,79 @@ export function ShowsPage() {
     staleTime: 60_000,
   });
 
-  const instanceName =
-    instancesQuery.data?.instances.find((i) => i.id === instanceId)?.name ?? "Shows";
+  const instances = instancesQuery.data?.instances ?? [];
+  const sonarrInstances = useMemo(
+    () => instances.filter((instance) => instance.kind === "sonarr"),
+    [instances],
+  );
+  const instanceNames = useMemo(() => instanceNameMap(instances), [instances]);
+
+  const instanceOptions = useMemo(
+    () => [
+      { value: "all", label: "All instances" },
+      ...sonarrInstances.map((instance) => ({
+        value: instance.id,
+        label: instance.name,
+      })),
+    ],
+    [sonarrInstances],
+  );
+
+  const activeInstanceFilter =
+    instanceFilter && sonarrInstances.some((instance) => instance.id === instanceFilter)
+      ? instanceFilter
+      : undefined;
+
+  const addInstanceId =
+    activeInstanceFilter ?? pickInstanceId("sonarr", instances) ?? sonarrInstances[0]?.id ?? "";
 
   const { data, showingHead, showSkeleton, error, isFetching, refresh } = useProgressiveLibrary({
-    instanceId,
-    fullQueryKey: showsFullQueryKey(instanceId),
-    headQueryKey: showsHeadQueryKey(instanceId),
-    fetchHead: () => fetchShowsHead(instanceId),
-    fetchFull: () => fetchShowsFull(queryClient, instanceId),
-    fetchRefresh: () => fetchShowsFull(queryClient, instanceId, { refresh: true }),
+    instanceId: activeInstanceFilter,
+    fullQueryKey: showsFullQueryKey(activeInstanceFilter),
+    headQueryKey: showsHeadQueryKey(activeInstanceFilter),
+    fetchHead: () => fetchShowsHead(activeInstanceFilter),
+    fetchFull: () => fetchShowsFull(queryClient, activeInstanceFilter),
+    fetchRefresh: () => fetchShowsFull(queryClient, activeInstanceFilter, { refresh: true }),
+    enabled: sonarrInstances.length > 0,
   });
 
-  const series = useMemo(() => {
+  const seriesGroups = useMemo(() => {
     const items = data?.series ?? [];
     const filtered = filterSeries(items, filterKey);
     const searched = applySeriesQuery(filtered, query);
-    return sortSeries(searched, sortKey, sortDirection);
-  }, [data?.series, filterKey, query, sortKey, sortDirection]);
+    const sorted = sortSeries(searched, sortKey, sortDirection);
+    return groupShows(sorted, instances, instanceNames);
+  }, [data?.series, filterKey, query, sortKey, sortDirection, instances, instanceNames]);
 
   const availableLetters = useMemo(() => {
     const set = new Set<string>();
-    for (const item of series) {
+    for (const group of seriesGroups) {
+      const item = group.primary;
       set.add(letterKey(item.sortTitle ?? item.title));
     }
     return set;
-  }, [series]);
+  }, [seriesGroups]);
 
   const headerCount = useMemo(() => {
     if (data?.series == null) return showSkeleton || isFetching ? "Loading…" : null;
     const libraryTotal = data.total ?? data.series.length;
-    const shown = series.length;
+    const shown = seriesGroups.length;
     const totalLabel = libraryTotal.toLocaleString();
     if (showingHead && data.truncated && !query && filterKey === "all") {
       return totalLabel;
     }
     if (shown !== libraryTotal) return `${shown.toLocaleString()} of ${totalLabel}`;
     return totalLabel;
-  }, [data, series.length, showSkeleton, isFetching, showingHead, query, filterKey]);
+  }, [data, seriesGroups.length, showSkeleton, isFetching, showingHead, query, filterKey]);
 
-  usePageHeader(instanceName, headerCount);
+  usePageHeader("Shows", headerCount);
+
+  function setInstanceFilter(value: string) {
+    void navigate({
+      to: "/shows",
+      search: { instance: value === "all" ? undefined : value },
+    });
+  }
 
   const skeletonStyle = useMemo(() => getPosterScale(previewSize).style, [previewSize]);
 
@@ -208,6 +246,15 @@ export function ShowsPage() {
     <div className={classes.page}>
       <div className={classes.header}>
         <Group justify="space-between" align="center" gap="md" wrap="wrap">
+          <Select
+            size="sm"
+            w={200}
+            allowDeselect={false}
+            aria-label="Instance filter"
+            data={instanceOptions}
+            value={activeInstanceFilter ?? "all"}
+            onChange={(value) => setInstanceFilter(value ?? "all")}
+          />
           <Group gap="sm" wrap="nowrap" align="center" style={{ flex: 1, minWidth: 220 }}>
             <TextInput
               placeholder="Filter shows…"
@@ -257,7 +304,7 @@ export function ShowsPage() {
         </div>
       )}
 
-      {!showSkeleton && series.length === 0 && !error && (
+      {!showSkeleton && seriesGroups.length === 0 && !error && (
         <Text c="dimmed">
           {query || filterKey !== "all"
             ? "No shows match your current sort/filter."
@@ -265,10 +312,11 @@ export function ShowsPage() {
         </Text>
       )}
 
-      {!showSkeleton && series.length > 0 && (
+      {!showSkeleton && seriesGroups.length > 0 && (
         <div className={classes.body}>
           <VirtualizedShowGrid
-            series={series}
+            groups={seriesGroups}
+            instanceNames={instanceNames}
             posterSize={layoutSize}
             zoomScale={zoomScale}
             activeLetter={activeLetter}
@@ -284,13 +332,13 @@ export function ShowsPage() {
         </div>
       )}
 
-      {addOpen && (
+      {addOpen && addInstanceId ? (
         <ShowAddSearchModal
           opened
-          instanceId={instanceId}
+          instanceId={addInstanceId}
           onClose={() => setAddOpen(false)}
         />
-      )}
+      ) : null}
 
       {editingSeries && (
         <ShowEditModal

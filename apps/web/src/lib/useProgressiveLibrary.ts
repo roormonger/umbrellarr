@@ -9,21 +9,24 @@ import {
 } from "@/api/libraryList";
 
 export function useProgressiveLibrary<T>(options: {
-  instanceId: string;
+  instanceId?: string;
   fullQueryKey: readonly unknown[];
   headQueryKey: readonly unknown[];
   fetchHead: () => Promise<T>;
   fetchFull: () => Promise<T>;
   fetchRefresh: () => Promise<T>;
+  enabled?: boolean;
 }) {
   const queryClient = useQueryClient();
-  const { instanceId, fullQueryKey, headQueryKey, fetchHead, fetchFull, fetchRefresh } = options;
+  const { instanceId, fullQueryKey, headQueryKey, fetchHead, fetchFull, fetchRefresh, enabled = true } =
+    options;
 
   const headQuery = useQuery({
     queryKey: headQueryKey,
     queryFn: fetchHead,
     staleTime: LIBRARY_HEAD_STALE_MS,
     gcTime: LIBRARY_HEAD_GC_MS,
+    enabled,
   });
 
   const fullQuery = useQuery({
@@ -33,6 +36,7 @@ export function useProgressiveLibrary<T>(options: {
     gcTime: LIBRARY_FULL_GC_MS,
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: "always",
+    enabled,
   });
 
   const { data, showingHead } = pickLibraryListData(fullQuery, headQuery);

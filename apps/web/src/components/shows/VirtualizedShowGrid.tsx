@@ -10,15 +10,17 @@ import {
 } from "react";
 import { ShowPosterCard } from "@/components/shows/ShowPosterCard";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
+import type { LibraryGroup } from "@/lib/libraryDedup";
 import { columnCount, getPosterScale } from "@/lib/posterScale";
 import classes from "./VirtualizedShowGrid.module.css";
 
-function seriesDomId(instanceId: string, externalId: number) {
-  return `series-${instanceId}-${externalId}`;
+function seriesDomId(group: LibraryGroup<SeriesListItem>) {
+  return `series-${group.key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
 export function VirtualizedShowGrid({
-  series,
+  groups,
+  instanceNames,
   posterSize,
   zoomScale = 1,
   activeLetter,
@@ -26,7 +28,8 @@ export function VirtualizedShowGrid({
   onEditSeries,
   jumperRef,
 }: {
-  series: SeriesListItem[];
+  groups: LibraryGroup<SeriesListItem>[];
+  instanceNames: Map<string, string>;
   posterSize: number;
   zoomScale?: number;
   activeLetter: string;
@@ -41,17 +44,17 @@ export function VirtualizedShowGrid({
     () => columnCount(width, scale.posterSize, scale.gapPx),
     [width, scale.posterSize, scale.gapPx],
   );
-  const rowCount = Math.ceil(series.length / columns);
+  const rowCount = Math.ceil(groups.length / columns);
 
   const firstIndexByLetter = useMemo(() => {
     const map = new Map<string, number>();
-    for (let i = 0; i < series.length; i++) {
-      const item = series[i]!;
+    for (let i = 0; i < groups.length; i++) {
+      const item = groups[i]!.primary;
       const letter = letterKey(item.sortTitle ?? item.title);
       if (!map.has(letter)) map.set(letter, i);
     }
     return map;
-  }, [series]);
+  }, [groups]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -80,7 +83,7 @@ export function VirtualizedShowGrid({
   if (!isPreviewing && prevPosterSizeRef.current === posterSize) {
     const first = rowVirtualizer.getVirtualItems()[0];
     if (first) {
-      anchorIndexRef.current = Math.min(first.index * columns, series.length - 1);
+      anchorIndexRef.current = Math.min(first.index * columns, groups.length - 1);
     }
   }
 
@@ -118,13 +121,13 @@ export function VirtualizedShowGrid({
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport || series.length === 0) return;
+    if (!viewport || groups.length === 0) return;
 
     const syncActiveLetter = () => {
       const items = rowVirtualizer.getVirtualItems();
       const firstRow = items[0]?.index ?? 0;
-      const index = Math.min(firstRow * columns, series.length - 1);
-      const item = series[index];
+      const index = Math.min(firstRow * columns, groups.length - 1);
+      const item = groups[index]?.primary;
       if (!item) return;
       const letter = letterKey(item.sortTitle ?? item.title);
       if (letter !== activeLetterRef.current) onActiveLetterChange(letter);
@@ -133,7 +136,7 @@ export function VirtualizedShowGrid({
     syncActiveLetter();
     viewport.addEventListener("scroll", syncActiveLetter, { passive: true });
     return () => viewport.removeEventListener("scroll", syncActiveLetter);
-  }, [columns, series, onActiveLetterChange, rowVirtualizer]);
+  }, [columns, groups, onActiveLetterChange, rowVirtualizer]);
 
   return (
     <div ref={viewportRef} className={classes.viewport}>
@@ -148,7 +151,7 @@ export function VirtualizedShowGrid({
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const start = virtualRow.index * columns;
-          const rowItems = series.slice(start, start + columns);
+          const rowGroups = groups.slice(start, start + columns);
 
           return (
             <div
@@ -161,11 +164,15 @@ export function VirtualizedShowGrid({
                 gap: `var(--poster-gap)`,
               }}
             >
-              {rowItems.map((item) => {
-                const id = seriesDomId(item.instanceId, item.externalId);
+              {rowGroups.map((group) => {
+                const id = seriesDomId(group);
                 return (
-                  <div key={id} id={id}>
-                    <ShowPosterCard item={item} onEdit={onEditSeries} />
+                  <div key={group.key} id={id}>
+                    <ShowPosterCard
+                      group={group}
+                      instanceNames={instanceNames}
+                      onEdit={onEditSeries}
+                    />
                   </div>
                 );
               })}

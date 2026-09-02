@@ -37,14 +37,14 @@ export function RequestDetailPage() {
       ? `${pageQuery.data.media.title} (${pageQuery.data.media.year})`
       : pageQuery.data.media.title
     : "Request";
-  usePageHeader(title, null, `/requests/${instanceId}`);
+  usePageHeader(title, null, `/requests?instance=${instanceId}`);
 
   const approveMutation = useMutation({
     mutationFn: () => approveRequest(instanceId, requestId),
     onSuccess: async () => {
       notifications.show({ color: "green", message: "Request approved" });
       await queryClient.invalidateQueries({ queryKey: ["request-page", instanceId, requestId] });
-      await queryClient.invalidateQueries({ queryKey: ["requests", instanceId] });
+      await queryClient.invalidateQueries({ queryKey: ["requests", "unified"] });
     },
     onError: (error) => {
       notifications.show({
@@ -60,7 +60,7 @@ export function RequestDetailPage() {
     onSuccess: async () => {
       notifications.show({ color: "blue", message: "Request declined" });
       await queryClient.invalidateQueries({ queryKey: ["request-page", instanceId, requestId] });
-      await queryClient.invalidateQueries({ queryKey: ["requests", instanceId] });
+      await queryClient.invalidateQueries({ queryKey: ["requests", "unified"] });
     },
     onError: (error) => {
       notifications.show({

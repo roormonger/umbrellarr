@@ -10,15 +10,17 @@ import {
 } from "react";
 import { ArtistPosterCard } from "@/components/artists/ArtistPosterCard";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
+import type { LibraryGroup } from "@/lib/libraryDedup";
 import { columnCount, getPosterScale } from "@/lib/posterScale";
 import classes from "./VirtualizedArtistGrid.module.css";
 
-function artistDomId(instanceId: string, externalId: number) {
-  return `artist-${instanceId}-${externalId}`;
+function artistDomId(group: LibraryGroup<ArtistListItem>) {
+  return `artist-${group.key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
 export function VirtualizedArtistGrid({
-  artists,
+  groups,
+  instanceNames,
   posterSize,
   zoomScale = 1,
   activeLetter,
@@ -26,7 +28,8 @@ export function VirtualizedArtistGrid({
   onEditArtist,
   jumperRef,
 }: {
-  artists: ArtistListItem[];
+  groups: LibraryGroup<ArtistListItem>[];
+  instanceNames: Map<string, string>;
   posterSize: number;
   zoomScale?: number;
   activeLetter: string;
@@ -41,17 +44,17 @@ export function VirtualizedArtistGrid({
     () => columnCount(width, scale.posterSize, scale.gapPx),
     [width, scale.posterSize, scale.gapPx],
   );
-  const rowCount = Math.ceil(artists.length / columns);
+  const rowCount = Math.ceil(groups.length / columns);
 
   const firstIndexByLetter = useMemo(() => {
     const map = new Map<string, number>();
-    for (let i = 0; i < artists.length; i++) {
-      const item = artists[i]!;
+    for (let i = 0; i < groups.length; i++) {
+      const item = groups[i]!.primary;
       const letter = letterKey(item.sortTitle ?? item.title);
       if (!map.has(letter)) map.set(letter, i);
     }
     return map;
-  }, [artists]);
+  }, [groups]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -80,7 +83,7 @@ export function VirtualizedArtistGrid({
   if (!isPreviewing && prevPosterSizeRef.current === posterSize) {
     const first = rowVirtualizer.getVirtualItems()[0];
     if (first) {
-      anchorIndexRef.current = Math.min(first.index * columns, artists.length - 1);
+      anchorIndexRef.current = Math.min(first.index * columns, groups.length - 1);
     }
   }
 
@@ -118,13 +121,13 @@ export function VirtualizedArtistGrid({
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport || artists.length === 0) return;
+    if (!viewport || groups.length === 0) return;
 
     const syncActiveLetter = () => {
       const items = rowVirtualizer.getVirtualItems();
       const firstRow = items[0]?.index ?? 0;
-      const index = Math.min(firstRow * columns, artists.length - 1);
-      const item = artists[index];
+      const index = Math.min(firstRow * columns, groups.length - 1);
+      const item = groups[index]?.primary;
       if (!item) return;
       const letter = letterKey(item.sortTitle ?? item.title);
       if (letter !== activeLetterRef.current) onActiveLetterChange(letter);
@@ -133,7 +136,7 @@ export function VirtualizedArtistGrid({
     syncActiveLetter();
     viewport.addEventListener("scroll", syncActiveLetter, { passive: true });
     return () => viewport.removeEventListener("scroll", syncActiveLetter);
-  }, [columns, artists, onActiveLetterChange, rowVirtualizer]);
+  }, [columns, groups, onActiveLetterChange, rowVirtualizer]);
 
   return (
     <div ref={viewportRef} className={classes.viewport}>
@@ -148,7 +151,7 @@ export function VirtualizedArtistGrid({
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const start = virtualRow.index * columns;
-          const rowItems = artists.slice(start, start + columns);
+          const rowGroups = groups.slice(start, start + columns);
 
           return (
             <div
@@ -161,11 +164,15 @@ export function VirtualizedArtistGrid({
                 gap: `var(--poster-gap)`,
               }}
             >
-              {rowItems.map((item) => {
-                const id = artistDomId(item.instanceId, item.externalId);
+              {rowGroups.map((group) => {
+                const id = artistDomId(group);
                 return (
-                  <div key={id} id={id}>
-                    <ArtistPosterCard item={item} onEdit={onEditArtist} />
+                  <div key={group.key} id={id}>
+                    <ArtistPosterCard
+                      group={group}
+                      instanceNames={instanceNames}
+                      onEdit={onEditArtist}
+                    />
                   </div>
                 );
               })}

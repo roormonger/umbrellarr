@@ -10,15 +10,17 @@ import {
 } from "react";
 import { PosterCard } from "@/components/media/PosterCard";
 import { letterKey, type AlphabetKey } from "@/lib/alphabet";
+import type { LibraryGroup } from "@/lib/libraryDedup";
 import { columnCount, getPosterScale } from "@/lib/posterScale";
 import classes from "./VirtualizedMovieGrid.module.css";
 
-function movieDomId(instanceId: string, externalId: number) {
-  return `movie-${instanceId}-${externalId}`;
+function movieDomId(group: LibraryGroup<MovieListItem>) {
+  return `movie-${group.key.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 }
 
 export function VirtualizedMovieGrid({
-  movies,
+  groups,
+  instanceNames,
   posterSize,
   zoomScale = 1,
   activeLetter,
@@ -26,14 +28,13 @@ export function VirtualizedMovieGrid({
   onEditMovie,
   jumperRef,
 }: {
-  movies: MovieListItem[];
+  groups: LibraryGroup<MovieListItem>[];
+  instanceNames: Map<string, string>;
   posterSize: number;
-  /** Visual scale while the size slider is dragged; layout stays on `posterSize` until release. */
   zoomScale?: number;
   activeLetter: string;
   onActiveLetterChange: (letter: string) => void;
   onEditMovie?: (movie: MovieListItem) => void;
-  /** Expose scroll-to-letter for the alphabet jumper. */
   jumperRef: MutableRefObject<((letter: AlphabetKey) => void) | null>;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -43,17 +44,17 @@ export function VirtualizedMovieGrid({
     () => columnCount(width, scale.posterSize, scale.gapPx),
     [width, scale.posterSize, scale.gapPx],
   );
-  const rowCount = Math.ceil(movies.length / columns);
+  const rowCount = Math.ceil(groups.length / columns);
 
   const firstIndexByLetter = useMemo(() => {
     const map = new Map<string, number>();
-    for (let i = 0; i < movies.length; i++) {
-      const movie = movies[i]!;
+    for (let i = 0; i < groups.length; i++) {
+      const movie = groups[i]!.primary;
       const letter = letterKey(movie.sortTitle ?? movie.title);
       if (!map.has(letter)) map.set(letter, i);
     }
     return map;
-  }, [movies]);
+  }, [groups]);
 
   useEffect(() => {
     const el = viewportRef.current;
@@ -82,7 +83,7 @@ export function VirtualizedMovieGrid({
   if (!isPreviewing && prevPosterSizeRef.current === posterSize) {
     const first = rowVirtualizer.getVirtualItems()[0];
     if (first) {
-      anchorMovieIndexRef.current = Math.min(first.index * columns, movies.length - 1);
+      anchorMovieIndexRef.current = Math.min(first.index * columns, groups.length - 1);
     }
   }
 
@@ -91,7 +92,6 @@ export function VirtualizedMovieGrid({
     setZoomOriginY(viewportRef.current?.scrollTop ?? 0);
   }, [isPreviewing]);
 
-  // Recalculate row sizes when zoom / column count changes.
   useLayoutEffect(() => {
     rowVirtualizer.measure();
   }, [scale.rowHeight, columns, rowVirtualizer]);
@@ -121,13 +121,13 @@ export function VirtualizedMovieGrid({
 
   useEffect(() => {
     const viewport = viewportRef.current;
-    if (!viewport || movies.length === 0) return;
+    if (!viewport || groups.length === 0) return;
 
     const syncActiveLetter = () => {
       const items = rowVirtualizer.getVirtualItems();
       const firstRow = items[0]?.index ?? 0;
-      const movieIndex = Math.min(firstRow * columns, movies.length - 1);
-      const movie = movies[movieIndex];
+      const movieIndex = Math.min(firstRow * columns, groups.length - 1);
+      const movie = groups[movieIndex]?.primary;
       if (!movie) return;
       const letter = letterKey(movie.sortTitle ?? movie.title);
       if (letter !== activeLetterRef.current) onActiveLetterChange(letter);
@@ -136,7 +136,7 @@ export function VirtualizedMovieGrid({
     syncActiveLetter();
     viewport.addEventListener("scroll", syncActiveLetter, { passive: true });
     return () => viewport.removeEventListener("scroll", syncActiveLetter);
-  }, [columns, movies, onActiveLetterChange, rowVirtualizer]);
+  }, [columns, groups, onActiveLetterChange, rowVirtualizer]);
 
   return (
     <div ref={viewportRef} className={classes.viewport}>
@@ -151,7 +151,7 @@ export function VirtualizedMovieGrid({
       >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const start = virtualRow.index * columns;
-          const rowMovies = movies.slice(start, start + columns);
+          const rowGroups = groups.slice(start, start + columns);
 
           return (
             <div
@@ -164,11 +164,15 @@ export function VirtualizedMovieGrid({
                 gap: `var(--poster-gap)`,
               }}
             >
-              {rowMovies.map((movie) => {
-                const id = movieDomId(movie.instanceId, movie.externalId);
+              {rowGroups.map((group) => {
+                const id = movieDomId(group);
                 return (
-                  <div key={id} id={id}>
-                    <PosterCard item={movie} onEdit={onEditMovie} />
+                  <div key={group.key} id={id}>
+                    <PosterCard
+                      group={group}
+                      instanceNames={instanceNames}
+                      onEdit={onEditMovie}
+                    />
                   </div>
                 );
               })}

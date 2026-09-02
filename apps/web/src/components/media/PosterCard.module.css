@@ -89,6 +89,91 @@
   color: var(--mantine-color-green-5);
 }
 
+.stackBadge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.12rem 0.28rem;
+  border-radius: 4px;
+  line-height: 1;
+  color: #fff;
+  background: var(--highlight);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px color-mix(in srgb, white 18%, transparent);
+  cursor: default;
+  transform: translateZ(0);
+  transform-style: preserve-3d;
+  transition:
+    transform 450ms cubic-bezier(0.03, 0.98, 0.52, 0.99),
+    filter 450ms ease,
+    background 180ms ease;
+}
+
+.stackCount {
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.card:hover .stackBadge {
+  transform: translateZ(18px);
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.5));
+}
+
+.instancePicker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: calc(100% - 0.7rem);
+  max-width: 12rem;
+  padding: 0.35rem;
+  border-radius: 6px;
+  background: rgba(15, 16, 18, 0.92);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) translateZ(0);
+  transform-style: preserve-3d;
+  transition:
+    opacity 140ms ease,
+    transform 450ms cubic-bezier(0.03, 0.98, 0.52, 0.99);
+}
+
+.card:hover .instancePicker,
+.card:focus-within .instancePicker,
+.card[data-actions-open] .instancePicker {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) translateZ(20px);
+}
+
+.instancePickerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.instanceButton {
+  flex: 1;
+  min-width: 0;
+}
+
+.instanceEditButton {
+  flex-shrink: 0;
+}
+
+.posterSurface[data-multi-instance] {
+  cursor: default;
+}
+
 .posterHit {
   position: absolute;
   inset: 0;
@@ -135,40 +220,47 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-.bar {
+.barTrack {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
+  display: flex;
   height: var(--poster-bar-size, 4px);
   z-index: 1;
 }
 
+.barSegment {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
 /* Arr dark-theme poster bar colors (Movie/Series/Artist IndexFooter.css) */
-.bar[data-availability="downloaded"],
-.bar[data-availability="ended"] {
+.barSegment[data-availability="downloaded"],
+.barSegment[data-availability="ended"] {
   background: #00853d;
 }
 
-.bar[data-availability="downloadedUnmonitored"] {
+.barSegment[data-availability="downloadedUnmonitored"] {
   background: #888;
 }
 
-.bar[data-availability="missingMonitored"] {
+.barSegment[data-availability="missingMonitored"] {
   background: #f05050;
 }
 
-.bar[data-availability="missingUnmonitored"] {
+.barSegment[data-availability="missingUnmonitored"] {
   background: #ffa500;
 }
 
-.bar[data-availability="queued"],
-.bar[data-availability="downloading"] {
+.barSegment[data-availability="queued"],
+.barSegment[data-availability="downloading"] {
   background: #7a43b6;
 }
 
-.bar[data-availability="unreleased"],
-.bar[data-availability="continuing"] {
+.barSegment[data-availability="unreleased"],
+.barSegment[data-availability="continuing"] {
   background: #5d9cec;
 }
 

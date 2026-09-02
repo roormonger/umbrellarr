@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import {
   RequestListQuerySchema,
   RequestUpdateBodySchema,
+  UnifiedRequestListQuerySchema,
 } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
 import {
@@ -14,11 +15,35 @@ import {
   listMediaRequests,
   listSeerrServices,
   listSeerrUsers,
+  listUnifiedMediaRequests,
   updateMediaRequest,
 } from "../servarr/seerrRequests.js";
 
 export function createRequestsRoutes() {
   const app = new Hono<{ Variables: AppVariables }>();
+
+  app.get("/unified", async (c) => {
+    const parsed = UnifiedRequestListQuerySchema.safeParse({
+      take: c.req.query("take") ?? undefined,
+      skip: c.req.query("skip") ?? undefined,
+      filter: c.req.query("filter") ?? undefined,
+      mediaType: c.req.query("mediaType") ?? undefined,
+      sort: c.req.query("sort") ?? undefined,
+      sortDirection: c.req.query("sortDirection") ?? undefined,
+      requestedBy: c.req.query("requestedBy") ?? undefined,
+      instanceId: c.req.query("instanceId") ?? undefined,
+    });
+    if (!parsed.success) {
+      return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid query" }, 400);
+    }
+    try {
+      const payload = await listUnifiedMediaRequests(c.get("instances"), parsed.data);
+      return c.json(payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load requests";
+      return c.json({ error: message }, message.includes("not found") ? 404 : 502);
+    }
+  });
 
   app.get("/:instanceId/count", async (c) => {
     try {

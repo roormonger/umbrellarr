@@ -26,6 +26,15 @@ export const SERIES_POSTER_STATUS_LABELS: Record<Availability, string> = {
   downloading: "Downloading (One or more episodes)",
 };
 
+export function formatPosterStatusLabel(
+  availability: Availability,
+  labels: Record<Availability, string>,
+  progress?: string,
+): string {
+  const status = labels[availability];
+  return progress ? `${status} (${progress})` : status;
+}
+
 /** Lidarr ArtistIndexFooter legend labels. */
 export const ARTIST_POSTER_STATUS_LABELS: Record<Availability, string> = {
   downloaded: "Downloaded",

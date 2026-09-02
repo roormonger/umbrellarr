@@ -9,28 +9,32 @@ export const LIBRARY_HEAD_GC_MS = 60 * 60_000;
 export const LIBRARY_FULL_STALE_MS = 5 * 60_000;
 export const LIBRARY_FULL_GC_MS = 30 * 60_000;
 
-export function moviesHeadQueryKey(instanceId: string) {
-  return ["movies", instanceId, "head"] as const;
+export function libraryScopeKey(instanceId?: string) {
+  return instanceId ?? "all";
 }
 
-export function moviesFullQueryKey(instanceId: string) {
-  return ["movies", instanceId] as const;
+export function moviesHeadQueryKey(instanceId?: string) {
+  return ["movies", libraryScopeKey(instanceId), "head"] as const;
 }
 
-export function showsHeadQueryKey(instanceId: string) {
-  return ["shows", instanceId, "head"] as const;
+export function moviesFullQueryKey(instanceId?: string) {
+  return ["movies", libraryScopeKey(instanceId)] as const;
 }
 
-export function showsFullQueryKey(instanceId: string) {
-  return ["shows", instanceId] as const;
+export function showsHeadQueryKey(instanceId?: string) {
+  return ["shows", libraryScopeKey(instanceId), "head"] as const;
 }
 
-export function artistsHeadQueryKey(instanceId: string) {
-  return ["artists", instanceId, "head"] as const;
+export function showsFullQueryKey(instanceId?: string) {
+  return ["shows", libraryScopeKey(instanceId)] as const;
 }
 
-export function artistsFullQueryKey(instanceId: string) {
-  return ["artists", instanceId] as const;
+export function artistsHeadQueryKey(instanceId?: string) {
+  return ["artists", libraryScopeKey(instanceId), "head"] as const;
+}
+
+export function artistsFullQueryKey(instanceId?: string) {
+  return ["artists", libraryScopeKey(instanceId)] as const;
 }
 
 export function pickLibraryListData<T>(
@@ -85,13 +89,13 @@ function sliceArtistsHead(res: ArtistsResponse): ArtistsResponse {
   };
 }
 
-export async function fetchMoviesHead(instanceId: string) {
+export async function fetchMoviesHead(instanceId?: string) {
   return listMovies(instanceId, { limit: LIBRARY_HEAD_SIZE });
 }
 
 export async function fetchMoviesFull(
   queryClient: QueryClient,
-  instanceId: string,
+  instanceId?: string,
   options?: { refresh?: boolean },
 ) {
   const res = await listMovies(instanceId, options);
@@ -99,13 +103,13 @@ export async function fetchMoviesFull(
   return res;
 }
 
-export async function fetchShowsHead(instanceId: string) {
+export async function fetchShowsHead(instanceId?: string) {
   return listShows(instanceId, { limit: LIBRARY_HEAD_SIZE });
 }
 
 export async function fetchShowsFull(
   queryClient: QueryClient,
-  instanceId: string,
+  instanceId?: string,
   options?: { refresh?: boolean },
 ) {
   const res = await listShows(instanceId, options);
@@ -113,13 +117,13 @@ export async function fetchShowsFull(
   return res;
 }
 
-export async function fetchArtistsHead(instanceId: string) {
+export async function fetchArtistsHead(instanceId?: string) {
   return listArtists(instanceId, { limit: LIBRARY_HEAD_SIZE });
 }
 
 export async function fetchArtistsFull(
   queryClient: QueryClient,
-  instanceId: string,
+  instanceId?: string,
   options?: { refresh?: boolean },
 ) {
   const res = await listArtists(instanceId, options);
@@ -127,7 +131,7 @@ export async function fetchArtistsFull(
   return res;
 }
 
-export function prefetchMovieLibrary(queryClient: QueryClient, instanceId: string) {
+export function prefetchMovieLibrary(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: moviesHeadQueryKey(instanceId),
     queryFn: () => fetchMoviesHead(instanceId),
@@ -140,7 +144,7 @@ export function prefetchMovieLibrary(queryClient: QueryClient, instanceId: strin
   });
 }
 
-export function prefetchShowLibrary(queryClient: QueryClient, instanceId: string) {
+export function prefetchShowLibrary(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: showsHeadQueryKey(instanceId),
     queryFn: () => fetchShowsHead(instanceId),
@@ -153,7 +157,7 @@ export function prefetchShowLibrary(queryClient: QueryClient, instanceId: string
   });
 }
 
-export function prefetchArtistLibrary(queryClient: QueryClient, instanceId: string) {
+export function prefetchArtistLibrary(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: artistsHeadQueryKey(instanceId),
     queryFn: () => fetchArtistsHead(instanceId),
@@ -166,7 +170,7 @@ export function prefetchArtistLibrary(queryClient: QueryClient, instanceId: stri
   });
 }
 
-export function prefetchMovieHead(queryClient: QueryClient, instanceId: string) {
+export function prefetchMovieHead(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: moviesHeadQueryKey(instanceId),
     queryFn: () => fetchMoviesHead(instanceId),
@@ -174,7 +178,7 @@ export function prefetchMovieHead(queryClient: QueryClient, instanceId: string) 
   });
 }
 
-export function prefetchShowHead(queryClient: QueryClient, instanceId: string) {
+export function prefetchShowHead(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: showsHeadQueryKey(instanceId),
     queryFn: () => fetchShowsHead(instanceId),
@@ -182,7 +186,7 @@ export function prefetchShowHead(queryClient: QueryClient, instanceId: string) {
   });
 }
 
-export function prefetchArtistHead(queryClient: QueryClient, instanceId: string) {
+export function prefetchArtistHead(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: artistsHeadQueryKey(instanceId),
     queryFn: () => fetchArtistsHead(instanceId),
@@ -190,7 +194,7 @@ export function prefetchArtistHead(queryClient: QueryClient, instanceId: string)
   });
 }
 
-export async function ensureMovieLibrary(queryClient: QueryClient, instanceId: string) {
+export async function ensureMovieLibrary(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: moviesFullQueryKey(instanceId),
     queryFn: () => fetchMoviesFull(queryClient, instanceId),
@@ -203,7 +207,7 @@ export async function ensureMovieLibrary(queryClient: QueryClient, instanceId: s
   });
 }
 
-export async function ensureShowLibrary(queryClient: QueryClient, instanceId: string) {
+export async function ensureShowLibrary(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: showsFullQueryKey(instanceId),
     queryFn: () => fetchShowsFull(queryClient, instanceId),
@@ -216,7 +220,7 @@ export async function ensureShowLibrary(queryClient: QueryClient, instanceId: st
   });
 }
 
-export async function ensureArtistLibrary(queryClient: QueryClient, instanceId: string) {
+export async function ensureArtistLibrary(queryClient: QueryClient, instanceId?: string) {
   void queryClient.prefetchQuery({
     queryKey: artistsFullQueryKey(instanceId),
     queryFn: () => fetchArtistsFull(queryClient, instanceId),

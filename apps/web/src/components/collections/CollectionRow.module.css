@@ -1,0 +1,116 @@
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+  padding: 0.9rem 1rem;
+  border-radius: var(--mantine-radius-md);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+}
+
+.checkbox {
+  padding-top: 0.35rem;
+}
+
+.body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+.title {
+  line-height: 1.2;
+}
+
+.monitored {
+  color: var(--mantine-color-violet-4);
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.unmonitored {
+  color: var(--mantine-color-dimmed);
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+}
+
+.overview {
+  max-width: 72rem;
+}
+
+.strip {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  /* Room for poster hover outline (2px + 1px offset) so the first/last aren’t clipped. */
+  padding: 0.25rem 4px 0.4rem;
+  margin-inline: -4px;
+}
+
+.posterButton,
+.posterMuted {
+  position: relative;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 96px;
+  border-radius: var(--mantine-radius-sm);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--mantine-color-dark-6) 70%, transparent);
+  border: 1px solid var(--glass-border);
+}
+
+.posterButton:hover {
+  outline: 2px solid color-mix(in srgb, var(--mantine-color-violet-5) 70%, transparent);
+  outline-offset: 1px;
+}
+
+.posterMuted {
+  opacity: 0.45;
+}
+
+.posterMuted[data-excluded] {
+  opacity: 0.32;
+}
+
+.posterImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.posterFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--mantine-color-dimmed);
+}
+
+.excludedMark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mantine-color-red-4);
+  background: color-mix(in srgb, black 35%, transparent);
+}

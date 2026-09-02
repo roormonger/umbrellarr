@@ -33,13 +33,18 @@ export function usePageHeader(
 }
 
 export function titleFromPath(pathname: string): string {
+  if (/\/collections\/?$/.test(pathname)) return "Collections";
+  if (/\/queue\/?$/.test(pathname)) return "Queue";
+  if (/\/history\/?$/.test(pathname)) return "History";
+  if (pathname.startsWith("/issues/") && pathname.split("/").length > 3) return "Issue";
+  if (/\/issues\/?$/.test(pathname)) return "Issues";
   if (/^\/movies\/[^/]+\/[^/]+/.test(pathname)) return "Movie";
   if (pathname.startsWith("/movies")) return "Movies";
+  if (/^\/shows\/[^/]+\/[^/]+/.test(pathname)) return "Show";
   if (pathname.startsWith("/shows")) return "Shows";
   if (/^\/music\/[^/]+\/[^/]+/.test(pathname)) return "Artist";
   if (pathname.startsWith("/music")) return "Music";
   if (pathname.startsWith("/requests")) return "Requests";
-  if (pathname.startsWith("/activity/queue")) return "Queue";
   if (pathname.startsWith("/activity/calendar")) return "Calendar";
   if (pathname.startsWith("/activity/missing")) return "Missing";
   if (pathname.startsWith("/settings")) return "Settings";

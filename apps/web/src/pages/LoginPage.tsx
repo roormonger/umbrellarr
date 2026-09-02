@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { login, setAuthStatusCache } from "@/api/auth";
+import { allLibrarySearch } from "@/lib/librarySearch";
 import { ApiError } from "@/api/client";
 
 export function LoginPage() {
@@ -26,7 +27,7 @@ export function LoginPage() {
     try {
       await login(password);
       setAuthStatusCache(queryClient, { authenticated: true, authRequired: true });
-      await navigate({ to: "/movies" });
+      await navigate({ to: "/movies", search: allLibrarySearch });
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Login failed";
       notifications.show({ color: "red", title: "Login failed", message });

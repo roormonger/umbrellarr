@@ -101,7 +101,11 @@ export function createAppTheme(highlightColor: string = DEFAULT_HIGHLIGHT_COLOR)
           withArrow: true,
         },
         styles: {
-          tooltip: glassSurface,
+          tooltip: {
+            ...glassSurface,
+            // Glass is light in light mode / dark in dark mode; keep label readable.
+            color: "light-dark(var(--mantine-color-black), var(--mantine-color-white))",
+          },
           arrow: {
             backgroundColor: "var(--glass-bg)",
             border: "1px solid var(--glass-border)",
