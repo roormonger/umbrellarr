@@ -21,6 +21,7 @@ import { QueuePage } from "@/pages/QueuePage";
 import { RequestDetailPage } from "@/pages/RequestDetailPage";
 import { RequestsPage } from "@/pages/RequestsPage";
 import { IssuesPage } from "@/pages/IssuesPage";
+import { IssueDetailPage } from "@/pages/IssueDetailPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ShowDetailPage } from "@/pages/ShowDetailPage";
 import { ArtistDetailPage } from "@/pages/ArtistDetailPage";
@@ -360,9 +361,7 @@ const issuesRoute = createRoute({
 const issueDetailRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/issues/$instanceId/$issueId",
-  component: () => (
-    <PlaceholderPage title="Issue" description="Issue detail is coming soon." />
-  ),
+  component: IssueDetailPage,
 });
 
 const requestDetailRoute = createRoute({

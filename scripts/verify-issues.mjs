@@ -97,10 +97,25 @@ async function main() {
   const rows = page.locator("[data-issue-row]");
   const rowCount = await rows.count();
   if (rowCount > 0) {
+    const firstIssue = openUnified.results.find((item) => item.instanceId === seerr.id) ??
+      openUnified.results[0];
+    if (firstIssue?.instanceId && firstIssue.id != null) {
+      const detail = await apiJson(
+        `/api/issues/${encodeURIComponent(firstIssue.instanceId)}/${firstIssue.id}`,
+        cookies.header,
+      );
+      if (!detail?.comments || !Array.isArray(detail.comments)) {
+        throw new Error("issue detail missing comments array");
+      }
+      console.log(`api ok: issue detail #${firstIssue.id}`);
+    }
+
     await rows.first().getByRole("button", { name: "View Issue" }).click();
     await page.waitForURL(`**/issues/${seerr.id}/**`, { timeout: 10_000 });
-    await page.getByText("Issue detail is coming soon.").waitFor();
-    console.log(`ui ok: ${rowCount} issue row(s), detail placeholder opens`);
+    await page.getByRole("heading", { level: 1 }).waitFor({ timeout: 10_000 });
+    await page.getByText("Comments", { exact: true }).waitFor();
+    await page.getByPlaceholder("Add a comment…").waitFor();
+    console.log(`ui ok: ${rowCount} issue row(s), detail hero + comments render`);
   } else {
     await page.getByText("No issues match this filter.").waitFor();
     console.log("ui ok: issues empty state");

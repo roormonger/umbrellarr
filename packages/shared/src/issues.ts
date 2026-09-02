@@ -66,3 +66,32 @@ export const UnifiedIssueListResponseSchema = IssueListResponseSchema.extend({
     .optional(),
 });
 export type UnifiedIssueListResponse = z.infer<typeof UnifiedIssueListResponseSchema>;
+
+export const IssueCommentSchema = z.object({
+  id: z.number().int(),
+  message: z.string(),
+  createdAt: z.string().optional(),
+  user: RequestUserSchema.optional(),
+});
+export type IssueComment = z.infer<typeof IssueCommentSchema>;
+
+export const IssueLibraryTargetSchema = z.object({
+  instanceId: z.string(),
+  instanceName: z.string(),
+  externalId: z.number().int(),
+  mediaType: z.enum(["movie", "tv"]),
+});
+export type IssueLibraryTarget = z.infer<typeof IssueLibraryTargetSchema>;
+
+export const IssuePageDetailSchema = IssueListItemSchema.extend({
+  overview: z.string().optional(),
+  description: z.string().optional(),
+  comments: z.array(IssueCommentSchema),
+  libraryTargets: z.array(IssueLibraryTargetSchema),
+});
+export type IssuePageDetail = z.infer<typeof IssuePageDetailSchema>;
+
+export const IssueAddCommentRequestSchema = z.object({
+  message: z.string().trim().min(1),
+});
+export type IssueAddCommentRequest = z.infer<typeof IssueAddCommentRequestSchema>;

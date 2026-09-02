@@ -34,6 +34,13 @@ export type MediaDetailHeroProps = {
   hideTrailer?: boolean;
   /** Seerr request / Discover pages — no Arr monitor toggle. */
   hideMonitor?: boolean;
+  /** Optional badge/chip rendered after the title. */
+  titleBadge?: ReactNode;
+  linksHeading?: string;
+  /** When set, replaces the default external links grid. */
+  linksContent?: ReactNode;
+  /** When set, replaces the trailer iframe / empty state. */
+  trailerContent?: ReactNode;
 };
 
 export function MetaRow({
@@ -70,8 +77,13 @@ export function MediaDetailHero({
   trailerLoading,
   hideTrailer,
   hideMonitor,
+  titleBadge,
+  linksHeading = "Links",
+  linksContent,
+  trailerContent,
 }: MediaDetailHeroProps) {
   const hasTrailer = Boolean(youTubeTrailerId);
+  const hasTrailerSlot = !hideTrailer;
   const monitoredLabel = monitored ? "Monitored" : "Unmonitored";
 
   return (
@@ -101,6 +113,7 @@ export function MediaDetailHero({
               </Tooltip>
             ) : null}
             <h1 className={classes.title}>{title}</h1>
+            {titleBadge ? <div className={classes.titleBadge}>{titleBadge}</div> : null}
           </div>
 
           {(sublineParts.length > 0 || ratingParts.length > 0) && (
@@ -129,64 +142,72 @@ export function MediaDetailHero({
         </div>
 
         <div className={`${classes.panel} ${classes.linksPanel}`}>
-          <Text className={classes.sideHeading}>Links</Text>
-          {linksLoading && (
-            <Text size="sm" c="dimmed">
-              Loading…
-            </Text>
-          )}
-          {linksError && (
-            <Text size="sm" c="red">
-              {linksError}
-            </Text>
-          )}
-          {links.length > 0 && (
-            <div className={classes.linksList}>
-              {links.map((link) => (
-                <Anchor
-                  key={link.id}
-                  href={link.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={classes.linkCell}
-                  title={link.url}
-                >
-                  {link.label}
-                </Anchor>
-              ))}
-              {links.length % 2 === 1 && (
-                <div className={classes.linkCellFiller} aria-hidden />
+          {linksHeading ? <Text className={classes.sideHeading}>{linksHeading}</Text> : null}
+          {linksContent ? (
+            <div className={classes.linksCustom}>{linksContent}</div>
+          ) : (
+            <>
+              {linksLoading && (
+                <Text size="sm" c="dimmed">
+                  Loading…
+                </Text>
               )}
-            </div>
-          )}
-          {!linksLoading && !linksError && links.length === 0 && (
-            <Text size="sm" c="dimmed">
-              —
-            </Text>
+              {linksError && (
+                <Text size="sm" c="red">
+                  {linksError}
+                </Text>
+              )}
+              {links.length > 0 && (
+                <div className={classes.linksList}>
+                  {links.map((link) => (
+                    <Anchor
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={classes.linkCell}
+                      title={link.url}
+                    >
+                      {link.label}
+                    </Anchor>
+                  ))}
+                  {links.length % 2 === 1 && (
+                    <div className={classes.linkCellFiller} aria-hidden />
+                  )}
+                </div>
+              )}
+              {!linksLoading && !linksError && links.length === 0 && (
+                <Text size="sm" c="dimmed">
+                  —
+                </Text>
+              )}
+            </>
           )}
         </div>
 
         <dl className={`${classes.panel} ${classes.metaPanel}`}>{meta}</dl>
 
-        {!hideTrailer && (
+        {hasTrailerSlot && (
           <div className={`${classes.panel} ${classes.trailerPanel}`}>
-            {hasTrailer && youTubeTrailerId ? (
-              <div className={classes.trailer}>
-                <iframe
-                  title={`${title} trailer`}
-                  src={`https://www.youtube-nocookie.com/embed/${youTubeTrailerId}`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="strict-origin-when-cross-origin"
-                />
-              </div>
-            ) : (
-              <div className={classes.trailerEmpty}>
-                <Text size="sm" c="dimmed">
-                  {trailerLoading ? "Looking for trailer…" : "No trailer available"}
-                </Text>
-              </div>
+            {trailerContent ?? (
+              hasTrailer && youTubeTrailerId ? (
+                <div className={classes.trailer}>
+                  <iframe
+                    title={`${title} trailer`}
+                    src={`https://www.youtube-nocookie.com/embed/${youTubeTrailerId}`}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                  />
+                </div>
+              ) : (
+                <div className={classes.trailerEmpty}>
+                  <Text size="sm" c="dimmed">
+                    {trailerLoading ? "Looking for trailer…" : "No trailer available"}
+                  </Text>
+                </div>
+              )
             )}
           </div>
         )}

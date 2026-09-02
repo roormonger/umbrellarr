@@ -4,9 +4,12 @@
  */
 import type {
   Instance,
+  IssueComment,
+  IssueLibraryTarget,
   IssueListItem,
   IssueListQuery,
   IssueListResponse,
+  IssuePageDetail,
   IssueSort,
   IssueStatus,
   IssueType,
@@ -14,6 +17,7 @@ import type {
   UnifiedIssueListQuery,
   UnifiedIssueListResponse,
 } from "@umbrellarr/shared";
+import type { LibraryCache } from "../cache/libraryCache.js";
 import { arrJson } from "./client.js";
 
 type SeerrUser = {
@@ -32,6 +36,7 @@ type SeerrMedia = {
 type SeerrIssueComment = {
   id?: number;
   message?: string;
+  createdAt?: string;
   user?: SeerrUser;
 };
 
@@ -63,6 +68,8 @@ type SeerrMovie = {
   releaseDate?: string;
   posterPath?: string | null;
   backdropPath?: string | null;
+  overview?: string;
+  voteAverage?: number;
 };
 
 type SeerrTv = {
@@ -70,6 +77,8 @@ type SeerrTv = {
   firstAirDate?: string;
   posterPath?: string | null;
   backdropPath?: string | null;
+  overview?: string;
+  voteAverage?: number;
 };
 
 function requireSeerr(instances: Instance[], instanceId: string): Instance {
@@ -141,6 +150,149 @@ async function fetchTitle(
   } catch {
     return null;
   }
+}
+
+function mapComments(comments: SeerrIssueComment[] | undefined): IssueComment[] {
+  return [...(comments ?? [])]
+    .sort((a, b) => (a.id ?? 0) - (b.id ?? 0))
+    .filter((comment) => comment.id != null && comment.message != null)
+    .map((comment) => ({
+      id: comment.id!,
+      message: comment.message!.trim(),
+      createdAt: comment.createdAt,
+      user: mapUser(comment.user),
+    }));
+}
+
+async function resolveIssueLibraryTargets(
+  instances: Instance[],
+  libraryCache: LibraryCache,
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+): Promise<IssueLibraryTarget[]> {
+  if (tmdbId <= 0) return [];
+
+  const instanceNames = new Map(instances.map((instance) => [instance.id, instance.name]));
+  const targets: IssueLibraryTarget[] = [];
+
+  if (mediaType === "movie") {
+    const hasRadarr = instances.some((instance) => instance.kind === "radarr");
+    if (!hasRadarr) return [];
+    const result = await libraryCache.getMovies(instances);
+    for (const movie of result.movies) {
+      if (movie.tmdbId !== tmdbId) continue;
+      targets.push({
+        instanceId: movie.instanceId,
+        instanceName: instanceNames.get(movie.instanceId) ?? movie.instanceId,
+        externalId: movie.externalId,
+        mediaType: "movie",
+      });
+    }
+  } else {
+    const hasSonarr = instances.some((instance) => instance.kind === "sonarr");
+    if (!hasSonarr) return [];
+    const result = await libraryCache.getSeries(instances);
+    for (const series of result.series) {
+      if (series.tmdbId !== tmdbId) continue;
+      targets.push({
+        instanceId: series.instanceId,
+        instanceName: instanceNames.get(series.instanceId) ?? series.instanceId,
+        externalId: series.externalId,
+        mediaType: "tv",
+      });
+    }
+  }
+
+  return targets.sort((a, b) =>
+    a.instanceName.localeCompare(b.instanceName, undefined, { sensitivity: "base" }),
+  );
+}
+
+function mapIssuePageDetail(
+  issue: SeerrIssue,
+  title: SeerrMovie | SeerrTv | null,
+  instance: Instance,
+  libraryTargets: IssueLibraryTarget[],
+): IssuePageDetail {
+  const base = mapIssue(issue, title);
+  const movie = issue.media?.mediaType === "tv" ? null : (title as SeerrMovie | null);
+  const tv = issue.media?.mediaType === "tv" ? (title as SeerrTv | null) : null;
+  const comments = mapComments(issue.comments);
+  const description = comments[0]?.message;
+
+  return {
+    ...base,
+    instanceId: instance.id,
+    instanceName: instance.name,
+    overview: movie?.overview?.trim() || tv?.overview?.trim() || undefined,
+    description,
+    comments,
+    libraryTargets,
+  };
+}
+
+async function fetchIssueDetailPayload(
+  instance: Instance,
+  issueId: number,
+): Promise<SeerrIssue> {
+  return arrJson<SeerrIssue>(instance, `/api/v1/issue/${issueId}`);
+}
+
+export async function getMediaIssueDetail(
+  instances: Instance[],
+  libraryCache: LibraryCache,
+  instanceId: string,
+  issueId: number,
+): Promise<IssuePageDetail> {
+  const instance = requireSeerr(instances, instanceId);
+  const issue = await fetchIssueDetailPayload(instance, issueId);
+  const mediaType = issue.media?.mediaType === "tv" ? "tv" : "movie";
+  const tmdbId = issue.media?.tmdbId ?? 0;
+  const [title, libraryTargets] = await Promise.all([
+    tmdbId > 0 ? fetchTitle(instance, mediaType, tmdbId) : Promise.resolve(null),
+    resolveIssueLibraryTargets(instances, libraryCache, mediaType, tmdbId),
+  ]);
+  return mapIssuePageDetail(issue, title, instance, libraryTargets);
+}
+
+export async function addMediaIssueComment(
+  instances: Instance[],
+  libraryCache: LibraryCache,
+  instanceId: string,
+  issueId: number,
+  message: string,
+): Promise<IssuePageDetail> {
+  const instance = requireSeerr(instances, instanceId);
+  const issue = await arrJson<SeerrIssue>(instance, `/api/v1/issue/${issueId}/comment`, {
+    method: "POST",
+    body: { message },
+  });
+  const mediaType = issue.media?.mediaType === "tv" ? "tv" : "movie";
+  const tmdbId = issue.media?.tmdbId ?? 0;
+  const [title, libraryTargets] = await Promise.all([
+    tmdbId > 0 ? fetchTitle(instance, mediaType, tmdbId) : Promise.resolve(null),
+    resolveIssueLibraryTargets(instances, libraryCache, mediaType, tmdbId),
+  ]);
+  return mapIssuePageDetail(issue, title, instance, libraryTargets);
+}
+
+export async function resolveMediaIssue(
+  instances: Instance[],
+  libraryCache: LibraryCache,
+  instanceId: string,
+  issueId: number,
+): Promise<IssuePageDetail> {
+  const instance = requireSeerr(instances, instanceId);
+  const issue = await arrJson<SeerrIssue>(instance, `/api/v1/issue/${issueId}/resolved`, {
+    method: "POST",
+  });
+  const mediaType = issue.media?.mediaType === "tv" ? "tv" : "movie";
+  const tmdbId = issue.media?.tmdbId ?? 0;
+  const [title, libraryTargets] = await Promise.all([
+    tmdbId > 0 ? fetchTitle(instance, mediaType, tmdbId) : Promise.resolve(null),
+    resolveIssueLibraryTargets(instances, libraryCache, mediaType, tmdbId),
+  ]);
+  return mapIssuePageDetail(issue, title, instance, libraryTargets);
 }
 
 function mapIssue(
