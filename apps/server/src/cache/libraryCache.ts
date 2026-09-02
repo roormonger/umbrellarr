@@ -5,6 +5,11 @@ import type {
   MovieListItem,
   SeriesListItem,
 } from "@umbrellarr/shared";
+import {
+  countUniqueArtists,
+  countUniqueMovies,
+  countUniqueShows,
+} from "../lib/libraryDedup.js";
 import { fetchArtistsForInstance } from "../servarr/artists.js";
 import { fetchMoviesForInstance } from "../servarr/movies.js";
 import { fetchSeriesForInstance } from "../servarr/shows.js";
@@ -42,6 +47,17 @@ export type LibraryCacheDeps = {
   staleMs?: number;
   /** Items kept in the durable head cache. Default 60. */
   headSize?: number;
+  /** Optional SQLite-backed index for restart-safe hydrate/persist. */
+  durable?: {
+    loadMovies?: (instanceId: string) => InstanceMovieSnapshot | undefined;
+    loadSeries?: (instanceId: string) => InstanceSeriesSnapshot | undefined;
+    loadArtists?: (instanceId: string) => InstanceArtistSnapshot | undefined;
+    saveMovies?: (instanceId: string, movies: MovieListItem[], fetchedAt: number) => void;
+    saveSeries?: (instanceId: string, series: SeriesListItem[], fetchedAt: number) => void;
+    saveArtists?: (instanceId: string, artists: ArtistListItem[], fetchedAt: number) => void;
+  };
+  /** Called after a successful Arr refresh (for revision bumps, etc.). */
+  onLibraryUpdated?: (instanceId: string, kind: "movie" | "series" | "artist") => void;
 };
 
 export type LibraryReadOptions = {
@@ -114,6 +130,8 @@ export class LibraryCache {
   private readonly now: () => number;
   private readonly staleMs: number;
   private readonly headSize: number;
+  private readonly durable: LibraryCacheDeps["durable"];
+  private readonly onLibraryUpdated: LibraryCacheDeps["onLibraryUpdated"];
 
   constructor(options: LibraryCacheDeps = {}) {
     this.fetchMovies = options.fetchMovies ?? fetchMoviesForInstance;
@@ -122,6 +140,39 @@ export class LibraryCache {
     this.now = options.now ?? Date.now;
     this.staleMs = options.staleMs ?? DEFAULT_STALE_MS;
     this.headSize = options.headSize ?? DEFAULT_LIBRARY_HEAD_SIZE;
+    this.durable = options.durable;
+    this.onLibraryUpdated = options.onLibraryUpdated;
+  }
+
+  /** Load SQLite snapshots into memory so cold starts paint without waiting on Arr. */
+  hydrateFromDurable(instances: Instance[]): number {
+    if (!this.durable) return 0;
+    let loaded = 0;
+    for (const instance of instances) {
+      if (instance.kind === "radarr" && !this.movieSnapshots.has(instance.id)) {
+        const snap = this.durable.loadMovies?.(instance.id);
+        if (snap) {
+          this.movieSnapshots.set(instance.id, snap);
+          this.storeMovieHead(instance.id, snap.movies, snap.fetchedAt);
+          loaded += 1;
+        }
+      } else if (instance.kind === "sonarr" && !this.seriesSnapshots.has(instance.id)) {
+        const snap = this.durable.loadSeries?.(instance.id);
+        if (snap) {
+          this.seriesSnapshots.set(instance.id, snap);
+          this.storeSeriesHead(instance.id, snap.series, snap.fetchedAt);
+          loaded += 1;
+        }
+      } else if (instance.kind === "lidarr" && !this.artistSnapshots.has(instance.id)) {
+        const snap = this.durable.loadArtists?.(instance.id);
+        if (snap) {
+          this.artistSnapshots.set(instance.id, snap);
+          this.storeArtistHead(instance.id, snap.artists, snap.fetchedAt);
+          loaded += 1;
+        }
+      }
+    }
+    return loaded;
   }
 
   getSnapshot(instanceId: string): InstanceMovieSnapshot | undefined {
@@ -152,6 +203,35 @@ export class LibraryCache {
     this.movieHeads.clear();
     this.seriesHeads.clear();
     this.artistHeads.clear();
+  }
+
+  /**
+   * Unique library totals from in-memory snapshots only — never hits Arr.
+   * Returns undefined for a kind when no snapshot is loaded yet.
+   */
+  peekNavLibraryCounts(instances: Instance[]): {
+    movies?: number;
+    shows?: number;
+    music?: number;
+  } {
+    const radarr = instances.filter((i) => i.kind === "radarr");
+    const sonarr = instances.filter((i) => i.kind === "sonarr");
+    const lidarr = instances.filter((i) => i.kind === "lidarr");
+    const out: { movies?: number; shows?: number; music?: number } = {};
+
+    if (radarr.length > 0 && radarr.some((i) => this.movieSnapshots.has(i.id))) {
+      const movies = radarr.flatMap((i) => this.movieSnapshots.get(i.id)?.movies ?? []);
+      out.movies = countUniqueMovies(movies);
+    }
+    if (sonarr.length > 0 && sonarr.some((i) => this.seriesSnapshots.has(i.id))) {
+      const series = sonarr.flatMap((i) => this.seriesSnapshots.get(i.id)?.series ?? []);
+      out.shows = countUniqueShows(series);
+    }
+    if (lidarr.length > 0 && lidarr.some((i) => this.artistSnapshots.has(i.id))) {
+      const artists = lidarr.flatMap((i) => this.artistSnapshots.get(i.id)?.artists ?? []);
+      out.music = countUniqueArtists(artists);
+    }
+    return out;
   }
 
   /** Prefetch into memory (startup / after adding a client). */
@@ -438,22 +518,64 @@ export class LibraryCache {
   }
 
   private async ensureMovies(instance: Instance, force = false): Promise<CacheStatus> {
-    const snap = this.movieSnapshots.get(instance.id);
+    let snap = this.movieSnapshots.get(instance.id);
+    if (!snap && this.durable?.loadMovies) {
+      const durable = this.durable.loadMovies(instance.id);
+      if (durable) {
+        this.movieSnapshots.set(instance.id, durable);
+        this.storeMovieHead(instance.id, durable.movies, durable.fetchedAt);
+        snap = durable;
+      }
+    }
     if (!force && snap && this.isFresh(snap.fetchedAt)) return "HIT";
+    if (!force && snap) {
+      void this.refreshMovies(instance).catch((error) => {
+        console.warn(`[cache] background movies refresh failed for ${instance.id}`, error);
+      });
+      return "STALE";
+    }
     await this.refreshMovies(instance);
     return snap ? "STALE" : "MISS";
   }
 
   private async ensureSeries(instance: Instance, force = false): Promise<CacheStatus> {
-    const snap = this.seriesSnapshots.get(instance.id);
+    let snap = this.seriesSnapshots.get(instance.id);
+    if (!snap && this.durable?.loadSeries) {
+      const durable = this.durable.loadSeries(instance.id);
+      if (durable) {
+        this.seriesSnapshots.set(instance.id, durable);
+        this.storeSeriesHead(instance.id, durable.series, durable.fetchedAt);
+        snap = durable;
+      }
+    }
     if (!force && snap && this.isFresh(snap.fetchedAt)) return "HIT";
+    if (!force && snap) {
+      void this.refreshSeries(instance).catch((error) => {
+        console.warn(`[cache] background series refresh failed for ${instance.id}`, error);
+      });
+      return "STALE";
+    }
     await this.refreshSeries(instance);
     return snap ? "STALE" : "MISS";
   }
 
   private async ensureArtists(instance: Instance, force = false): Promise<CacheStatus> {
-    const snap = this.artistSnapshots.get(instance.id);
+    let snap = this.artistSnapshots.get(instance.id);
+    if (!snap && this.durable?.loadArtists) {
+      const durable = this.durable.loadArtists(instance.id);
+      if (durable) {
+        this.artistSnapshots.set(instance.id, durable);
+        this.storeArtistHead(instance.id, durable.artists, durable.fetchedAt);
+        snap = durable;
+      }
+    }
     if (!force && snap && this.isFresh(snap.fetchedAt)) return "HIT";
+    if (!force && snap) {
+      void this.refreshArtists(instance).catch((error) => {
+        console.warn(`[cache] background artists refresh failed for ${instance.id}`, error);
+      });
+      return "STALE";
+    }
     await this.refreshArtists(instance);
     return snap ? "STALE" : "MISS";
   }
@@ -469,6 +591,12 @@ export class LibraryCache {
       };
       this.movieSnapshots.set(instance.id, snap);
       this.storeMovieHead(instance.id, movies, snap.fetchedAt);
+      try {
+        this.durable?.saveMovies?.(instance.id, movies, snap.fetchedAt);
+      } catch (error) {
+        console.warn(`[cache] persist movies failed for ${instance.id}`, error);
+      }
+      this.onLibraryUpdated?.(instance.id, "movie");
       return snap;
     } catch (error) {
       if (previous) {
@@ -490,6 +618,12 @@ export class LibraryCache {
       };
       this.seriesSnapshots.set(instance.id, snap);
       this.storeSeriesHead(instance.id, series, snap.fetchedAt);
+      try {
+        this.durable?.saveSeries?.(instance.id, series, snap.fetchedAt);
+      } catch (error) {
+        console.warn(`[cache] persist series failed for ${instance.id}`, error);
+      }
+      this.onLibraryUpdated?.(instance.id, "series");
       return snap;
     } catch (error) {
       if (previous) {
@@ -511,6 +645,12 @@ export class LibraryCache {
       };
       this.artistSnapshots.set(instance.id, snap);
       this.storeArtistHead(instance.id, artists, snap.fetchedAt);
+      try {
+        this.durable?.saveArtists?.(instance.id, artists, snap.fetchedAt);
+      } catch (error) {
+        console.warn(`[cache] persist artists failed for ${instance.id}`, error);
+      }
+      this.onLibraryUpdated?.(instance.id, "artist");
       return snap;
     } catch (error) {
       if (previous) {

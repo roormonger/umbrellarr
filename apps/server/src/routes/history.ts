@@ -4,10 +4,12 @@ import {
   HistoryProtocolFilterSchema,
 } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
+import { activityListCache } from "../cache/ttlCache.js";
 import {
   deleteHistoryItem,
   fetchUnifiedHistory,
 } from "../servarr/history.js";
+import { syncRevisionStore } from "../sync/revisionStore.js";
 
 export function createHistoryRoutes() {
   const app = new Hono<{ Variables: AppVariables }>();
@@ -30,14 +32,25 @@ export function createHistoryRoutes() {
         : HistoryProtocolFilterSchema.safeParse(protocolRaw).success
           ? HistoryProtocolFilterSchema.parse(protocolRaw)
           : "all";
+    const resolvedPage = Number.isFinite(page) ? page : 1;
+    const resolvedPageSize = Number.isFinite(pageSize) ? pageSize : 50;
+    const cacheKey =
+      resolvedPage === 1 && !instanceId && eventType === "all" && protocol === "all"
+        ? `history:unified:p1:${resolvedPageSize}`
+        : null;
     try {
+      if (cacheKey) {
+        const cached = activityListCache.get<unknown>(cacheKey);
+        if (cached) return c.json(cached);
+      }
       const result = await fetchUnifiedHistory(c.get("instances"), {
-        page: Number.isFinite(page) ? page : 1,
-        pageSize: Number.isFinite(pageSize) ? pageSize : 50,
+        page: resolvedPage,
+        pageSize: resolvedPageSize,
         instanceId,
         eventType,
         protocol,
       });
+      if (cacheKey) activityListCache.set(cacheKey, result, 45_000);
       return c.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load history";
@@ -50,6 +63,9 @@ export function createHistoryRoutes() {
     if (!Number.isFinite(id)) return c.json({ error: "Invalid history id" }, 400);
     try {
       await deleteHistoryItem(c.get("instances"), c.req.param("instanceId"), id);
+      activityListCache.invalidate("history:");
+      activityListCache.invalidate("stats:history");
+      syncRevisionStore.bump(["history"]);
       return c.json({ ok: true as const });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Delete failed";

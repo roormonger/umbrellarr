@@ -13,6 +13,7 @@ import {
   type IssueSortPreset,
 } from "@/components/issues/IssuesToolbar";
 import { usePageHeader } from "@/layout/pageHeader";
+import { ACTIVITY_LIST_STALE_MS, focusAwareRefetchInterval, SEERR_LIST_POLL_MS } from "@/lib/queryFocus";
 import classes from "./IssuesPage.module.css";
 
 const PAGE_SIZE = 25;
@@ -65,7 +66,9 @@ export function IssuesPage() {
         instanceId: activeInstanceFilter,
       }),
     enabled: seerrInstances.length > 0,
-    refetchInterval: 15_000,
+    staleTime: ACTIVITY_LIST_STALE_MS,
+    refetchInterval: focusAwareRefetchInterval(SEERR_LIST_POLL_MS),
+    refetchIntervalInBackground: false,
   });
 
   const total = listQuery.data?.pageInfo.results ?? 0;

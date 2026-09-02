@@ -21,6 +21,7 @@ import { createIssuesRoutes } from "./routes/issues.js";
 import { createShowsRoutes } from "./routes/shows.js";
 import { createStatsRoutes } from "./routes/stats.js";
 import { createSettingsRoutes } from "./routes/settings.js";
+import { createSyncRoutes } from "./routes/sync.js";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import type { LibraryCache } from "./cache/libraryCache.js";
 
@@ -71,6 +72,7 @@ export function createApp(
   // GET appearance is public (see auth middleware); PUT requires a session.
   app.route("/api/settings", createSettingsRoutes());
   app.route("/api/stats", createStatsRoutes());
+  app.route("/api/sync", createSyncRoutes());
   app.route("/api/calendar", createCalendarRoutes());
   app.route("/api/collections", createCollectionsRoutes());
   app.route("/api/queue", createQueueRoutes());

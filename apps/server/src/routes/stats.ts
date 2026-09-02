@@ -1,16 +1,20 @@
 import { Hono } from "hono";
 import type { DashboardStats, NavCounts } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
-import {
-  countUniqueArtists,
-  countUniqueMovies,
-  countUniqueShows,
-} from "../lib/libraryDedup.js";
+import { activityListCache } from "../cache/ttlCache.js";
 import { fetchUnifiedHistory } from "../servarr/history.js";
 import { fetchUnifiedQueue } from "../servarr/queue.js";
 import { getUnifiedOpenIssueCount } from "../servarr/seerrIssues.js";
 import { getUnifiedPendingRequestCount } from "../servarr/seerrRequests.js";
 import { checkInstanceStatus } from "../servarr/status.js";
+
+async function cachedCount(key: string, ttlMs: number, fetch: () => Promise<number>): Promise<number> {
+  const hit = activityListCache.get<number>(key);
+  if (hit != null) return hit;
+  const value = await fetch();
+  activityListCache.set(key, value, ttlMs);
+  return value;
+}
 
 export function createStatsRoutes() {
   const app = new Hono<{ Variables: AppVariables }>();
@@ -24,42 +28,41 @@ export function createStatsRoutes() {
     const hasSeerr = instances.some((instance) => instance.kind === "seerr");
     const hasArr = hasRadarr || hasSonarr || hasLidarr;
 
-    const [
-      statuses,
-      moviesResult,
-      showsResult,
-      artistsResult,
-      pendingRequests,
-      openIssues,
-      queueResult,
-      historyResult,
-    ] = await Promise.all([
+    const libraryCounts = libraryCache.peekNavLibraryCounts(instances);
+
+    const [statuses, pendingRequests, openIssues, queueTotal, historyTotal] = await Promise.all([
       Promise.all(instances.map((instance) => checkInstanceStatus(instance))),
-      hasRadarr ? libraryCache.getMovies(instances) : Promise.resolve(null),
-      hasSonarr ? libraryCache.getSeries(instances) : Promise.resolve(null),
-      hasLidarr ? libraryCache.getArtists(instances) : Promise.resolve(null),
-      hasSeerr ? getUnifiedPendingRequestCount(instances) : Promise.resolve(0),
-      hasSeerr ? getUnifiedOpenIssueCount(instances) : Promise.resolve(0),
+      hasSeerr
+        ? cachedCount("stats:pending-requests", 45_000, () => getUnifiedPendingRequestCount(instances))
+        : Promise.resolve(0),
+      hasSeerr
+        ? cachedCount("stats:open-issues", 45_000, () => getUnifiedOpenIssueCount(instances))
+        : Promise.resolve(0),
       hasArr
-        ? fetchUnifiedQueue(instances, { page: 1, pageSize: 1 })
-        : Promise.resolve(null),
+        ? cachedCount("stats:queue-total", 20_000, async () => {
+            const result = await fetchUnifiedQueue(instances, { page: 1, pageSize: 1 });
+            return result.totalRecords;
+          })
+        : Promise.resolve(0),
       hasArr
-        ? fetchUnifiedHistory(instances, { page: 1, pageSize: 1 })
-        : Promise.resolve(null),
+        ? cachedCount("stats:history-total", 45_000, async () => {
+            const result = await fetchUnifiedHistory(instances, { page: 1, pageSize: 1 });
+            return result.totalRecords;
+          })
+        : Promise.resolve(0),
     ]);
 
     const nav: NavCounts = {};
-    if (moviesResult) nav.movies = countUniqueMovies(moviesResult.movies);
-    if (showsResult) nav.shows = countUniqueShows(showsResult.series);
-    if (artistsResult) nav.music = countUniqueArtists(artistsResult.artists);
+    if (hasRadarr && libraryCounts.movies != null) nav.movies = libraryCounts.movies;
+    if (hasSonarr && libraryCounts.shows != null) nav.shows = libraryCounts.shows;
+    if (hasLidarr && libraryCounts.music != null) nav.music = libraryCounts.music;
     if (hasSeerr) nav.requests = pendingRequests;
     if (hasSeerr) nav.issues = openIssues;
-    if (queueResult) nav.queue = queueResult.totalRecords;
-    if (historyResult) nav.history = historyResult.totalRecords;
+    if (hasArr) nav.queue = queueTotal;
+    if (hasArr) nav.history = historyTotal;
 
-    const queueCount = queueResult?.totalRecords ?? 0;
     const stats: DashboardStats = {
-      queueCount,
+      queueCount: queueTotal,
       missingCount: 0,
       instancesOnline: statuses.filter((status) => status.online).length,
       instancesTotal: statuses.length,

@@ -39,12 +39,20 @@ import {
   prefetchShowHead,
   prefetchShowLibrary,
 } from "@/api/libraryList";
+import {
+  prefetchHistory,
+  prefetchIssues,
+  prefetchQueue,
+  prefetchRequests,
+} from "@/api/activityPrefetch";
 import { getDashboardStats } from "@/api/stats";
 import umbrellarrIcon from "@/assets/umbrellarr-icon.png";
 import { PageHeaderContext, titleFromPath, type PageHeaderInfo } from "@/layout/pageHeader";
 import { setLastInstanceId } from "@/lib/lastInstance";
 import { allLibrarySearch } from "@/lib/librarySearch";
 import { allIssuesSearch } from "@/lib/issuesSearch";
+import { focusAwareRefetchInterval } from "@/lib/queryFocus";
+import { useSyncRevisionInvalidation } from "@/lib/useSyncRevisionInvalidation";
 import classes from "./AppLayout.module.css";
 
 const RESERVED_SEGMENTS = new Set(["collections", "queue", "history", "issues"]);
@@ -133,10 +141,12 @@ export function AppLayout() {
   const searchStr = useRouterState({ select: (s) => s.location.searchStr });
   const [pageHeader, setPageHeader] = useState<PageHeaderInfo>({});
   const queryClient = useQueryClient();
+  useSyncRevisionInvalidation(true);
   const statsQuery = useQuery({
     queryKey: ["stats"],
     queryFn: getDashboardStats,
-    refetchInterval: 30_000,
+    staleTime: 60_000,
+    refetchInterval: focusAwareRefetchInterval(30_000),
   });
 
   const instancesQuery = useQuery({
@@ -213,6 +223,22 @@ export function AppLayout() {
 
   function prefetchArtists() {
     prefetchArtistLibrary(queryClient);
+  }
+
+  function prefetchQueueNav() {
+    prefetchQueue(queryClient);
+  }
+
+  function prefetchHistoryNav() {
+    prefetchHistory(queryClient);
+  }
+
+  function prefetchRequestsNav() {
+    prefetchRequests(queryClient);
+  }
+
+  function prefetchIssuesNav() {
+    prefetchIssues(queryClient);
   }
 
   const hasRadarr = radarrInstances.length > 0;
@@ -382,6 +408,7 @@ export function AppLayout() {
                     match="prefix"
                     navLink="requests"
                     onNavigate={close}
+                    onPrefetch={prefetchRequestsNav}
                   />
                   <NavItem
                     to="/issues"
@@ -391,6 +418,7 @@ export function AppLayout() {
                     match="prefix"
                     navLink="issues"
                     onNavigate={close}
+                    onPrefetch={prefetchIssuesNav}
                   />
                 </>
               ) : null}
@@ -403,6 +431,7 @@ export function AppLayout() {
                 match="prefix"
                 navLink="queue"
                 onNavigate={close}
+                onPrefetch={prefetchQueueNav}
               />
               <NavItem
                 to="/activity/history"
@@ -412,6 +441,7 @@ export function AppLayout() {
                 match="prefix"
                 navLink="history"
                 onNavigate={close}
+                onPrefetch={prefetchHistoryNav}
               />
               <NavItem
                 to="/activity/calendar"

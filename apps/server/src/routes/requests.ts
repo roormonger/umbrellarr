@@ -5,6 +5,7 @@ import {
   UnifiedRequestListQuerySchema,
 } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
+import { activityListCache } from "../cache/ttlCache.js";
 import {
   approveMediaRequest,
   declineMediaRequest,
@@ -18,6 +19,13 @@ import {
   listUnifiedMediaRequests,
   updateMediaRequest,
 } from "../servarr/seerrRequests.js";
+import { syncRevisionStore } from "../sync/revisionStore.js";
+
+function invalidateRequestCaches() {
+  activityListCache.invalidate("requests:");
+  activityListCache.invalidate("stats:pending-requests");
+  syncRevisionStore.bump(["requests"]);
+}
 
 export function createRequestsRoutes() {
   const app = new Hono<{ Variables: AppVariables }>();
@@ -36,8 +44,22 @@ export function createRequestsRoutes() {
     if (!parsed.success) {
       return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid query" }, 400);
     }
+    const q = parsed.data;
+    const skip = q.skip ?? 0;
+    const cacheKey =
+      skip === 0 &&
+      !q.instanceId &&
+      !q.requestedBy &&
+      (q.filter == null || q.filter === "all" || q.filter === "pending")
+        ? `requests:unified:${q.filter ?? "all"}:${q.mediaType ?? "all"}:${q.take ?? 20}:${q.sort ?? "added"}:${q.sortDirection ?? "desc"}`
+        : null;
     try {
-      const payload = await listUnifiedMediaRequests(c.get("instances"), parsed.data);
+      if (cacheKey) {
+        const cached = activityListCache.get<unknown>(cacheKey);
+        if (cached) return c.json(cached);
+      }
+      const payload = await listUnifiedMediaRequests(c.get("instances"), q);
+      if (cacheKey) activityListCache.set(cacheKey, payload, 30_000);
       return c.json(payload);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load requests";
@@ -158,6 +180,7 @@ export function createRequestsRoutes() {
         requestId,
         body.data,
       );
+      invalidateRequestCaches();
       return c.json(item);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to update request";
@@ -177,6 +200,7 @@ export function createRequestsRoutes() {
     }
     try {
       await approveMediaRequest(c.get("instances"), c.req.param("instanceId"), requestId);
+      invalidateRequestCaches();
       return c.json({ ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Approve failed";
@@ -191,6 +215,7 @@ export function createRequestsRoutes() {
     }
     try {
       await declineMediaRequest(c.get("instances"), c.req.param("instanceId"), requestId);
+      invalidateRequestCaches();
       return c.json({ ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Decline failed";

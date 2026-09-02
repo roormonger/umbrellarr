@@ -37,10 +37,12 @@ import {
   queueRowPrimary,
   queueRowSecondary,
 } from "@/lib/queueDisplay";
+import { focusAwareRefetchInterval } from "@/lib/queryFocus";
 import classes from "./QueuePage.module.css";
 
 const POLL_MS = 8_000;
 const PAGE_SIZE = 200;
+const LIST_STALE_MS = 90_000;
 
 export function QueuePage() {
   const queryClient = useQueryClient();
@@ -98,7 +100,8 @@ export function QueuePage() {
         instanceId: activeInstanceFilter,
       }),
     enabled: arrInstances.length > 0,
-    refetchInterval: POLL_MS,
+    staleTime: LIST_STALE_MS,
+    refetchInterval: focusAwareRefetchInterval(POLL_MS),
     refetchIntervalInBackground: false,
   });
 

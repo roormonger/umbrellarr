@@ -1,12 +1,20 @@
 import { Hono } from "hono";
 import { IssueAddCommentRequestSchema, UnifiedIssueListQuerySchema } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
+import { activityListCache } from "../cache/ttlCache.js";
 import {
   addMediaIssueComment,
   getMediaIssueDetail,
   listUnifiedMediaIssues,
   resolveMediaIssue,
 } from "../servarr/seerrIssues.js";
+import { syncRevisionStore } from "../sync/revisionStore.js";
+
+function invalidateIssueCaches() {
+  activityListCache.invalidate("issues:");
+  activityListCache.invalidate("stats:open-issues");
+  syncRevisionStore.bump(["issues"]);
+}
 
 export function createIssuesRoutes() {
   const app = new Hono<{ Variables: AppVariables }>();
@@ -23,8 +31,19 @@ export function createIssuesRoutes() {
     if (!parsed.success) {
       return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid query" }, 400);
     }
+    const q = parsed.data;
+    const skip = q.skip ?? 0;
+    const cacheKey =
+      skip === 0 && !q.instanceId && (q.filter == null || q.filter === "open" || q.filter === "all")
+        ? `issues:unified:${q.filter ?? "open"}:${q.take ?? 20}:${q.sort ?? "added"}:${q.sortDirection ?? "desc"}`
+        : null;
     try {
-      const payload = await listUnifiedMediaIssues(c.get("instances"), parsed.data);
+      if (cacheKey) {
+        const cached = activityListCache.get<unknown>(cacheKey);
+        if (cached) return c.json(cached);
+      }
+      const payload = await listUnifiedMediaIssues(c.get("instances"), q);
+      if (cacheKey) activityListCache.set(cacheKey, payload, 30_000);
       return c.json(payload);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load issues";
@@ -70,6 +89,7 @@ export function createIssuesRoutes() {
         issueId,
         parsed.data.message,
       );
+      invalidateIssueCaches();
       return c.json(detail);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to add comment";
@@ -89,6 +109,7 @@ export function createIssuesRoutes() {
         c.req.param("instanceId"),
         issueId,
       );
+      invalidateIssueCaches();
       return c.json(detail);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to resolve issue";

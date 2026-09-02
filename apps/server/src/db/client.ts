@@ -29,6 +29,33 @@ export function openDatabase(databasePath: string) {
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS library_snapshots (
+      instance_id TEXT PRIMARY KEY NOT NULL,
+      kind TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      item_count INTEGER NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS library_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      instance_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      arr_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      sort_title TEXT NOT NULL,
+      tmdb_id INTEGER,
+      tvdb_id INTEGER,
+      imdb_id TEXT,
+      foreign_artist_id TEXT,
+      payload TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS library_items_instance_kind_arr
+      ON library_items (instance_id, kind, arr_id);
   `);
 
   return drizzle(sqlite, { schema });

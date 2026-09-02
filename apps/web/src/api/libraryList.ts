@@ -195,40 +195,49 @@ export function prefetchArtistHead(queryClient: QueryClient, instanceId?: string
 }
 
 export async function ensureMovieLibrary(queryClient: QueryClient, instanceId?: string) {
+  const hasFull = queryClient.getQueryData(moviesFullQueryKey(instanceId)) != null;
   void queryClient.prefetchQuery({
     queryKey: moviesFullQueryKey(instanceId),
     queryFn: () => fetchMoviesFull(queryClient, instanceId),
     staleTime: LIBRARY_FULL_STALE_MS,
   });
-  await queryClient.ensureQueryData({
-    queryKey: moviesHeadQueryKey(instanceId),
-    queryFn: () => fetchMoviesHead(instanceId),
-    staleTime: LIBRARY_HEAD_STALE_MS,
-  });
+  if (!hasFull) {
+    void queryClient.prefetchQuery({
+      queryKey: moviesHeadQueryKey(instanceId),
+      queryFn: () => fetchMoviesHead(instanceId),
+      staleTime: LIBRARY_HEAD_STALE_MS,
+    });
+  }
 }
 
 export async function ensureShowLibrary(queryClient: QueryClient, instanceId?: string) {
+  const hasFull = queryClient.getQueryData(showsFullQueryKey(instanceId)) != null;
   void queryClient.prefetchQuery({
     queryKey: showsFullQueryKey(instanceId),
     queryFn: () => fetchShowsFull(queryClient, instanceId),
     staleTime: LIBRARY_FULL_STALE_MS,
   });
-  await queryClient.ensureQueryData({
-    queryKey: showsHeadQueryKey(instanceId),
-    queryFn: () => fetchShowsHead(instanceId),
-    staleTime: LIBRARY_HEAD_STALE_MS,
-  });
+  if (!hasFull) {
+    void queryClient.prefetchQuery({
+      queryKey: showsHeadQueryKey(instanceId),
+      queryFn: () => fetchShowsHead(instanceId),
+      staleTime: LIBRARY_HEAD_STALE_MS,
+    });
+  }
 }
 
 export async function ensureArtistLibrary(queryClient: QueryClient, instanceId?: string) {
+  const hasFull = queryClient.getQueryData(artistsFullQueryKey(instanceId)) != null;
   void queryClient.prefetchQuery({
     queryKey: artistsFullQueryKey(instanceId),
     queryFn: () => fetchArtistsFull(queryClient, instanceId),
     staleTime: LIBRARY_FULL_STALE_MS,
   });
-  await queryClient.ensureQueryData({
-    queryKey: artistsHeadQueryKey(instanceId),
-    queryFn: () => fetchArtistsHead(instanceId),
-    staleTime: LIBRARY_HEAD_STALE_MS,
-  });
+  if (!hasFull) {
+    void queryClient.prefetchQuery({
+      queryKey: artistsHeadQueryKey(instanceId),
+      queryFn: () => fetchArtistsHead(instanceId),
+      staleTime: LIBRARY_HEAD_STALE_MS,
+    });
+  }
 }

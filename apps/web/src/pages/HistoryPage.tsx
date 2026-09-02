@@ -34,6 +34,7 @@ import {
   instanceNameFor,
   kindLabel,
 } from "@/lib/historyDisplay";
+import { ACTIVITY_LIST_STALE_MS } from "@/lib/queryFocus";
 import classes from "./HistoryPage.module.css";
 
 const PAGE_SIZE = 50;
@@ -90,6 +91,7 @@ export function HistoryPage() {
         protocol,
       }),
     enabled: arrInstances.length > 0,
+    staleTime: ACTIVITY_LIST_STALE_MS,
   });
 
   const items = listQuery.data?.items ?? [];

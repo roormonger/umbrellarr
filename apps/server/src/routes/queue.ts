@@ -7,6 +7,7 @@ import {
   QueueStatusFilterSchema,
 } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
+import { activityListCache } from "../cache/ttlCache.js";
 import {
   fetchManualImport,
   fetchQueueList,
@@ -17,6 +18,7 @@ import {
   refreshMonitoredDownloads,
   removeQueueItems,
 } from "../servarr/queue.js";
+import { syncRevisionStore } from "../sync/revisionStore.js";
 
 export function createQueueRoutes() {
   const app = new Hono<{ Variables: AppVariables }>();
@@ -40,15 +42,30 @@ export function createQueueRoutes() {
         : QueueStatusFilterSchema.safeParse(statusRaw).success
           ? QueueStatusFilterSchema.parse(statusRaw)
           : "all";
+    const resolvedPage = Number.isFinite(page) ? page : 1;
+    const resolvedPageSize = Number.isFinite(pageSize) ? pageSize : 200;
+    const cacheKey =
+      resolvedPage === 1 &&
+      !instanceId &&
+      protocol === "all" &&
+      status === "all" &&
+      includeUnknown
+        ? `queue:unified:p1:${resolvedPageSize}`
+        : null;
     try {
+      if (cacheKey) {
+        const cached = activityListCache.get<unknown>(cacheKey);
+        if (cached) return c.json(cached);
+      }
       const result = await fetchUnifiedQueue(c.get("instances"), {
-        page: Number.isFinite(page) ? page : 1,
-        pageSize: Number.isFinite(pageSize) ? pageSize : 200,
+        page: resolvedPage,
+        pageSize: resolvedPageSize,
         includeUnknown,
         instanceId,
         protocol,
         status,
       });
+      if (cacheKey) activityListCache.set(cacheKey, result, 20_000);
       return c.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load queue";
@@ -104,6 +121,9 @@ export function createQueueRoutes() {
   app.post("/:instanceId/refresh", async (c) => {
     try {
       await refreshMonitoredDownloads(c.get("instances"), c.req.param("instanceId"));
+      activityListCache.invalidate("queue:");
+      activityListCache.invalidate("stats:queue");
+      syncRevisionStore.bump(["queue"]);
       return c.json({ ok: true as const });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Refresh failed";
@@ -118,6 +138,9 @@ export function createQueueRoutes() {
     }
     try {
       await removeQueueItems(c.get("instances"), c.req.param("instanceId"), parsed.data);
+      activityListCache.invalidate("queue:");
+      activityListCache.invalidate("stats:queue");
+      syncRevisionStore.bump(["queue"]);
       return c.json({ ok: true as const });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Remove failed";
@@ -135,6 +158,9 @@ export function createQueueRoutes() {
     }
     try {
       await removeQueueItems(c.get("instances"), c.req.param("instanceId"), parsed.data);
+      activityListCache.invalidate("queue:");
+      activityListCache.invalidate("stats:queue");
+      syncRevisionStore.bump(["queue"]);
       return c.json({ ok: true as const });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Remove failed";
@@ -149,6 +175,9 @@ export function createQueueRoutes() {
     }
     try {
       await grabQueueItems(c.get("instances"), c.req.param("instanceId"), parsed.data);
+      activityListCache.invalidate("queue:");
+      activityListCache.invalidate("stats:queue");
+      syncRevisionStore.bump(["queue"]);
       return c.json({ ok: true as const });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Grab failed";
@@ -161,6 +190,9 @@ export function createQueueRoutes() {
     if (!Number.isFinite(id)) return c.json({ error: "Invalid queue id" }, 400);
     try {
       await grabQueueItems(c.get("instances"), c.req.param("instanceId"), { ids: [id] });
+      activityListCache.invalidate("queue:");
+      activityListCache.invalidate("stats:queue");
+      syncRevisionStore.bump(["queue"]);
       return c.json({ ok: true as const });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Grab failed";
