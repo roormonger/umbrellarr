@@ -19,6 +19,7 @@ import {
   PosterCardInstancePicker,
   PosterCardStackBadge,
   PosterCardStatusBar,
+  usePosterMixedStatusHighlight,
 } from "@/components/media/PosterCardMultiInstance";
 import { ShowLinksMenu } from "@/components/shows/ShowLinksMenu";
 import type { LibraryGroup } from "@/lib/libraryDedup";
@@ -57,6 +58,13 @@ export const ShowPosterCard = memo(function ShowPosterCard({
   const label = item.year ? `${item.title} (${item.year})` : item.title;
   const monitoredLabel = item.monitored ? "Monitored" : "Unmonitored";
   const isMulti = group.isMultiInstance;
+  const { mixedStatus, highlightedKey, highlight } = usePosterMixedStatusHighlight(group.copies);
+  const statusSegments = group.copies.map((copy) => ({
+    key: copy.instanceId,
+    availability: copy.availability,
+    instanceLabel: instanceNames.get(copy.instanceId),
+    progress: showProgress(copy),
+  }));
 
   function openDetail(copy: SeriesListItem) {
     void navigate({
@@ -87,7 +95,7 @@ export const ShowPosterCard = memo(function ShowPosterCard({
   });
 
   const poster = (
-    <div className={classes.posterWrap}>
+    <div className={classes.posterWrap} data-mixed-status={mixedStatus || undefined}>
       <div
         className={classes.posterSurface}
         role={isMulti ? "group" : "link"}
@@ -124,13 +132,10 @@ export const ShowPosterCard = memo(function ShowPosterCard({
             fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='300'%3E%3Crect width='100%25' height='100%25' fill='%232C2E33'/%3E%3C/svg%3E"
           />
           <PosterCardStatusBar
-            segments={group.copies.map((copy) => ({
-              key: copy.instanceId,
-              availability: copy.availability,
-              instanceLabel: instanceNames.get(copy.instanceId),
-              progress: showProgress(copy),
-            }))}
+            segments={statusSegments}
             statusLabels={statusLabels}
+            mixedStatus={mixedStatus}
+            highlightedKey={highlightedKey}
           />
         </div>
       </div>
@@ -144,6 +149,9 @@ export const ShowPosterCard = memo(function ShowPosterCard({
             title={item.title}
             onOpen={openDetail}
             onEdit={onEdit}
+            mixedStatus={mixedStatus}
+            highlightedKey={highlightedKey}
+            onHighlight={highlight}
           />
         </>
       ) : null}

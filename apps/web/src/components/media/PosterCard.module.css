@@ -159,6 +159,19 @@
   display: flex;
   align-items: center;
   gap: 0.15rem;
+  border-radius: 4px;
+}
+
+.posterWrap[data-mixed-status] .instancePickerRow:hover .instanceButton,
+.posterWrap[data-mixed-status] .instancePickerRow[data-highlighted] .instanceButton {
+  border-color: var(--status-color) !important;
+  background: color-mix(in srgb, var(--status-color) 22%, rgba(255, 255, 255, 0.06)) !important;
+  color: var(--mantine-color-gray-0) !important;
+}
+
+.posterWrap[data-mixed-status] .instancePickerRow:hover .instanceEditButton,
+.posterWrap[data-mixed-status] .instancePickerRow[data-highlighted] .instanceEditButton {
+  color: var(--status-color) !important;
 }
 
 .instanceButton {
@@ -234,6 +247,18 @@
   flex: 1 1 0;
   min-width: 0;
   height: 100%;
+  transition:
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+.barSegment[data-highlighted] {
+  z-index: 2;
+  transform: scaleY(1.75);
+  transform-origin: bottom;
+  box-shadow:
+    0 0 6px 1px var(--status-color),
+    0 -3px 10px 2px color-mix(in srgb, var(--status-color) 75%, transparent);
 }
 
 /* Arr dark-theme poster bar colors (Movie/Series/Artist IndexFooter.css) */
