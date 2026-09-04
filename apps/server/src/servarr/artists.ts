@@ -125,13 +125,10 @@ export function mapLidarrArtist(
     sortTitle: artist.sortName ?? title,
     posterUrl: posterUrlFor(instance, artist),
     monitored: artist.monitored,
-    inLibrary: true,
     hasFile: (stats?.trackFileCount ?? 0) > 0,
     availability: availabilityForArtist(artist, queuedIds.has(artist.id)),
-    qualityProfileId: artist.qualityProfileId,
     qualityProfileName:
       artist.qualityProfileId != null ? profiles.get(artist.qualityProfileId) : undefined,
-    metadataProfileId: artist.metadataProfileId,
     metadataProfileName:
       artist.metadataProfileId != null
         ? metadataProfiles.get(artist.metadataProfileId)
@@ -146,7 +143,6 @@ export function mapLidarrArtist(
     cutoffUnmet: cutoffIds.has(artist.id),
     genres: artist.genres ?? [],
     foreignArtistId: artist.foreignArtistId,
-    status: artist.status,
   };
 }
 

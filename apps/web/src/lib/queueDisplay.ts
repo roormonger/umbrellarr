@@ -4,10 +4,12 @@ export function queueItemKey(item: Pick<QueueListItem, "instanceId" | "id">): st
   return `${item.instanceId}:${item.id}`;
 }
 
-export function kindLabel(kind: ArrKind): string {
+export function kindLabel(kind: ArrKind | "prowlarr"): string {
   if (kind === "radarr") return "Movies";
   if (kind === "sonarr") return "Shows";
-  return "Music";
+  if (kind === "lidarr") return "Music";
+  if (kind === "prowlarr") return "Prowlarr";
+  return "Unknown";
 }
 
 function formatEpisode(season?: number, episode?: number): string | null {

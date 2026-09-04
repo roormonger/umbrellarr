@@ -309,10 +309,13 @@ export function createArtistsRoutes() {
       if (!Number.isFinite(artistId)) {
         return c.json({ error: "Invalid artist id" }, 400);
       }
+      const albumIdRaw = c.req.query("albumId");
+      const albumId = albumIdRaw ? Number(albumIdRaw) : undefined;
       const releases = await fetchArtistReleases(
         c.get("instances"),
         c.req.param("instanceId"),
         artistId,
+        albumId != null && Number.isFinite(albumId) ? albumId : undefined,
       );
       return c.json({ releases });
     } catch (error) {

@@ -1,0 +1,51 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mantine-spacing-md);
+  height: calc(100dvh - var(--app-shell-header-height, 60px) - 2 * var(--mantine-spacing-md));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.header {
+  flex-shrink: 0;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+}
+
+.tableWrap {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--mantine-radius-md);
+  overflow: hidden;
+  height: 100%;
+}
+
+.tableScroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.pager {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  border-top: 1px solid var(--glass-border);
+}
+
+.title {
+  max-width: 22rem;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.quality {
+  font-size: var(--mantine-font-size-xs);
+}

@@ -156,9 +156,14 @@ export function NebulaBackground({ color }: Props) {
     window.addEventListener("resize", onResize);
 
     if (!reducedMotion) {
+      let lastDraw = 0;
+      const frameMs = 1000 / 18; // ~18fps — full-viewport blur is expensive at 60fps
       const tick = (time: number) => {
         if (!running) return;
-        drawFrame(time);
+        if (document.visibilityState === "visible" && time - lastDraw >= frameMs) {
+          lastDraw = time;
+          drawFrame(time);
+        }
         raf = window.requestAnimationFrame(tick);
       };
       raf = window.requestAnimationFrame(tick);

@@ -4,6 +4,8 @@ export type SyncRevision = {
   history: number;
   requests: number;
   issues: number;
+  wanted: number;
+  indexers: number;
 };
 
 /**
@@ -17,6 +19,8 @@ class SyncRevisionStore {
     history: 0,
     requests: 0,
     issues: 0,
+    wanted: 0,
+    indexers: 0,
   };
 
   get(): SyncRevision {

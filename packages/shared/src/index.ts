@@ -13,4 +13,7 @@ export * from "./calendar.js";
 export * from "./collections.js";
 export * from "./queue.js";
 export * from "./history.js";
+export * from "./wanted.js";
+export * from "./indexers.js";
+export * from "./discover.js";
 export * from "./sync.js";

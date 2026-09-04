@@ -20,17 +20,21 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeftIcon } from "@phosphor-icons/react/dist/csr/ArrowLeft";
 import { CalendarBlankIcon } from "@phosphor-icons/react/dist/csr/CalendarBlank";
 import { ClockCounterClockwiseIcon } from "@phosphor-icons/react/dist/csr/ClockCounterClockwise";
+import { CompassIcon } from "@phosphor-icons/react/dist/csr/Compass";
 import { DownloadSimpleIcon } from "@phosphor-icons/react/dist/csr/DownloadSimple";
 import { FilmStripIcon } from "@phosphor-icons/react/dist/csr/FilmStrip";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGlass";
+import { RssSimpleIcon } from "@phosphor-icons/react/dist/csr/RssSimple";
 import { MusicNotesIcon } from "@phosphor-icons/react/dist/csr/MusicNotes";
 import { SignOutIcon } from "@phosphor-icons/react/dist/csr/SignOut";
 import { TelevisionIcon } from "@phosphor-icons/react/dist/csr/Television";
 import { TicketIcon } from "@phosphor-icons/react/dist/csr/Ticket";
 import { WarningCircleIcon } from "@phosphor-icons/react/dist/csr/WarningCircle";
+import { WarningIcon } from "@phosphor-icons/react/dist/csr/Warning";
 import { clearAuthStatusCache, logout } from "@/api/auth";
 import { listInstances } from "@/api/instances";
+import { discoverAccess } from "@/lib/discoverAccess";
 import {
   prefetchArtistHead,
   prefetchArtistLibrary,
@@ -44,6 +48,7 @@ import {
   prefetchIssues,
   prefetchQueue,
   prefetchRequests,
+  prefetchWanted,
 } from "@/api/activityPrefetch";
 import { getDashboardStats } from "@/api/stats";
 import umbrellarrIcon from "@/assets/umbrellarr-icon.png";
@@ -174,6 +179,10 @@ export function AppLayout() {
     () => instances.filter((i) => i.kind === "seerr"),
     [instances],
   );
+  const prowlarrInstances = useMemo(
+    () => instances.filter((i) => i.kind === "prowlarr"),
+    [instances],
+  );
 
   const moviesPathId =
     instanceIdFromPath(pathname, "/movies") ?? instanceFromSearch(pathname, "/movies", searchStr);
@@ -233,6 +242,10 @@ export function AppLayout() {
     prefetchHistory(queryClient);
   }
 
+  function prefetchWantedNav() {
+    prefetchWanted(queryClient);
+  }
+
   function prefetchRequestsNav() {
     prefetchRequests(queryClient);
   }
@@ -243,6 +256,7 @@ export function AppLayout() {
 
   const hasRadarr = radarrInstances.length > 0;
   const hasSonarr = sonarrInstances.length > 0;
+  const { canShowDiscover } = useMemo(() => discoverAccess(instances), [instances]);
   const hasLidarr = lidarrInstances.length > 0;
 
   const libraryKinds = [
@@ -359,6 +373,17 @@ export function AppLayout() {
 
           <ScrollArea className={classes.navScroll} type="hover" offsetScrollbars>
             <div className={classes.navBody}>
+              {canShowDiscover ? (
+                <NavItem
+                  to="/discover"
+                  label="Discover"
+                  icon={<CompassIcon />}
+                  match="prefix"
+                  navLink="discover"
+                  onNavigate={close}
+                />
+              ) : null}
+
               {hasRadarr ? (
                 <NavItem
                   to="/movies"
@@ -444,6 +469,16 @@ export function AppLayout() {
                 onPrefetch={prefetchHistoryNav}
               />
               <NavItem
+                to="/activity/wanted"
+                label="Wanted"
+                icon={<WarningIcon />}
+                count={navCounts?.wanted ?? stats?.missingCount}
+                match="prefix"
+                navLink="wanted"
+                onNavigate={close}
+                onPrefetch={prefetchWantedNav}
+              />
+              <NavItem
                 to="/activity/calendar"
                 label="Calendar"
                 icon={<CalendarBlankIcon />}
@@ -451,6 +486,17 @@ export function AppLayout() {
                 navLink="calendar"
                 onNavigate={close}
               />
+              {prowlarrInstances.length > 0 ? (
+                <NavItem
+                  to="/indexers"
+                  label="Indexers"
+                  icon={<RssSimpleIcon />}
+                  count={navCounts?.indexers}
+                  match="prefix"
+                  navLink="indexers"
+                  onNavigate={close}
+                />
+              ) : null}
               <NavItem
                 to="/settings"
                 label="Settings"

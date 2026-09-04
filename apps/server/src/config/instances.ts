@@ -5,6 +5,7 @@ const KIND_PREFIXES: Array<{ kind: InstanceKind; prefix: string }> = [
   { kind: "sonarr", prefix: "SONARR" },
   { kind: "lidarr", prefix: "LIDARR" },
   { kind: "seerr", prefix: "SEERR" },
+  { kind: "prowlarr", prefix: "PROWLARR" },
 ];
 
 /**

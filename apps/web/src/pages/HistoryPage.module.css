@@ -17,10 +17,25 @@
 }
 
 .tableWrap {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--glass-border);
   border-radius: var(--mantine-radius-md);
   overflow: hidden;
   height: 100%;
+}
+
+.tableScroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.pager {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  border-top: 1px solid var(--glass-border);
 }
 
 .title {

@@ -6,8 +6,8 @@
   height: 100%;
   pointer-events: none;
   /* Soften without erasing drift; scale hides blur edge fade. */
-  filter: blur(16px);
-  transform: scale(1.06);
+  filter: blur(10px);
+  transform: scale(1.05);
   transform-origin: center center;
 }
 
@@ -16,9 +16,10 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  backdrop-filter: blur(22px) saturate(1.12);
-  -webkit-backdrop-filter: blur(22px) saturate(1.12);
-  background: color-mix(in srgb, var(--app-backdrop, #121018) 36%, transparent);
+  /* Lighter frost — heavy backdrop-filter fights every hover/composite on Discover. */
+  backdrop-filter: blur(12px) saturate(1.08);
+  -webkit-backdrop-filter: blur(12px) saturate(1.08);
+  background: color-mix(in srgb, var(--app-backdrop, #121018) 42%, transparent);
 }
 
 @media (prefers-reduced-transparency: reduce) {

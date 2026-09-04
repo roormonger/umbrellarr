@@ -3,8 +3,8 @@ import { z } from "zod";
 export const ArrKindSchema = z.enum(["radarr", "sonarr", "lidarr"]);
 export type ArrKind = z.infer<typeof ArrKindSchema>;
 
-/** Arr library clients plus Seerr (requests / discover). */
-export const InstanceKindSchema = z.enum(["radarr", "sonarr", "lidarr", "seerr"]);
+/** Arr library clients plus Seerr (requests / discover) and Prowlarr (indexers). */
+export const InstanceKindSchema = z.enum(["radarr", "sonarr", "lidarr", "seerr", "prowlarr"]);
 export type InstanceKind = z.infer<typeof InstanceKindSchema>;
 
 export const InstanceSchema = z.object({

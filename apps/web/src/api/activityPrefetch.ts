@@ -3,6 +3,7 @@ import { listUnifiedHistory } from "@/api/history";
 import { listUnifiedIssues } from "@/api/issues";
 import { listUnifiedQueue } from "@/api/queue";
 import { listUnifiedRequests } from "@/api/requests";
+import { listUnifiedWanted } from "@/api/wanted";
 import { ACTIVITY_LIST_STALE_MS } from "@/lib/queryFocus";
 
 export function prefetchQueue(queryClient: QueryClient) {
@@ -22,13 +23,27 @@ export function prefetchQueue(queryClient: QueryClient) {
 
 export function prefetchHistory(queryClient: QueryClient) {
   void queryClient.prefetchQuery({
-    queryKey: ["history", "unified", 1, undefined, "all", "all"],
+    queryKey: ["history", "unified", 1, undefined, "all", "all", 50],
     queryFn: () =>
       listUnifiedHistory({
         page: 1,
         pageSize: 50,
         eventType: "all",
         protocol: "all",
+      }),
+    staleTime: ACTIVITY_LIST_STALE_MS,
+  });
+}
+
+export function prefetchWanted(queryClient: QueryClient) {
+  void queryClient.prefetchQuery({
+    queryKey: ["wanted", "unified", "missing", 1, undefined, 50, true],
+    queryFn: () =>
+      listUnifiedWanted({
+        mode: "missing",
+        page: 1,
+        pageSize: 50,
+        monitored: true,
       }),
     staleTime: ACTIVITY_LIST_STALE_MS,
   });

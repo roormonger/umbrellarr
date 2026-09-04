@@ -2,7 +2,7 @@
 
 Capability-oriented groups — not a full OpenAPI dump (~160 paths per Arr; Seerr is smaller). For exhaustive schemas, use the OpenAPI links in [SKILL.md](SKILL.md).
 
-Prefix: Radarr/Sonarr `/api/v3`, Lidarr `/api/v1`, Seerr `/api/v1`.
+Prefix: Radarr/Sonarr `/api/v3`, Lidarr/Prowlarr/Seerr `/api/v1`.
 
 ## Endpoint groups
 
@@ -91,7 +91,7 @@ Command `name` strings are **not** a stable OpenAPI enum — confirm against the
 
 ### Settings (usually out of universal-remote v1)
 
-Indexers, download clients, import lists, notifications, delay profiles, custom formats, remote path mappings, host/UI config, backups, logs, updates.
+On **library** pages: indexers, download clients, import lists, notifications, delay profiles, custom formats, remote path mappings, host/UI config, backups, logs, updates — **out of scope**; use **Prowlarr** for indexer management instead.
 
 ### Covers / static media
 
@@ -127,6 +127,26 @@ Inputs from movie payload only: `tmdbId`, `imdbId`, `youTubeTrailerId`.
 Sort: links with a copyable external id first (same as Arr).
 
 Sonarr/Lidarr have analogous details-links components — mirror those sources when wiring Shows/Music links; do not reuse Radarr movie URL templates blindly.
+
+## Prowlarr (`/api/v1`)
+
+Prowlarr is an **indexer manager/proxy**, not a library app. Auth: `X-Api-Key`. Docs: https://prowlarr.com/docs/api/
+
+No library, queue, history, wanted, or calendar entities. Umbrellarr v1 wires **health probe only**; indexer UI is future work.
+
+### Endpoint groups
+
+| Domain | Path pattern |
+|--------|--------------|
+| Indexers | `/indexer`, `/indexer/{id}`, `/indexer/schema`, `/indexer/test`, `/indexer/testall`, bulk PUT/DELETE |
+| Applications | `/applications`, `/applications/{id}`, `/applications/schema`, `/applications/test` — linked Radarr/Sonarr/Lidarr apps + sync |
+| Download clients | `/downloadclient`, `/downloadclient/schema`, test/bulk (Prowlarr-side clients, not library Arr) |
+| Search test | `GET/POST /search` — test indexer queries from Prowlarr |
+| System | `/system/status`, `/health` |
+| Commands | `POST /command`, `GET /command`, `GET /command/{id}` |
+| Config / host | `/config/host`, `/config/indexerproxy`, backups, logs, updates — usually out of scope until dedicated settings UI |
+
+Indexer sync pushes config to Applications (the *arr instances registered inside Prowlarr). That is separate from Umbrellarr’s Settings instance list.
 
 ## Seerr (`/api/v1`)
 
@@ -194,7 +214,7 @@ Filter option lists: `GET /genres/movie`, `/genres/tv`, `/watchproviders/movies?
 
 **Create body** — required `mediaType` (`movie` \| `tv`) + `mediaId` (TMDB). Optional: `tvdbId`, `seasons` (number[] or `"all"`), `is4k`, `serverId`, `profileId`, `rootFolder`, `languageProfileId`, `userId`, `ignoreQuota`.
 
-**From Discover:** movie → `{ mediaType: "movie", mediaId: tmdbId }`. TV → same + `seasons` (`"all"` or picked numbers from `GET /tv/{id}` / season endpoint). Advanced: `GET /service/radarr` / `/service/sonarr` then `GET /service/{radarr\|sonarr}/{id}` for profiles + root folders.
+**From Discover (Umbrellarr):** add via Arr lookup/POST (`tmdb:{id}`), not Seerr create. Seerr create remains for the Requests surface if/when wired: movie → `{ mediaType: "movie", mediaId: tmdbId }`. TV → same + `seasons` (`"all"` or picked numbers from `GET /tv/{id}` / season endpoint). Advanced: `GET /service/radarr` / `/service/sonarr` then `GET /service/{radarr\|sonarr}/{id}` for profiles + root folders.
 
 `ADMIN` / `AUTO_APPROVE` auto-approve on create. `REQUEST` required to create. `MANAGE_REQUESTS` (or `ADMIN`) to approve/decline/retry/edit others.
 
@@ -229,17 +249,18 @@ No Lidarr. Do not add music/artist requests through Seerr.
 - No Arr-provided Letterboxd/Trakt/MDBList objects — only IDs + Arr UI URL templates.
 - Do not scrape Arr’s SPA HTML or CSS for data.
 - Do not call TMDb/IMDb/MusicBrainz/etc. as a substitute for Arr metadata.
-- For Discover/request features, do not call TMDB yourself — use Seerr’s `/search`, `/discover`, `/movie`, `/tv` (they already wrap TMDB and attach `mediaInfo`).
-- Do not add a title from Discover via Arr `/movie/lookup` or `/series/lookup` — that is Seerr `POST /request`.
-- Do not invent ratings, cast, plot, or availability beyond Arr or Seerr fields. Do not join Arr library onto Discover cards; use `mediaInfo`.
+- For Discover browse/request-metadata features, do not call TMDB yourself — use Seerr’s `/search`, `/discover`, `/movie`, `/tv` (they already wrap TMDB and attach `mediaInfo`).
+- From Discover **Add to library**, use Arr `/movie/lookup` or `/series/lookup` (`tmdb:{id}`) + POST — not Seerr `POST /request`.
+- Do not invent ratings, cast, plot, or availability beyond Arr or Seerr fields. Do not join Arr library onto Discover poster badges; use `mediaInfo` (Arr `inLibrary` is for the add modal).
 - Do not assume command names or body shapes without checking Arr’s `commandNames` / a live test.
 - Do not treat Seerr `mediaId` as an Arr movie/series id — it is TMDB.
 - Do not invent Lidarr/music support on Seerr.
+- Do not wire Radarr/Sonarr/Lidarr `/indexer` settings in Umbrellarr — use Prowlarr for indexer CRUD and sync.
 - Do not check OpenAPI JSON/YAML into this repo (links go stale; fetch upstream when needed).
 
 ## When adding a feature
 
 1. Find the tag/path in Arr OpenAPI / Arr frontend, or in [seerr-api.yml](https://raw.githubusercontent.com/seerr-team/seerr/develop/seerr-api.yml).
 2. Add BFF route + shared Zod types that **passthrough/select** upstream fields (reshape for UI OK; inventing facts not OK).
-3. Prefer `POST /command` for Arr jobs (refresh, search, rename). Prefer `POST /request` (create) + `/request/{id}/{status}` + `/retry` for request handling. Discover pages only read Seerr search/discover/details.
+3. Prefer `POST /command` for Arr jobs (refresh, search, rename). Prefer `POST /request` (create) + `/request/{id}/{status}` + `/retry` for **Seerr Requests** surface. Discover **browse** only reads Seerr search/discover/details; Discover **add** uses Arr lookup/POST.
 4. Update [umbrellarr-wiring.md](umbrellarr-wiring.md).

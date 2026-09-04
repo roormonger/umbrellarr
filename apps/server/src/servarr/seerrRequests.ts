@@ -477,8 +477,11 @@ export async function getMediaRequestDetail(
   return { ...item, seasonOptions };
 }
 
-function mapMediaAvailability(value?: number): SeerrMediaAvailability | undefined {
-  switch (value) {
+/** Seerr MediaStatus: 1 unknown … 5 available, 6 blocklisted, 7 deleted. */
+function mapMediaAvailability(value?: number | string | null): SeerrMediaAvailability | undefined {
+  const n = typeof value === "string" ? Number(value) : value;
+  if (n == null || !Number.isFinite(n)) return undefined;
+  switch (n) {
     case 1:
       return "unknown";
     case 2:
@@ -490,6 +493,7 @@ function mapMediaAvailability(value?: number): SeerrMediaAvailability | undefine
     case 5:
       return "available";
     case 6:
+    case 7:
       return "deleted";
     default:
       return undefined;
@@ -661,7 +665,10 @@ function mapSeerrMediaDetail(
     certification: movie ? movieCertification(movie) : tv ? tvCertification(tv) : undefined,
     productionStatus: movie?.status || tv?.status || undefined,
     mediaAvailability: mapMediaAvailability(
-      movie?.mediaInfo?.status ?? tv?.mediaInfo?.status,
+      movie?.mediaInfo?.status ??
+        tv?.mediaInfo?.status ??
+        movie?.mediaInfo?.status4k ??
+        tv?.mediaInfo?.status4k,
     ),
     voteAverage: movie?.voteAverage ?? tv?.voteAverage,
     originalLanguage: movie?.originalLanguage || tv?.originalLanguage || undefined,
@@ -690,6 +697,17 @@ function mapSeerrMediaDetail(
     links: buildLinks(mediaType, tmdbId, movie?.externalIds ?? tv?.externalIds),
     keywords: keywordNames(movie?.keywords ?? tv?.keywords),
   };
+}
+
+export async function getSeerrTitleDetail(
+  instances: Instance[],
+  instanceId: string,
+  mediaType: "movie" | "tv",
+  tmdbId: number,
+): Promise<SeerrMediaDetail> {
+  const instance = requireSeerr(instances, instanceId);
+  const { title } = await fetchTitle(instance, mediaType, tmdbId);
+  return mapSeerrMediaDetail(mediaType, tmdbId, title, []);
 }
 
 export async function getMediaRequestPage(

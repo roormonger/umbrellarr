@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { ArrKindSchema } from "./instances.js";
+
+export const HistoryKindSchema = z.enum(["radarr", "sonarr", "lidarr", "prowlarr"]);
+export type HistoryKind = z.infer<typeof HistoryKindSchema>;
 
 export const HistoryEventTypeSchema = z.enum([
   "unknown",
@@ -19,8 +21,21 @@ export const HistoryEventTypeSchema = z.enum([
   "artistFolderImported",
   "downloadIgnored",
   "trackFileRetagged",
+  "indexerQuery",
+  "indexerRss",
+  "indexerAuth",
+  "indexerInfo",
+  "indexerDownload",
 ]);
 export type HistoryEventType = z.infer<typeof HistoryEventTypeSchema>;
+
+export const PROWLARR_HISTORY_EVENT_TYPES = new Set<HistoryEventType>([
+  "indexerQuery",
+  "indexerRss",
+  "indexerAuth",
+  "indexerInfo",
+  "indexerDownload",
+]);
 
 export const HistoryProtocolFilterSchema = z.enum(["unknown", "usenet", "torrent"]);
 export type HistoryProtocolFilter = z.infer<typeof HistoryProtocolFilterSchema>;
@@ -36,6 +51,10 @@ export const HISTORY_EVENT_TYPE_FILTER_OPTIONS: Array<{
   { value: "movieFileDeleted", label: "File deleted" },
   { value: "movieFileRenamed", label: "Renamed" },
   { value: "downloadIgnored", label: "Ignored" },
+  { value: "indexerRss", label: "Indexer RSS" },
+  { value: "indexerQuery", label: "Indexer Query" },
+  { value: "indexerDownload", label: "Indexer Grab" },
+  { value: "indexerAuth", label: "Indexer Auth" },
 ];
 
 export const HISTORY_PROTOCOL_FILTER_OPTIONS: Array<{
@@ -50,7 +69,7 @@ export const HISTORY_PROTOCOL_FILTER_OPTIONS: Array<{
 export const HistoryListItemSchema = z.object({
   id: z.number().int(),
   instanceId: z.string(),
-  kind: ArrKindSchema,
+  kind: HistoryKindSchema,
   eventType: HistoryEventTypeSchema,
   sourceTitle: z.string(),
   languages: z.array(z.string()).default([]),
@@ -75,6 +94,9 @@ export const HistoryListItemSchema = z.object({
   albumTitle: z.string().optional(),
   trackId: z.number().int().optional(),
   trackTitle: z.string().optional(),
+  indexerId: z.number().int().optional(),
+  indexerName: z.string().optional(),
+  successful: z.boolean().optional(),
 });
 export type HistoryListItem = z.infer<typeof HistoryListItemSchema>;
 

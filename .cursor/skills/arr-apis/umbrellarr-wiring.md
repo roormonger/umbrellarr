@@ -125,7 +125,26 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `servarr/seerrRequests.ts` | GET | `/api/v1/service/radarr`, `/api/v1/service/sonarr` (+ `/{id}`) | Destination servers + profiles/folders/tags |
 | `servarr/seerrRequests.ts` | GET | `/api/v1/user?take=1000&sort=displayname` | Request As users |
 | `servarr/seerrRequests.ts` | GET | `/api/v1/request/count` | Request counts (BFF only; no sidebar badge yet) |
-| `servarr/status.ts` | GET | `/api/v3/system/status`, Lidarr `/api/v1/system/status`, Seerr `/api/v1/status` | Instance health |
+| `servarr/seerrDiscover.ts` | GET | `/api/v1/discover/movies`, `/upcoming`, `/trending`, `/genreslider/movie`, studio logos | Discover Movies section (home fan-out); Featured mixes trending+popular |
+| `servarr/seerrDiscover.ts` | GET | `/api/v1/discover/tv`, `/upcoming`, `/trending`, `/genreslider/tv`, network logos | Discover Shows section (home fan-out) |
+| `servarr/seerrDiscover.ts` | GET | `/api/v1/discover/movies|tv` (+ studio/network/upcoming/trending query) | See-more paged lists (BFF aggregates Seerr’s 20/page into **50**/Load more) |
+| `servarr/seerrDiscover.ts` | GET | `/api/v1/search?query=&page=` | Discover page search (movie/tv filtered) |
+| `servarr/seerrDiscover.ts` | GET | `/api/v1/media?filter=pending\|processing\|partial\|available` | Cross-Seerr availability merge for Discover badges |
+| `servarr/seerrDiscover.ts` | GET | `/api/v1/movie/{id}`, `/api/v1/tv/{id}` | Discover title shell (via `getSeerrTitleDetail`) |
+| `servarr/status.ts` | GET | `/api/v3/system/status`, Lidarr/Prowlarr `/api/v1/system/status`, Seerr `/api/v1/status` | Instance health |
+| `servarr/indexers.ts` | GET | `/api/v1/indexer` | Prowlarr indexer list (mapped; no API keys or settings fields except `baseUrl`) |
+| `servarr/indexers.ts` | GET | `/api/v1/indexer/schema` | Add picker catalog (cached ~5m; slim list to browser) |
+| `servarr/indexers.ts` | GET | `/api/v1/indexer/categories` | Category tree for add filters |
+| `servarr/indexers.ts` | GET | `/api/v1/indexer/{id}` | Edit detail (schema `fields[]`; secrets masked to `********`) |
+| `servarr/indexers.ts` | POST | `/api/v1/indexer?forceSave=` | Create from schema template + form patch |
+| `servarr/indexers.ts` | PUT | `/api/v1/indexer/{id}?forceSave=` | Full-resource PUT after BFF secret merge |
+| `servarr/indexers.ts` | DELETE | `/api/v1/indexer/{id}` | Remove indexer |
+| `servarr/indexers.ts` | POST | `/api/v1/indexer/test?forceTest=` | Test current form (edit or create; does not persist) |
+| `servarr/indexers.ts` | POST | `/api/v1/indexer/action/getUrls` | Prefetch Base URL select options on edit/template GET |
+| `servarr/indexers.ts` | GET | `/api/v1/appprofile` | Sync profile names for indexer rows + edit dropdown |
+| `servarr/indexers.ts` | GET | `/api/v1/tag` | Prowlarr tags for indexer edit |
+| `servarr/indexers.ts` | GET | `/api/v1/downloadclient` | Download client picker (advanced) |
+| `servarr/indexers.ts` | GET | `/{id}/api?apikey=&extended=1&t=search` | RSS feed (API key stays on the BFF; streamed as XML) |
 | `routes/media.ts` | GET | Radarr/Sonarr `{path}` e.g. `/MediaCover/{id}/poster-500.jpg`; Lidarr `/api/v1/mediacover/artist/{id}/{file}` (API is jpg/png/gif only; `.jpeg` posters fall back to fanart/banner) | Image proxy (`arrFetch`; reject non-image) |
 | `servarr/posterStatus.ts` | — | (derived) | Poster bar status from Arr `getProgressBarKind` + queue ids |
 | `servarr/queueIds.ts` | GET | `/api/v3/queue` or `/api/v1/queue` | movieId / seriesId / artistId sets for queued/downloading bars |
@@ -141,6 +160,10 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `servarr/queue.ts` | POST | `/queue/grab/{id}` and `/queue/grab/bulk` `{ ids }` | Grab delayed / unavailable items |
 | `servarr/queue.ts` | GET/POST | `/manualimport?downloadId=` then POST reprocess rows | Queue Manual Import modal |
 | `servarr/queue.ts` | POST | `/command` `{ name: "RefreshMonitoredDownloads" }` | Queue Refresh |
+| `servarr/history.ts` | GET | Radarr/Sonarr `/api/v3/history`, Lidarr `/api/v1/history` | Unified library history |
+| `servarr/history.ts` | GET | Prowlarr `/api/v1/history` | Indexer query/RSS/grab history (merged into unified) |
+| `servarr/history.ts` | DELETE | Arr `/history/{id}` | Remove Arr history row (not Prowlarr) |
+| `sync/arrSignalR.ts` | WS | `{baseUrl}/signalr/messages` | Live hub for Radarr/Sonarr/Lidarr **and Prowlarr**; browsers never connect |
 
 ## BFF routes → upstream
 
@@ -211,7 +234,7 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `POST /api/instances` | `routes/instances.ts` | Create client (encrypt API key) |
 | `PUT /api/instances/:id` | `routes/instances.ts` | Update client |
 | `DELETE /api/instances/:id` | `routes/instances.ts` | Remove client + cache invalidate |
-| `POST /api/instances/test` | `routes/instances.ts` | Probe Arr `/system/status` or Seerr `/api/v1/status` (no persist) |
+| `POST /api/instances/test` | `routes/instances.ts` | Probe Arr `/system/status`, Prowlarr/Lidarr `/api/v1/system/status`, or Seerr `/api/v1/status` (no persist) |
 | `GET /api/movies/:instanceId/options` | `routes/movies.ts` | qualityprofile + tag + rootfolder |
 | `GET /api/movies/:instanceId/lookup?term=` | `routes/movies.ts` | `/movie/lookup?term=` |
 | `POST /api/movies/:instanceId` | `routes/movies.ts` | lookup `tmdb:` + `POST /movie` + library cache refresh |
@@ -245,9 +268,13 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `PUT /api/requests/:instanceId/:requestId` | `routes/requests.ts` | PUT `/request/{id}` then optional POST `/approve` |
 | `POST /api/requests/:instanceId/:requestId/approve` | `routes/requests.ts` | POST `/request/{id}/approve` |
 | `POST /api/requests/:instanceId/:requestId/decline` | `routes/requests.ts` | POST `/request/{id}/decline` |
+| `GET /api/discover/:instanceId/home` | `routes/discover.ts` | Fan-out Seerr discover rows (movies + shows buckets) |
+| `GET /api/discover/:instanceId/movies` | `routes/discover.ts` | Seerr `/discover/movies` (+ genre/studio/upcoming/trending) |
+| `GET /api/discover/:instanceId/tv` | `routes/discover.ts` | Seerr `/discover/tv` (+ genre/network/upcoming/trending) |
+| `GET /api/discover/:instanceId/search` | `routes/discover.ts` | Seerr `/search` filtered to movie/tv |
+| `GET /api/discover/:instanceId/title/:mediaType/:tmdbId` | `routes/discover.ts` | Seerr `/movie` or `/tv` → `SeerrMediaDetail` |
 | `GET /api/media/:instanceId/image?path=` | `routes/media.ts` | Proxy covers (Radarr/Sonarr prefer `-500`; Lidarr mediacover API, jpg/png/gif only) |
-| `GET /api/instances/status` | `routes/instances.ts` | Arr `/system/status` or Seerr `/api/v1/status` per instance |
-| `GET /api/stats` | `routes/stats.ts` | Counts; queue/missing still placeholder `0` |
+| `GET /api/instances/status` | `routes/instances.ts` | Arr `/system/status`, Prowlarr/Lidarr `/api/v1/system/status`, or Seerr `/api/v1/status` per instance |
 | `GET /api/health` | `routes/health.ts` | App health only |
 | `GET /api/calendar?start=&end=&unmonitored=` | `routes/calendar.ts` | Merge Radarr/Sonarr/Lidarr calendars; per-instance errors are soft-fail |
 | `GET /api/calendar.ics?token=` | `routes/calendar.ts` | Public aggregated iCal (token in `calendar_feed_token` meta; not Arr API keys) |
@@ -264,6 +291,22 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `POST /api/queue/:instanceId/grab/bulk` | `routes/queue.ts` | `POST /queue/grab/bulk` |
 | `GET /api/queue/:instanceId/manualimport` | `routes/queue.ts` | `GET /manualimport?downloadId=` |
 | `POST /api/queue/:instanceId/manualimport` | `routes/queue.ts` | `POST /manualimport` |
+| `GET /api/indexers/unified?instanceId=` | `routes/indexers.ts` | Prowlarr `/indexer` + `/appprofile`; merge across Prowlarr instances |
+| `GET /api/indexers/:instanceId/options` | `routes/indexers.ts` | `/appprofile` + `/tag` + `/downloadclient` |
+| `GET /api/indexers/:instanceId/schema` | `routes/indexers.ts` | Slim `/indexer/schema` list for add picker |
+| `GET /api/indexers/:instanceId/schema/template?key=` | `routes/indexers.ts` | One schema template + getUrls; secrets masked |
+| `GET /api/indexers/:instanceId/categories` | `routes/indexers.ts` | `/indexer/categories` for add filters |
+| `POST /api/indexers/:instanceId?forceSave=` | `routes/indexers.ts` | Create indexer from template merge |
+| `POST /api/indexers/:instanceId/test?forceTest=` | `routes/indexers.ts` | Create-mode test (no numeric id) |
+| `GET /api/indexers/:instanceId/:id` | `routes/indexers.ts` | `/indexer/{id}` + `POST /indexer/action/getUrls`; secrets masked |
+| `PUT /api/indexers/:instanceId/:id?forceSave=` | `routes/indexers.ts` | GET-merge-PUT `/indexer/{id}` (secret sentinel restored from live) |
+| `DELETE /api/indexers/:instanceId/:id` | `routes/indexers.ts` | `DELETE /indexer/{id}` |
+| `POST /api/indexers/:instanceId/:id/test?forceTest=` | `routes/indexers.ts` | `POST /indexer/test` with merged resource |
+| `GET /api/indexers/:instanceId/:id/rss` | `routes/indexers.ts` | Proxy Prowlarr `/{id}/api?t=search` (session cookie; never send API key to browser) |
+| `GET /api/history/unified?page=&pageSize=&instanceId=&eventType=&protocol=` | `routes/history.ts` | Merge Arr + Prowlarr history; protocol filter skips Prowlarr |
+| `DELETE /api/history/:instanceId/:id` | `routes/history.ts` | Arr-only history delete |
+| `GET /api/sync/revision` | `routes/sync.ts` | Cheap counters: library/queue/history/requests/issues/wanted/**indexers** |
+| `GET /api/stats` | `routes/stats.ts` | Nav chips incl. `nav.indexers` + history totals (Arr + Prowlarr) |
 | `GET /api/settings/calendar` | `routes/settings.ts` | Feed token presence + path (auth) |
 | `POST /api/settings/calendar/token` | `routes/settings.ts` | Regenerate feed token |
 | `POST /api/settings/calendar/token/ensure` | `routes/settings.ts` | Create feed token if missing |
@@ -290,6 +333,10 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Settings instance health | `SettingsPage.tsx` | `/api/instances/status` |
 | Requests page | `RequestsPage.tsx`, `RequestListRow`, `RequestEditModal` | `GET/PUT /api/requests…` → Seerr `/request*`, services, users |
 | Request media detail | `RequestDetailPage.tsx`, `RequestDetailHero`, seasons + cast | `GET /api/requests/:instanceId/:requestId/page` → Seerr `/request` + `/movie` or `/tv` |
+| Discover home | `DiscoverPage.tsx`, `DiscoverSectionBlock`, `DiscoverMediaRow`, `DiscoverPosterCard` | `GET /api/discover/:instanceId/home` + page search |
+| Discover see-more | `DiscoverListPage.tsx` | `GET /api/discover/:instanceId/movies|tv` |
+| Discover title shell | `DiscoverTitlePage.tsx`, `DiscoverLibraryAddModal.tsx` | `GET /api/discover/:instanceId/title/...`; Add → Arr `lookup` + `POST` movies/shows |
+| Discover Featured | `DiscoverFeaturedHero.tsx` | Check it out → title; Add to library → same Arr modal |
 | Shows library | `ShowsPage.tsx`, `ShowPosterCard`, sort/filter | `GET /api/shows` |
 | Add New series | `ShowAddSearchModal.tsx` | lookup + options + `POST /api/shows/:instanceId` |
 | Show detail (hero + toolbar + seasons) | `ShowDetailPage.tsx`, `ShowDetailHero`, `ShowDetailToolbar`, `ShowSeasonsPanel`, `ShowEditModal` | detail/links/update/delete + RefreshSeries / SeriesSearch + seasons/episodes |
@@ -314,6 +361,8 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Calendar | `CalendarPage.tsx`, `components/calendar/*` | `GET /api/calendar`; iCal via feed token; click event → movie/show/artist detail |
 | Collections | `CollectionsPage.tsx`, `VirtualizedCollectionList`, `components/collections/*` | `GET/PUT /api/collections`; refresh command; in-library poster → movie detail |
 | Queue (per-instance) | `QueuePage.tsx`, `components/queue/*` | `GET/DELETE/POST /api/queue`; grab/remove/manualimport; poll list. Routes: `/movies/:id/queue`, `/shows/:id/queue`, `/music/:id/queue` |
+| Indexers | `IndexersPage.tsx`, `components/indexers/*` | `GET /api/indexers/unified`; add modal schema/categories → create edit; edit modal GET/PUT/DELETE/test; RSS via `GET /api/indexers/:instanceId/:id/rss`; website is indexer `baseUrl`; sidebar count from `nav.indexers`; SignalR → `SyncRevision.indexers` |
+| History (unified) | `HistoryPage.tsx`, `components/history/*` | `GET /api/history/unified` (Arr + Prowlarr); Prowlarr details modal (query/indexer/elapsed/url); Arr row delete |
 | Settings calendar feed | `CalendarFeedPanel.tsx` | `GET/POST /api/settings/calendar*` |
 | Unified Activity Queue / Missing | placeholders | `/activity/queue` still placeholder |
 | Header Search | “coming soon” | none yet |
@@ -332,8 +381,10 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | Interactive search custom-filter builder | Presets only (All / Approved / Rejected / Usenet / Torrent) |
 | Folder browser for edit path | Not needed — root Select + movie-folder suffix |
 | Seerr instance + client | Settings kind `seerr` **Wired** (`GET /api/v1/status` health) |
-| Discover page | **In scope.** Use Seerr `GET /discover/*`, `/search`, `/movie/{id}`, `/tv/{id}`. No route yet. |
-| Requests page + create/approve/retry | List + detail page + Approve/Decline + Edit (PUT then approve) **Wired**. Create-from-Discover / retry / delete **Not started**. Header Search still “coming soon”. |
+| Discover page | **Partial** — gated on Seerr + (Radarr ∨ Sonarr); Movies/Shows sections & routes gated per Arr. Home (Featured + Movies/Shows), page search, see-more grids, title shell, **Add to library → Radarr/Sonarr**. BFF `activityListCache` (`discover:*`, home 60s / list+search 30s); request mutations invalidate cache + `SyncRevision.requests` → UI invalidates `["discover"]`; focus-aware Seerr poll (~20s). No SignalR (Seerr). No Seerr create-from-Discover, watchlist, slider admin, or recently-added/requests rows. |
+| Requests page + create/approve/retry | List + detail page + Approve/Decline + Edit (PUT then approve) **Wired**. Seerr create / retry / delete **Not started** (Discover fulfillment is Arr add). Header Search still “coming soon”. |
+| Indexers add / edit / test / sync | List + add (schema picker → configure) + RSS/website + edit/test/delete + nav chip + SignalR freshness **Partial**. No clone or bulk edit yet. |
+| Prowlarr history | Merged into unified History **Wired** (details modal; no per-row delete / clear). |
 
 ## Shared types (Arr-facing)
 
@@ -345,8 +396,9 @@ Browser never sees Arr/Seerr API keys; it talks to the Umbrellarr BFF (`/api/*`)
 | `packages/shared/src/shows.ts` | `SeriesListItem`, `SeriesPageDetail`, `SeriesLookupItem`, `SeriesAddRequest`, edit/update/links schemas, history/release/rename/manage-files, `SeriesSeasonSummary` / `SeriesEpisode`, sort/filter options |
 | `packages/shared/src/artists.ts` | `ArtistListItem`, `ArtistPageDetail`, `ArtistAlbum` / album groups, edit/update (incl. `metadataProfileId`), history/release/rename/manage-files, links, sort/filter options |
 | `packages/shared/src/requests.ts` | Request list/query/update, `MediaRequestItem`, Seerr service/user/edit-detail, `RequestMediaPageDetail` / `SeerrMediaDetail` |
+| `packages/shared/src/discover.ts` | `DiscoverCard`, rows (posters/genres/companies), `DiscoverHomeResponse`, list/search/title responses |
 | `packages/shared/src/cache.ts` | `CacheStatus` (`HIT` / `MISS`) for library responses |
-| `packages/shared/src/stats.ts` | Dashboard stats shape |
-| `packages/shared/src/calendar.ts` | `CalendarEvent`, `CalendarQuery`, `CalendarResponse`, `CalendarFeedSettings`, `CalendarView` |
-| `packages/shared/src/collections.ts` | `CollectionListItem`, `CollectionMovieItem`, `CollectionBulkUpdateRequest`, `CollectionEditOptions`, sort/filter keys |
-| `packages/shared/src/queue.ts` | `QueueListItem` / `QueueListResponse` / `QueueStatus`, remove/grab/manual-import request schemas, protocol/status filters |
+| `packages/shared/src/stats.ts` | Dashboard stats + `NavCounts` (incl. `indexers`) |
+| `packages/shared/src/sync.ts` | `SyncRevision` (library/queue/history/requests/issues/wanted/**indexers**) |
+| `packages/shared/src/history.ts` | `HistoryListItem` (`HistoryKind` incl. prowlarr), indexer event types, unified response |
+| `packages/shared/src/indexers.ts` | `IndexerListItem`, `IndexerField` / `IndexerEditDetail` / `IndexerEditOptions` / `IndexerUpdateRequest`, `IndexerSchemaItem` / `IndexerSchemaTemplate` / `IndexerCreateRequest`, `INDEXER_SECRET_SENTINEL`, protocol/privacy/status/sort + filter options |

@@ -8,7 +8,8 @@ const SYNC_POLL_MS = 4_000;
 
 /**
  * Polls cheap BFF revision counters and invalidates React Query only when
- * a counter increases (SignalR-driven sync on the server).
+ * a counter increases (SignalR-driven sync on the server for Arr/Prowlarr;
+ * Seerr request/issue bumps come from BFF mutations).
  */
 export function useSyncRevisionInvalidation(enabled = true) {
   const queryClient = useQueryClient();
@@ -45,10 +46,20 @@ export function useSyncRevisionInvalidation(enabled = true) {
     }
     if (next.requests > prev.requests) {
       void queryClient.invalidateQueries({ queryKey: ["requests"] });
+      // Seerr has no SignalR; request mutations also refresh Discover badges/links.
+      void queryClient.invalidateQueries({ queryKey: ["discover"] });
       void queryClient.invalidateQueries({ queryKey: ["stats"] });
     }
     if (next.issues > prev.issues) {
       void queryClient.invalidateQueries({ queryKey: ["issues"] });
+      void queryClient.invalidateQueries({ queryKey: ["stats"] });
+    }
+    if (next.wanted > prev.wanted) {
+      void queryClient.invalidateQueries({ queryKey: ["wanted"] });
+      void queryClient.invalidateQueries({ queryKey: ["stats"] });
+    }
+    if (next.indexers > prev.indexers) {
+      void queryClient.invalidateQueries({ queryKey: ["indexers"] });
       void queryClient.invalidateQueries({ queryKey: ["stats"] });
     }
   }, [query.data, queryClient]);

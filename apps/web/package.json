@@ -22,8 +22,7 @@
     "chroma-js": "^3.2.0",
     "ldrs": "^1.1.9",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-parallax-tilt": "^1.7.339"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/chroma-js": "^3.1.2",

@@ -24,6 +24,8 @@ import { syncRevisionStore } from "../sync/revisionStore.js";
 function invalidateRequestCaches() {
   activityListCache.invalidate("requests:");
   activityListCache.invalidate("stats:pending-requests");
+  // Discover cards carry mediaInfo availability + requestId from Seerr.
+  activityListCache.invalidate("discover:");
   syncRevisionStore.bump(["requests"]);
 }
 

@@ -14,7 +14,7 @@ export async function checkInstanceStatus(instance: Instance): Promise<InstanceS
     const statusPath =
       instance.kind === "seerr"
         ? "/api/v1/status"
-        : instance.kind === "lidarr"
+        : instance.kind === "lidarr" || instance.kind === "prowlarr"
           ? "/api/v1/system/status"
           : "/api/v3/system/status";
     const res = await fetch(`${instance.baseUrl}${statusPath}`, {

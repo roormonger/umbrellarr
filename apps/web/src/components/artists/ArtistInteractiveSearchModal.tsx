@@ -16,6 +16,7 @@ type Props = {
   instanceId: string;
   artistId: number;
   title: string;
+  albumId?: number;
 };
 
 type FilterKey = "all" | "approved" | "rejected" | "usenet" | "torrent";
@@ -60,12 +61,13 @@ export function ArtistInteractiveSearchModal({
   instanceId,
   artistId,
   title,
+  albumId,
 }: Props) {
   const [filter, setFilter] = useState<FilterKey>("all");
 
   const releasesQuery = useQuery({
-    queryKey: ["artist-releases", instanceId, artistId],
-    queryFn: () => getArtistReleases(instanceId, artistId),
+    queryKey: ["artist-releases", instanceId, artistId, albumId ?? null],
+    queryFn: () => getArtistReleases(instanceId, artistId, albumId),
     enabled: opened,
     staleTime: 0,
     gcTime: 5 * 60_000,

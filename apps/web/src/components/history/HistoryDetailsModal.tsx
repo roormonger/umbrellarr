@@ -1,6 +1,11 @@
 import { Anchor, Button, Group, Modal, Table, Text } from "@mantine/core";
-import type { ArrKind, HistoryEventType, HistoryListItem } from "@umbrellarr/shared";
+import type { ArrKind, HistoryEventType, HistoryKind, HistoryListItem } from "@umbrellarr/shared";
 import type { ReactNode } from "react";
+import {
+  formatElapsedMs,
+  formatHistoryDateTime,
+  historyEventLabel,
+} from "@/lib/historyDisplay";
 import { formatFreeSpace } from "@/lib/moviePath";
 import classes from "../movies/MovieHistoryDetailsModal.module.css";
 
@@ -15,7 +20,8 @@ type DetailEntry = {
   value: ReactNode;
 };
 
-function detailTitle(eventType: HistoryEventType, kind: ArrKind): string {
+function detailTitle(eventType: HistoryEventType, kind: HistoryKind): string {
+  if (kind === "prowlarr") return historyEventLabel(eventType, kind);
   if (eventType === "grabbed") return "Grabbed";
   if (eventType === "downloadFailed") return "Download failed";
   if (eventType === "downloadIgnored") return "Download Ignored";
@@ -145,7 +151,48 @@ function DetailTable({ rows }: { rows: DetailEntry[] }) {
   );
 }
 
+function dash(value?: string): string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : "-";
+}
+
+function prowlarrDetailRows(item: HistoryListItem): DetailEntry[] {
+  const { data, sourceTitle, indexerName, date } = item;
+  const query = sourceTitle || data.query;
+  const url = data.url || data.nzbInfoUrl;
+  return [
+    { label: "Query", value: dash(query) },
+    { label: "Indexer", value: dash(indexerName || data.indexer) },
+    {
+      label: "Query Results",
+      value: dash(data.queryResults || data.results || data.numberOfResults),
+    },
+    { label: "Categories", value: dash(data.categories || data.category) },
+    { label: "Limit", value: dash(data.limit) },
+    { label: "Offset", value: dash(data.offset) },
+    { label: "Source", value: dash(data.source) },
+    { label: "Host", value: dash(data.host) },
+    {
+      label: "Url",
+      value: url ? (
+        <Anchor href={url} target="_blank" rel="noreferrer" size="sm">
+          Link
+        </Anchor>
+      ) : (
+        "-"
+      ),
+    },
+    {
+      label: "Elapsed Time",
+      value: data.elapsedTime ? formatElapsedMs(data.elapsedTime) : "-",
+    },
+    { label: "Date", value: date ? formatHistoryDateTime(date) : "-" },
+  ];
+}
+
 function detailRows(item: HistoryListItem): DetailEntry[] {
+  if (item.kind === "prowlarr") return prowlarrDetailRows(item);
+
   const { eventType, sourceTitle, downloadId, data, kind } = item;
 
   if (eventType === "grabbed") {
@@ -211,7 +258,7 @@ function detailRows(item: HistoryListItem): DetailEntry[] {
   ) {
     return [
       { label: "Name", value: sourceTitle },
-      { label: "Reason", value: deletedReasonMessage(data.reason, kind) },
+      { label: "Reason", value: deletedReasonMessage(data.reason, kind as ArrKind) },
       { label: "Custom Format Score", value: formatDataScore(data.customFormatScore) },
       { label: "File Size", value: formatDataBytes(data.size) },
     ];

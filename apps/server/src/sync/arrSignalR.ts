@@ -30,8 +30,21 @@ const LIBRARY_MESSAGE_NAMES = new Set([
 
 const QUEUE_MESSAGE_NAMES = new Set(["queue", "queue.updated", "download", "command"]);
 
+function isHubCapable(instance: Instance): boolean {
+  return (
+    instance.kind === "radarr" ||
+    instance.kind === "sonarr" ||
+    instance.kind === "lidarr" ||
+    instance.kind === "prowlarr"
+  );
+}
+
+function isLibraryKind(instance: Instance): boolean {
+  return instance.kind === "radarr" || instance.kind === "sonarr" || instance.kind === "lidarr";
+}
+
 /**
- * Server-side Arr SignalR clients. Keys stay on the BFF — browsers never connect to Arr hubs.
+ * Server-side Arr/Prowlarr SignalR clients. Keys stay on the BFF — browsers never connect to hubs.
  */
 export class ArrSignalRSync {
   private readonly connections = new Map<string, HubConnection>();
@@ -52,10 +65,8 @@ export class ArrSignalRSync {
 
   start(instances: Instance[]): void {
     this.stopped = false;
-    const arr = instances.filter(
-      (i) => i.kind === "radarr" || i.kind === "sonarr" || i.kind === "lidarr",
-    );
-    const activeIds = new Set(arr.map((i) => i.id));
+    const hubInstances = instances.filter(isHubCapable);
+    const activeIds = new Set(hubInstances.map((i) => i.id));
 
     for (const [id, connection] of this.connections) {
       if (!activeIds.has(id)) {
@@ -65,7 +76,7 @@ export class ArrSignalRSync {
       }
     }
 
-    for (const instance of arr) {
+    for (const instance of hubInstances) {
       const previous = this.instances.get(instance.id);
       this.instances.set(instance.id, instance);
       const urlChanged = previous != null && previous.baseUrl !== instance.baseUrl;
@@ -83,7 +94,7 @@ export class ArrSignalRSync {
     if (!this.pollTimer) {
       this.pollTimer = setInterval(() => {
         if (this.stopped) return;
-        this.libraryCache.warm([...this.instances.values()]);
+        this.libraryCache.warm([...this.instances.values()].filter(isLibraryKind));
       }, pollMs);
       this.pollTimer.unref?.();
     }
@@ -125,6 +136,7 @@ export class ArrSignalRSync {
     connection.onreconnected(() => {
       const current = this.instances.get(instanceId);
       console.log(`[signalr] reconnected ${current?.kind ?? "?"}/${instanceId}`);
+      this.catchUp(instanceId);
     });
     connection.onclose((error) => {
       if (this.stopped) return;
@@ -143,6 +155,7 @@ export class ArrSignalRSync {
     try {
       await connection.start();
       console.log(`[signalr] connected ${instance.kind}/${instanceId}`);
+      this.catchUp(instanceId);
     } catch (error) {
       this.connections.delete(instanceId);
       console.warn(
@@ -159,9 +172,46 @@ export class ArrSignalRSync {
     }
   }
 
+  /**
+   * After connect/reconnect: invalidate activity caches and refresh library snapshots for Arr.
+   * Covers events missed while the hub was down.
+   */
+  private catchUp(instanceId: string): void {
+    const instance = this.instances.get(instanceId);
+    if (!instance || this.stopped) return;
+
+    if (instance.kind === "prowlarr") {
+      activityListCache.invalidate("indexers:");
+      activityListCache.invalidate("stats:indexers");
+      activityListCache.invalidate("history:");
+      activityListCache.invalidate("stats:history");
+      syncRevisionStore.bump(["indexers", "history"]);
+      return;
+    }
+
+    activityListCache.invalidate("queue:");
+    activityListCache.invalidate("stats:queue");
+    syncRevisionStore.bump(["queue"]);
+    this.scheduleLibraryRefresh(instance);
+  }
+
   private handleMessage(instance: Instance, raw: ArrMessage): void {
     const name = String(raw?.name ?? "").toLowerCase();
     if (!name) return;
+
+    if (instance.kind === "prowlarr") {
+      if (name === "indexer" || name === "indexers" || name.includes("indexer")) {
+        activityListCache.invalidate("indexers:");
+        activityListCache.invalidate("stats:indexers");
+        syncRevisionStore.bump(["indexers"]);
+      }
+      if (name === "command" || name === "history" || name.includes("history")) {
+        activityListCache.invalidate("history:");
+        activityListCache.invalidate("stats:history");
+        syncRevisionStore.bump(["history"]);
+      }
+      return;
+    }
 
     if (QUEUE_MESSAGE_NAMES.has(name) || name.includes("queue")) {
       activityListCache.invalidate("queue:");
@@ -181,6 +231,7 @@ export class ArrSignalRSync {
   }
 
   private scheduleLibraryRefresh(instance: Instance): void {
+    if (!isLibraryKind(instance)) return;
     const existing = this.refreshTimers.get(instance.id);
     if (existing) clearTimeout(existing);
     const delay = this.options.libraryDebounceMs ?? 1_500;

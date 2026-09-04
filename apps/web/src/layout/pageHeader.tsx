@@ -38,6 +38,9 @@ export function titleFromPath(pathname: string): string {
   if (/\/history\/?$/.test(pathname)) return "History";
   if (pathname.startsWith("/issues/") && pathname.split("/").length > 3) return "Issue";
   if (/\/issues\/?$/.test(pathname)) return "Issues";
+  if (/^\/discover\/[^/]+\/(movie|tv)\/\d+/.test(pathname)) return "Title";
+  if (/^\/discover\/[^/]+\/(movies|tv)/.test(pathname)) return "Discover";
+  if (pathname.startsWith("/discover")) return "Discover";
   if (/^\/movies\/[^/]+\/[^/]+/.test(pathname)) return "Movie";
   if (pathname.startsWith("/movies")) return "Movies";
   if (/^\/shows\/[^/]+\/[^/]+/.test(pathname)) return "Show";
@@ -46,7 +49,8 @@ export function titleFromPath(pathname: string): string {
   if (pathname.startsWith("/music")) return "Music";
   if (pathname.startsWith("/requests")) return "Requests";
   if (pathname.startsWith("/activity/calendar")) return "Calendar";
-  if (pathname.startsWith("/activity/missing")) return "Missing";
+  if (pathname.startsWith("/activity/wanted") || pathname.startsWith("/activity/missing")) return "Wanted";
+  if (pathname.startsWith("/indexers")) return "Indexers";
   if (pathname.startsWith("/settings")) return "Settings";
   return "Umbrellarr";
 }

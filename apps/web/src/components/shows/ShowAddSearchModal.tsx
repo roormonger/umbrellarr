@@ -216,7 +216,7 @@ function LookupResultRow({
   );
 }
 
-function ShowAddForm({
+export function ShowAddForm({
   instanceId,
   series,
   onBack,
@@ -224,7 +224,8 @@ function ShowAddForm({
 }: {
   instanceId: string;
   series: SeriesLookupItem;
-  onBack: () => void;
+  /** When omitted, the Back control is hidden (Discover pre-seeded add). */
+  onBack?: () => void;
   onClose: () => void;
 }) {
   const navigate = useNavigate();
@@ -293,7 +294,10 @@ function ShowAddForm({
         color: "green",
         message: `Added “${detail.title}” to Sonarr`,
       });
-      await queryClient.invalidateQueries({ queryKey: ["shows"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["shows"] }),
+        queryClient.invalidateQueries({ queryKey: ["discover"] }),
+      ]);
       onClose();
       void navigate({
         to: "/shows/$instanceId/$seriesId",
@@ -460,14 +464,20 @@ function ShowAddForm({
 
           <div className={formClasses.footer}>
             <div className={formClasses.footerStart}>
-              <Button
-                variant="default"
-                leftSection={<ArrowLeftIcon size={16} />}
-                onClick={onBack}
-                disabled={addMutation.isPending}
-              >
-                Back
-              </Button>
+              {onBack ? (
+                <Button
+                  variant="default"
+                  leftSection={<ArrowLeftIcon size={16} />}
+                  onClick={onBack}
+                  disabled={addMutation.isPending}
+                >
+                  Back
+                </Button>
+              ) : (
+                <Button variant="default" onClick={onClose} disabled={addMutation.isPending}>
+                  Cancel
+                </Button>
+              )}
             </div>
             <div className={formClasses.footerChecks}>
               <Checkbox
@@ -510,9 +520,11 @@ function ShowAddForm({
       {!loading && !optionsQuery.data && (
         <div className={formClasses.footer}>
           <div className={formClasses.footerStart}>
-            <Button variant="default" leftSection={<ArrowLeftIcon size={16} />} onClick={onBack}>
-              Back
-            </Button>
+            {onBack ? (
+              <Button variant="default" leftSection={<ArrowLeftIcon size={16} />} onClick={onBack}>
+                Back
+              </Button>
+            ) : null}
           </div>
           <Button variant="default" onClick={onClose}>
             Cancel

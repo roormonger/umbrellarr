@@ -137,9 +137,10 @@ export function markArtistHistoryFailed(instanceId: string, historyId: number) {
   );
 }
 
-export function getArtistReleases(instanceId: string, artistId: number) {
+export function getArtistReleases(instanceId: string, artistId: number, albumId?: number) {
+  const search = albumId != null ? `?albumId=${albumId}` : "";
   return api<{ releases: ArtistRelease[] }>(
-    `/api/artists/${encodeURIComponent(instanceId)}/${artistId}/releases`,
+    `/api/artists/${encodeURIComponent(instanceId)}/${artistId}/releases${search}`,
   );
 }
 

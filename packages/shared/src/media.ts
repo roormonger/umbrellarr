@@ -32,7 +32,8 @@ export const MediaItemSchema = z.object({
   overview: z.string().optional(),
   posterUrl: z.string().optional(),
   monitored: z.boolean(),
-  inLibrary: z.boolean(),
+  /** Library list items omit this (always true); lookup/search rows set it explicitly. */
+  inLibrary: z.boolean().optional(),
   hasFile: z.boolean().optional(),
   isAvailable: z.boolean().optional(),
   availability: AvailabilitySchema,

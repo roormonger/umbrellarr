@@ -8,6 +8,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { ensureAuthStatus, peekAuthStatus } from "@/api/auth";
 import { listInstances } from "@/api/instances";
 import { ensureArtistLibrary, ensureMovieLibrary, ensureShowLibrary } from "@/api/libraryList";
+import { discoverAccess } from "@/lib/discoverAccess";
 import { allLibrarySearch } from "@/lib/librarySearch";
 import { AppLayout } from "@/layout/AppLayout";
 import { LoginPage } from "@/pages/LoginPage";
@@ -15,18 +16,25 @@ import { MovieDetailPage } from "@/pages/MovieDetailPage";
 import { MoviesPage } from "@/pages/MoviesPage";
 import { CalendarPage } from "@/pages/CalendarPage";
 import { CollectionsPage } from "@/pages/CollectionsPage";
-import { PlaceholderPage } from "@/pages/PlaceholderPage";
 import { HistoryPage } from "@/pages/HistoryPage";
 import { QueuePage } from "@/pages/QueuePage";
+import { WantedPage } from "@/pages/WantedPage";
 import { RequestDetailPage } from "@/pages/RequestDetailPage";
 import { RequestsPage } from "@/pages/RequestsPage";
 import { IssuesPage } from "@/pages/IssuesPage";
 import { IssueDetailPage } from "@/pages/IssueDetailPage";
+import { IndexersPage } from "@/pages/IndexersPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { ShowDetailPage } from "@/pages/ShowDetailPage";
 import { ArtistDetailPage } from "@/pages/ArtistDetailPage";
 import { ArtistsPage } from "@/pages/ArtistsPage";
 import { ShowsPage } from "@/pages/ShowsPage";
+import { DiscoverPage } from "@/pages/DiscoverPage";
+import {
+  DiscoverMoviesListPage,
+  DiscoverTvListPage,
+} from "@/pages/DiscoverListPage";
+import { DiscoverTitlePage } from "@/pages/DiscoverTitlePage";
 
 export type RouterContext = {
   queryClient: QueryClient;
@@ -74,9 +82,107 @@ const appRoute = createRoute({
 const indexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  beforeLoad: () => {
+  beforeLoad: async ({ context }) => {
+    const data = await context.queryClient.ensureQueryData({
+      queryKey: ["instances"],
+      queryFn: listInstances,
+      staleTime: INSTANCES_STALE_MS,
+    });
+    if (discoverAccess(data.instances).canShowDiscover) {
+      throw redirect({ to: "/discover" });
+    }
     throw redirect({ to: "/movies", search: allLibrarySearch });
   },
+});
+
+function discoverListSearch(search: Record<string, unknown>) {
+  return {
+    genre: typeof search.genre === "string" ? search.genre : undefined,
+    studio: typeof search.studio === "string" ? search.studio : undefined,
+    network: typeof search.network === "string" ? search.network : undefined,
+    sortBy: typeof search.sortBy === "string" ? search.sortBy : undefined,
+    upcoming: search.upcoming === true || search.upcoming === "true" ? ("true" as const) : undefined,
+    label: typeof search.label === "string" ? search.label : undefined,
+  };
+}
+
+const discoverRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/discover",
+  component: DiscoverPage,
+  beforeLoad: async ({ context }) => {
+    const data = await context.queryClient.ensureQueryData({
+      queryKey: ["instances"],
+      queryFn: listInstances,
+      staleTime: INSTANCES_STALE_MS,
+    });
+    const access = discoverAccess(data.instances);
+    if (!access.canShowDiscover) {
+      throw redirect({ to: "/settings" });
+    }
+  },
+});
+
+const discoverMoviesListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/discover/$instanceId/movies",
+  validateSearch: discoverListSearch,
+  component: DiscoverMoviesListPage,
+  beforeLoad: async ({ context }) => {
+    const data = await context.queryClient.ensureQueryData({
+      queryKey: ["instances"],
+      queryFn: listInstances,
+      staleTime: INSTANCES_STALE_MS,
+    });
+    const access = discoverAccess(data.instances);
+    if (!access.canShowMovies) {
+      throw redirect({ to: access.canShowDiscover ? "/discover" : "/settings" });
+    }
+  },
+});
+
+const discoverTvListRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/discover/$instanceId/tv",
+  validateSearch: discoverListSearch,
+  component: DiscoverTvListPage,
+  beforeLoad: async ({ context }) => {
+    const data = await context.queryClient.ensureQueryData({
+      queryKey: ["instances"],
+      queryFn: listInstances,
+      staleTime: INSTANCES_STALE_MS,
+    });
+    const access = discoverAccess(data.instances);
+    if (!access.canShowShows) {
+      throw redirect({ to: access.canShowDiscover ? "/discover" : "/settings" });
+    }
+  },
+});
+
+const discoverTitleRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/discover/$instanceId/$mediaType/$tmdbId",
+  beforeLoad: async ({ context, params }) => {
+    if (params.mediaType !== "movie" && params.mediaType !== "tv") {
+      throw redirect({ to: "/discover" });
+    }
+    const data = await context.queryClient.ensureQueryData({
+      queryKey: ["instances"],
+      queryFn: listInstances,
+      staleTime: INSTANCES_STALE_MS,
+    });
+    const access = discoverAccess(data.instances);
+    if (!access.canShowDiscover) {
+      throw redirect({ to: "/settings" });
+    }
+    if (params.mediaType === "movie" && !access.canShowMovies) {
+      throw redirect({ to: "/discover" });
+    }
+    if (params.mediaType === "tv" && !access.canShowShows) {
+      throw redirect({ to: "/discover" });
+    }
+  },
+  component: DiscoverTitlePage,
 });
 
 const moviesRoute = createRoute({
@@ -394,12 +500,25 @@ const calendarRoute = createRoute({
   component: CalendarPage,
 });
 
+const wantedRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/activity/wanted",
+  validateSearch: (search: Record<string, unknown>) => ({
+    instance: typeof search.instance === "string" ? search.instance : undefined,
+    mode: search.mode === "cutoff" ? ("cutoff" as const) : ("missing" as const),
+  }),
+  component: WantedPage,
+});
+
 const missingRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/activity/missing",
-  component: () => (
-    <PlaceholderPage title="Missing" description="Monitored titles that are not yet available." />
-  ),
+  beforeLoad: () => {
+    throw redirect({
+      to: "/activity/wanted",
+      search: { instance: undefined, mode: "missing" },
+    });
+  },
 });
 
 const statusRoute = createRoute({
@@ -408,6 +527,15 @@ const statusRoute = createRoute({
   beforeLoad: () => {
     throw redirect({ to: "/settings" });
   },
+});
+
+const indexersRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/indexers",
+  validateSearch: (search: Record<string, unknown>) => ({
+    instance: typeof search.instance === "string" ? search.instance : undefined,
+  }),
+  component: IndexersPage,
 });
 
 const settingsRoute = createRoute({
@@ -420,6 +548,10 @@ export const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([
     indexRoute,
+    discoverRoute,
+    discoverMoviesListRoute,
+    discoverTvListRoute,
+    discoverTitleRoute,
     moviesRoute,
     moviesInstanceRoute,
     moviesCollectionsRoute,
@@ -447,9 +579,11 @@ export const routeTree = rootRoute.addChildren([
     requestDetailRoute,
     queueRoute,
     historyRoute,
+    wantedRoute,
     calendarRoute,
     missingRoute,
     statusRoute,
+    indexersRoute,
     settingsRoute,
   ]),
 ]);

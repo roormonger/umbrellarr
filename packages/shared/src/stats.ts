@@ -8,6 +8,8 @@ export const NavCountsSchema = z.object({
   issues: z.number().int().nonnegative().optional(),
   queue: z.number().int().nonnegative().optional(),
   history: z.number().int().nonnegative().optional(),
+  wanted: z.number().int().nonnegative().optional(),
+  indexers: z.number().int().nonnegative().optional(),
 });
 export type NavCounts = z.infer<typeof NavCountsSchema>;
 

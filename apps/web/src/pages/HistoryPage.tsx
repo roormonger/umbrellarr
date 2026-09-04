@@ -16,17 +16,19 @@ import { InfoIcon } from "@phosphor-icons/react/dist/csr/Info";
 import { XIcon } from "@phosphor-icons/react/dist/csr/X";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import type { ArrKind, HistoryEventType, HistoryListItem, HistoryProtocolFilter } from "@umbrellarr/shared";
+import type { HistoryEventType, HistoryListItem, HistoryProtocolFilter } from "@umbrellarr/shared";
 import { useMemo, useState } from "react";
 import { deleteHistoryItem, listUnifiedHistory } from "@/api/history";
 import { listInstances } from "@/api/instances";
 import { HistoryDetailsModal } from "@/components/history/HistoryDetailsModal";
 import { HistoryStatusCell } from "@/components/history/HistoryStatusCell";
-import { HistoryToolbar } from "@/components/history/HistoryToolbar";
+import { HistoryPager, HistoryToolbar, type HistoryPageSize } from "@/components/history/HistoryToolbar";
 import { usePageHeader } from "@/layout/pageHeader";
 import {
+  formatElapsedMs,
   formatHistoryDate,
   formatScore,
+  historyCategories,
   historyDetailPath,
   historyItemKey,
   historyRowPrimary,
@@ -37,14 +39,13 @@ import {
 import { ACTIVITY_LIST_STALE_MS } from "@/lib/queryFocus";
 import classes from "./HistoryPage.module.css";
 
-const PAGE_SIZE = 50;
-
 export function HistoryPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const searchStr = useRouterState({ select: (s) => s.location.search });
   const instanceFilter = new URLSearchParams(searchStr).get("instance") ?? undefined;
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<HistoryPageSize>(50);
   const [eventType, setEventType] = useState<HistoryEventType | "all">("all");
   const [protocol, setProtocol] = useState<HistoryProtocolFilter | "all">("all");
   const [detailsItem, setDetailsItem] = useState<HistoryListItem | null>(null);
@@ -55,11 +56,14 @@ export function HistoryPage() {
     staleTime: 60_000,
   });
 
-  const arrInstances = useMemo(
+  const historyInstances = useMemo(
     () =>
       (instancesQuery.data?.instances ?? []).filter(
         (instance) =>
-          instance.kind === "radarr" || instance.kind === "sonarr" || instance.kind === "lidarr",
+          instance.kind === "radarr" ||
+          instance.kind === "sonarr" ||
+          instance.kind === "lidarr" ||
+          instance.kind === "prowlarr",
       ),
     [instancesQuery.data?.instances],
   );
@@ -67,36 +71,36 @@ export function HistoryPage() {
   const instanceOptions = useMemo(
     () => [
       { value: "all", label: "All instances" },
-      ...arrInstances.map((instance) => ({
+      ...historyInstances.map((instance) => ({
         value: instance.id,
-        label: `${instance.name} (${kindLabel(instance.kind as ArrKind)})`,
+        label: `${instance.name} (${kindLabel(instance.kind as HistoryListItem["kind"])})`,
       })),
     ],
-    [arrInstances],
+    [historyInstances],
   );
 
   const activeInstanceFilter =
-    instanceFilter && arrInstances.some((instance) => instance.id === instanceFilter)
+    instanceFilter && historyInstances.some((instance) => instance.id === instanceFilter)
       ? instanceFilter
       : undefined;
 
   const listQuery = useQuery({
-    queryKey: ["history", "unified", page, activeInstanceFilter, eventType, protocol],
+    queryKey: ["history", "unified", page, activeInstanceFilter, eventType, protocol, pageSize],
     queryFn: () =>
       listUnifiedHistory({
         page,
-        pageSize: PAGE_SIZE,
+        pageSize,
         instanceId: activeInstanceFilter,
         eventType,
         protocol,
       }),
-    enabled: arrInstances.length > 0,
+    enabled: historyInstances.length > 0,
     staleTime: ACTIVITY_LIST_STALE_MS,
   });
 
   const items = listQuery.data?.items ?? [];
   const totalRecords = listQuery.data?.totalRecords ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const fetchErrors = listQuery.data?.errors ?? [];
 
   const headerCount = useMemo(() => {
@@ -143,9 +147,7 @@ export function HistoryPage() {
           instanceOptions={instanceOptions}
           eventType={eventType}
           protocol={protocol}
-          page={page}
-          totalPages={totalPages}
-          totalRecords={totalRecords}
+          pageSize={pageSize}
           refreshing={listQuery.isFetching}
           onInstanceFilterChange={setInstanceFilter}
           onEventTypeChange={(value) => {
@@ -156,8 +158,11 @@ export function HistoryPage() {
             setProtocol(value);
             setPage(1);
           }}
+          onPageSizeChange={(next) => {
+            setPageSize(next);
+            setPage(1);
+          }}
           onRefresh={() => void invalidateHistory()}
-          onPageChange={setPage}
         />
       </div>
 
@@ -179,12 +184,13 @@ export function HistoryPage() {
         </Alert>
       ) : null}
 
-      {loading ? (
-        <Skeleton height={240} radius="md" />
-      ) : (
-        <div className={classes.body}>
-          <div className={classes.tableWrap}>
-            <ScrollArea h="100%" offsetScrollbars type="auto">
+      <div className={classes.body}>
+        <div className={classes.tableWrap}>
+          <div className={classes.tableScroll}>
+            {loading ? (
+              <Skeleton height="100%" radius={0} />
+            ) : (
+              <ScrollArea h="100%" offsetScrollbars type="auto">
               <Table striped highlightOnHover stickyHeader horizontalSpacing="sm" verticalSpacing="sm">
                 <Table.Thead>
                   <Table.Tr>
@@ -212,6 +218,8 @@ export function HistoryPage() {
                       const key = historyItemKey(item);
                       const detailPath = historyDetailPath(item);
                       const secondary = historyRowSecondary(item);
+                      const isProwlarr = item.kind === "prowlarr";
+                      const categories = isProwlarr ? historyCategories(item) : [];
                       return (
                         <Table.Tr key={key} data-history-row>
                           <Table.Td>
@@ -236,7 +244,7 @@ export function HistoryPage() {
                           <Table.Td>
                             <Group gap={6} wrap="nowrap">
                               <Text size="sm" lineClamp={1}>
-                                {instanceNameFor(arrInstances, item.instanceId)}
+                                {instanceNameFor(historyInstances, item.instanceId)}
                               </Text>
                               <Badge size="xs" variant="light">
                                 {kindLabel(item.kind)}
@@ -244,19 +252,46 @@ export function HistoryPage() {
                             </Group>
                           </Table.Td>
                           <Table.Td>
-                            {item.languages.length > 0
-                              ? item.languages.map((lang) => (
-                                  <Badge key={lang} size="xs" mr={4} variant="light">
-                                    {lang}
-                                  </Badge>
-                                ))
-                              : "—"}
+                            {isProwlarr ? (
+                              categories.length > 0 ? (
+                                <Group gap={4}>
+                                  {categories.slice(0, 4).map((category) => (
+                                    <Badge key={category} size="xs" variant="light">
+                                      {category}
+                                    </Badge>
+                                  ))}
+                                  {categories.length > 4 ? (
+                                    <Text size="xs" c="dimmed">
+                                      +{categories.length - 4}
+                                    </Text>
+                                  ) : null}
+                                </Group>
+                              ) : (
+                                "—"
+                              )
+                            ) : item.languages.length > 0 ? (
+                              item.languages.map((lang) => (
+                                <Badge key={lang} size="xs" mr={4} variant="light">
+                                  {lang}
+                                </Badge>
+                              ))
+                            ) : (
+                              "—"
+                            )}
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm">{item.quality ?? "Unknown"}</Text>
+                            <Text size="sm">
+                              {isProwlarr
+                                ? formatElapsedMs(item.data.elapsedTime)
+                                : (item.quality ?? "Unknown")}
+                            </Text>
                           </Table.Td>
                           <Table.Td>
-                            {item.customFormats.length > 0 ? (
+                            {isProwlarr ? (
+                              <Text size="sm" c="dimmed">
+                                {item.data.source || "—"}
+                              </Text>
+                            ) : item.customFormats.length > 0 ? (
                               <Group gap={4}>
                                 {item.customFormats.map((fmt) => (
                                   <Badge key={fmt} size="xs" color="violet" variant="light">
@@ -290,22 +325,24 @@ export function HistoryPage() {
                                   <InfoIcon size={16} />
                                 </ActionIcon>
                               </Tooltip>
-                              <Tooltip label="Remove">
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="red"
-                                  aria-label="Remove history entry"
-                                  loading={deleteMutation.isPending}
-                                  onClick={() =>
-                                    deleteMutation.mutate({
-                                      instanceId: item.instanceId,
-                                      id: item.id,
-                                    })
-                                  }
-                                >
-                                  <XIcon size={16} />
-                                </ActionIcon>
-                              </Tooltip>
+                              {!isProwlarr ? (
+                                <Tooltip label="Remove">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="red"
+                                    aria-label="Remove history entry"
+                                    loading={deleteMutation.isPending}
+                                    onClick={() =>
+                                      deleteMutation.mutate({
+                                        instanceId: item.instanceId,
+                                        id: item.id,
+                                      })
+                                    }
+                                  >
+                                    <XIcon size={16} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              ) : null}
                             </Group>
                           </Table.Td>
                         </Table.Tr>
@@ -315,9 +352,13 @@ export function HistoryPage() {
                 </Table.Tbody>
               </Table>
             </ScrollArea>
+            )}
+          </div>
+          <div className={classes.pager}>
+            <HistoryPager page={page} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </div>
-      )}
+      </div>
 
       <HistoryDetailsModal
         opened={detailsItem != null}

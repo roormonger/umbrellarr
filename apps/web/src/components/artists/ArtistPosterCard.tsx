@@ -1,5 +1,4 @@
 import { Image, Text, Tooltip } from "@mantine/core";
-import { useReducedMotion } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -8,11 +7,7 @@ import { BookmarkSimpleIcon } from "@phosphor-icons/react/dist/csr/BookmarkSimpl
 import { LinkIcon } from "@phosphor-icons/react/dist/csr/Link";
 import { WrenchIcon } from "@phosphor-icons/react/dist/csr/Wrench";
 import type { ArtistListItem } from "@umbrellarr/shared";
-import { memo, useState, type ComponentType } from "react";
-import TiltImport from "react-parallax-tilt";
-
-/** react-parallax-tilt typings lag React 19. */
-const Tilt = TiltImport as unknown as ComponentType<Record<string, unknown>>;
+import { memo, useState } from "react";
 import { refreshArtist } from "@/api/artists";
 import { ArtistLinksMenu } from "@/components/artists/ArtistLinksMenu";
 import {
@@ -52,7 +47,6 @@ export const ArtistPosterCard = memo(function ArtistPosterCard({
 }) {
   const item = group.primary;
   const navigate = useNavigate();
-  const reduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const [linksOpen, setLinksOpen] = useState(false);
   const monitoredLabel = item.monitored ? "Monitored" : "Unmonitored";
@@ -204,25 +198,7 @@ export const ArtistPosterCard = memo(function ArtistPosterCard({
 
   return (
     <div className={classes.card} data-actions-open={linksOpen || undefined}>
-      {reduceMotion ? (
-        poster
-      ) : (
-        <Tilt
-          className={classes.tilt}
-          tiltMaxAngleX={12}
-          tiltMaxAngleY={12}
-          perspective={900}
-          transitionSpeed={450}
-          scale={1.04}
-          glareEnable
-          glareMaxOpacity={0.22}
-          glareColor="#ffffff"
-          glarePosition="all"
-          glareBorderRadius="var(--poster-radius, 8px)"
-        >
-          {poster}
-        </Tilt>
-      )}
+      {poster}
 
       <Text className={classes.title} title={item.title}>
         {item.title}

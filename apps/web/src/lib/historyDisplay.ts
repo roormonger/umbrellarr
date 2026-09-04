@@ -1,4 +1,4 @@
-import type { ArrKind, HistoryListItem } from "@umbrellarr/shared";
+import type { ArrKind, HistoryKind, HistoryListItem } from "@umbrellarr/shared";
 
 export { kindLabel, instanceNameFor } from "@/lib/queueDisplay";
 
@@ -12,6 +12,9 @@ function formatEpisode(season?: number, episode?: number): string | null {
 }
 
 export function historyRowPrimary(item: HistoryListItem): string {
+  if (item.kind === "prowlarr") {
+    return item.indexerName ?? (item.sourceTitle || "Indexer");
+  }
   if (item.kind === "radarr") {
     const movie = item.movieTitle ?? item.sourceTitle;
     return item.year != null ? `${movie} (${item.year})` : movie;
@@ -26,6 +29,12 @@ export function historyRowPrimary(item: HistoryListItem): string {
 }
 
 export function historyRowSecondary(item: HistoryListItem): string | null {
+  if (item.kind === "prowlarr") {
+    const query = item.sourceTitle || item.data.query;
+    if (query && query !== item.indexerName) return query;
+    const source = item.data.source;
+    return source || null;
+  }
   if (item.kind === "radarr") {
     const release = item.sourceTitle;
     const movie = item.movieTitle ?? "";
@@ -94,12 +103,45 @@ export function formatHistoryDate(value: string): string {
   return `${month} ${day} ${year}`;
 }
 
+export function formatHistoryDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value || "—";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 export function formatScore(score?: number): string {
   if (score == null) return "—";
   return score > 0 ? `+${score}` : String(score);
 }
 
-export function historyEventLabel(eventType: HistoryListItem["eventType"], kind: ArrKind): string {
+export function formatElapsedMs(value?: string): string {
+  if (!value) return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return value.endsWith("ms") ? value : `${value}ms`;
+  return `${Math.round(n)}ms`;
+}
+
+export function historyCategories(item: HistoryListItem): string[] {
+  const raw = item.data.categories ?? item.data.category ?? "";
+  if (!raw) return [];
+  return raw
+    .split(/[,|]/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+export function historyEventLabel(
+  eventType: HistoryListItem["eventType"],
+  kind: HistoryKind | ArrKind,
+): string {
   const labels: Partial<Record<HistoryListItem["eventType"], string>> = {
     grabbed: "Grabbed",
     downloadFailed: "Download failed",
@@ -107,7 +149,7 @@ export function historyEventLabel(eventType: HistoryListItem["eventType"], kind:
     downloadFolderImported: kind === "sonarr" ? "Episode imported" : "Imported",
     movieFolderImported: "Folder imported",
     seriesFolderImported: "Folder imported",
-    movieFileDeleted: kind === "radarr" ? "File deleted" : "File deleted",
+    movieFileDeleted: "File deleted",
     episodeFileDeleted: "File deleted",
     trackFileDeleted: "File deleted",
     movieFileRenamed: "Renamed",
@@ -117,6 +159,11 @@ export function historyEventLabel(eventType: HistoryListItem["eventType"], kind:
     albumFolderImported: "Album folder imported",
     artistFolderImported: "Artist folder imported",
     trackFileRetagged: "Retagged",
+    indexerQuery: "Indexer Query",
+    indexerRss: "Indexer RSS Query",
+    indexerAuth: "Indexer Auth",
+    indexerInfo: "Indexer Info",
+    indexerDownload: "Indexer Grab",
     unknown: "Unknown",
   };
   return labels[eventType] ?? "Unknown";

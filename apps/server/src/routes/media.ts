@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Instance } from "@umbrellarr/shared";
 import type { AppVariables } from "../app.js";
+import { getMediaImageCache } from "../cache/mediaImageCache.js";
 import { arrFetch, arrJson } from "../servarr/client.js";
 import {
   isImageContentType,
@@ -12,6 +13,8 @@ import {
   toGridPosterPath,
   type LidarrCoverImage,
 } from "../servarr/mediaCover.js";
+
+const IMAGE_CACHE_CONTROL = "private, max-age=2592000, stale-while-revalidate=604800";
 
 const artistCoverCache = new Map<
   string,
@@ -40,6 +43,20 @@ export function createMediaRoutes() {
     }
 
     try {
+      const diskCache = getMediaImageCache();
+      const cached = diskCache ? await diskCache.get(instanceId, path) : null;
+      if (cached) {
+      return new Response(Uint8Array.from(cached.body), {
+        status: 200,
+        headers: {
+          "Content-Type": cached.contentType,
+          "Content-Length": String(cached.body.byteLength),
+          "Cache-Control": IMAGE_CACHE_CONTROL,
+          "X-Media-Cache": "HIT",
+        },
+      });
+    }
+
       const candidates =
         instance.kind === "lidarr"
           ? lidarrCoverPathCandidates(path)
@@ -74,14 +91,16 @@ export function createMediaRoutes() {
       }
 
       const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
-      const buffer = await upstream.arrayBuffer();
+      const buffer = Buffer.from(await upstream.arrayBuffer());
+      void diskCache?.set(instanceId, path, buffer, contentType);
 
-      return new Response(buffer, {
+      return new Response(Uint8Array.from(buffer), {
         status: 200,
         headers: {
           "Content-Type": contentType,
           "Content-Length": String(buffer.byteLength),
-          "Cache-Control": "private, max-age=2592000, stale-while-revalidate=604800",
+          "Cache-Control": IMAGE_CACHE_CONTROL,
+          "X-Media-Cache": "MISS",
         },
       });
     } catch (error) {

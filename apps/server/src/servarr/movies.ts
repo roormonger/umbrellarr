@@ -117,7 +117,6 @@ export function mapRadarrMovie(
     year: movie.year,
     posterUrl: posterUrlFor(instance, movie),
     monitored: movie.monitored,
-    inLibrary: true,
     hasFile: movie.hasFile,
     isAvailable: movie.isAvailable,
     availability: moviePosterStatus({
@@ -129,7 +128,6 @@ export function mapRadarrMovie(
     }),
     tmdbId: movie.tmdbId,
     studio: movie.studio,
-    qualityProfileId: movie.qualityProfileId,
     qualityProfileName:
       movie.qualityProfileId != null ? profiles.get(movie.qualityProfileId) : undefined,
     added: movie.added,

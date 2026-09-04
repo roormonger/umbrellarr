@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createApp } from "./app.js";
 import { LibraryCache } from "./cache/libraryCache.js";
+import { initMediaImageCache } from "./cache/mediaImageCache.js";
 import { AppearanceStore } from "./config/appearanceStore.js";
 import { CalendarFeedStore } from "./config/calendarFeedStore.js";
 import { loadEnv } from "./config/env.js";
@@ -26,6 +27,7 @@ async function main() {
 
   console.log(`[db] ${databasePath}`);
   const db = openDatabase(databasePath);
+  initMediaImageCache(path.dirname(databasePath));
   const libraryIndex = new LibraryIndexStore(db);
 
   const libraryCache = new LibraryCache({

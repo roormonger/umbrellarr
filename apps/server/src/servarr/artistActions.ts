@@ -480,11 +480,16 @@ export async function fetchArtistReleases(
   instances: Instance[],
   instanceId: string,
   artistId: number,
+  albumId?: number,
 ): Promise<ArtistRelease[]> {
   const instance = requireInstance(instances, instanceId);
+  const query =
+    albumId != null && Number.isFinite(albumId)
+      ? `albumId=${albumId}`
+      : `artistId=${artistId}`;
   const releases = await arrJson<LidarrRelease[]>(
     instance,
-    `/api/v1/release?artistId=${artistId}`,
+    `/api/v1/release?${query}`,
     { timeoutMs: 120_000 },
   );
   return releases.map(mapRelease).filter((r): r is ArtistRelease => r != null);

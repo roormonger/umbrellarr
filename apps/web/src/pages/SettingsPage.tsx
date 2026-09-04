@@ -52,6 +52,7 @@ const KIND_URL_PLACEHOLDER: Record<InstanceKind, string> = {
   sonarr: "http://localhost:8989",
   lidarr: "http://localhost:8686",
   seerr: "http://localhost:5055",
+  prowlarr: "http://localhost:9696",
 };
 
 const EMPTY_FORM: FormState = {
@@ -156,12 +157,19 @@ export function SettingsPage() {
     setTestResult(null);
   }, [modalOpen, editing]);
 
+  function writeInstancesCache(instances: InstancePublic[]) {
+    queryClient.setQueryData<{ instances: InstancePublic[] }>(["instances"], { instances });
+  }
+
   async function invalidateAll() {
-    await queryClient.invalidateQueries({ queryKey: ["instances"] });
-    await queryClient.invalidateQueries({ queryKey: ["movies"] });
-    await queryClient.invalidateQueries({ queryKey: ["shows"] });
-    await queryClient.invalidateQueries({ queryKey: ["artists"] });
-    await queryClient.invalidateQueries({ queryKey: ["stats"] });
+    await queryClient.invalidateQueries({ queryKey: ["instances"], exact: true });
+    void queryClient.invalidateQueries({ queryKey: ["instances", "status"] });
+    void queryClient.invalidateQueries({ queryKey: ["movies"] });
+    void queryClient.invalidateQueries({ queryKey: ["shows"] });
+    void queryClient.invalidateQueries({ queryKey: ["artists"] });
+    void queryClient.invalidateQueries({ queryKey: ["discover"] });
+    void queryClient.invalidateQueries({ queryKey: ["requests"] });
+    void queryClient.invalidateQueries({ queryKey: ["stats"] });
   }
 
   const saveMutation = useMutation({
@@ -181,7 +189,14 @@ export function SettingsPage() {
         apiKey: form.apiKey.trim(),
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      const next = result.instance;
+      const list = instancesQuery.data?.instances ?? [];
+      writeInstancesCache(
+        list.some((item) => item.id === next.id)
+          ? list.map((item) => (item.id === next.id ? next : item))
+          : [...list, next],
+      );
       notifications.show({
         color: "green",
         message: editing ? "Client updated" : "Client added",
@@ -201,7 +216,8 @@ export function SettingsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteInstance(id),
-    onSuccess: async () => {
+    onSuccess: async (_result, id) => {
+      writeInstancesCache((instancesQuery.data?.instances ?? []).filter((item) => item.id !== id));
       notifications.show({ color: "green", message: "Client removed" });
       await invalidateAll();
     },
@@ -338,7 +354,7 @@ export function SettingsPage() {
 
       {!instancesQuery.isLoading && instances.length === 0 && (
         <Text c="dimmed" size="sm">
-          No Arr clients yet. Add one, or restart with RADARR_*/SONARR_*/LIDARR_* env vars for a
+          No clients yet. Add one, or restart with RADARR_*/SONARR_*/LIDARR_*/SEERR_*/PROWLARR_* env vars for a
           one-time import.
         </Text>
       )}
@@ -463,6 +479,7 @@ export function SettingsPage() {
               { value: "sonarr", label: "Sonarr (Shows)" },
               { value: "lidarr", label: "Lidarr (Music)" },
               { value: "seerr", label: "Seerr (Requests)" },
+              { value: "prowlarr", label: "Prowlarr (Indexers)" },
             ]}
             value={form.kind}
             allowDeselect={false}
