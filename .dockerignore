@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+data
+.env
+.env.*
+!.env.example
+*.log
+coverage
+.turbo
+.vite
+**/.vite
+.DS_Store
+.cursor
