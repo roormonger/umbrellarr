@@ -918,7 +918,7 @@ async function buildDiscoverHomeContent(
     instanceId,
   );
 
-  const home: DiscoverHomeResponse = {
+  const home = stripHomeBadges({
     instanceId,
     featured,
     movies: {
@@ -965,7 +965,7 @@ async function buildDiscoverHomeContent(
         },
       ],
     },
-  };
+  });
 
   return { home, contentFailed, posterCount };
 }
