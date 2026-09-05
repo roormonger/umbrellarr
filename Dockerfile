@@ -25,6 +25,10 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
+# Always persist SQLite (and media-cache) on /data — bind-mount or named volume required.
+# Without this, the app falls back to /app/data inside the container (ephemeral).
+ENV DATABASE_PATH=/data/umbrellarr.db
+VOLUME ["/data"]
 
 COPY --from=build /app/package.json ./
 COPY --from=build /app/pnpm-workspace.yaml ./
